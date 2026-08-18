@@ -1,0 +1,227 @@
+# LightGuide v2 — Companion App Design
+
+**Date:** 18 August 2026
+**Status:** Approved for planning
+**Predecessor:** LightGuide Edge (COM683 CW2, submitted 8 August 2026) — separate repo, untouched
+
+---
+
+## 1. Problem
+
+A photographer wants a light stand at a specific distance from the subject and can't
+place it accurately by eye. LightGuide Edge v1 solved a narrower version of this: it
+classified the *current* setup against a *captured* reference and reported deviation.
+
+Two limits made v1 hard to use:
+
+1. **You needed the rig to author anything.** A setup could only be created by standing
+   at the stand and capturing sensor values.
+2. **A captured reading isn't portable.** A stored raw value is meaningful only to the
+   sensor that recorded it — not to a new board, a different studio, or an assistant.
+
+v2 inverts the interaction: **the user states the target, the device guides them to it.**
+
+## 2. What v2 is
+
+An ESP32 device plus a companion web app, with two features:
+
+- **Quick guide** — type a distance (`50 cm`), get guided to it. Nothing named or saved.
+  This is the common case.
+- **Setup library** — setups worth keeping, browsable and re-runnable. Offered as a
+  one-tap save after a quick guide, not a separate flow.
+
+Both are entry points to the same guidance engine.
+
+### Scope decision: option B
+
+Distance-only (option A) was considered and rejected. A lighting tool that ignores light
+is a tape measure. v2 covers **distance and brightness**, with different authoring rules
+for each (§4).
+
+### Explicitly out of scope for v1
+
+- Cloud accounts and sync — designed for, built next (§5)
+- Reference photos per setup — depends on the cloud tier
+- On-device ML — v1 guidance is arithmetic; see §10 for where ML earns its place later
+- Tilt / IMU — cut in v1 of the project, still cut
+- Multi-light setups — one stand at a time
+
+## 3. Architecture
+
+Three layers with a typed contract at the hinge. The contract is the deliverable that
+makes today's work useful before hardware exists.
+
+```
+┌─────────────────────────────────────────────┐
+│ Companion app — Vite + Preact + TypeScript  │
+│  ui/  guidance/  store/  cache/  backup/    │
+└─────────────────────────────────────────────┘
+                     ↕
+┌─────────────────────────────────────────────┐
+│ device/ — the typed contract                │
+│  listSetups · saveSetup · deleteSetup       │
+│  setActiveTarget · subscribeLive            │
+│                                             │
+│  MockDeviceClient  ←→  HttpDeviceClient     │
+└─────────────────────────────────────────────┘
+                     ↕
+┌─────────────────────────────────────────────┐
+│ ESP32 firmware (when devices arrive)        │
+│  sensors · LittleFS · http+ws · SoftAP      │
+└─────────────────────────────────────────────┘
+```
+
+**Preact over React:** the bundle is served from ESP32 flash alongside firmware. Preact is
+~4 KB gzipped against React's ~45 KB, same component API. Target bundle 30–50 KB gzipped.
+
+**SoftAP, not station mode.** The ESP32 broadcasts its own network; the phone joins it
+directly at a fixed address. No router, no internet, and no captive portal asking the user
+for their home Wi-Fi password. Accepted cost: the phone has no internet while joined, and
+will warn about it. Station mode is a v2+ option for the cloud tier.
+
+**Where classification lives.** The device measures; the app computes display deltas and
+instruction wording from the reading and the active target. This means guidance copy,
+tolerances and the whole target view can change without reflashing a board.
+
+## 4. Data model
+
+One setup object. Each field has its own fill rules.
+
+| Field | Typed | Captured | Why |
+|---|---|---|---|
+| Distance | ✓ `50 cm` | ✓ "use current" | Absolute physical quantity |
+| Brightness | ✗ | ✓ only | Relative to ambient and to this sensor — measurable, not writable |
+
+```json
+{
+  "id": "01J8XYZ...",
+  "name": "Portrait key",
+  "distance_cm": 50,
+  "distance_source": "typed",
+  "distance_tol_cm": 5,
+  "brightness_above_ambient": 0.51,
+  "brightness_tol": 0.08,
+  "brightness_captured_at": "2026-08-18T11:42:00Z",
+  "created_at": "2026-08-18T11:42:00Z",
+  "updated_at": "2026-08-18T11:42:00Z",
+  "deleted": false
+}
+```
+
+`brightness_above_ambient` and `brightness_tol` are dimensionless fractions of the
+calibrated sensor range (0.0–1.0), not lux — the sensor is not absolutely calibrated.
+`brightness_above_ambient` may be `null`: a distance-only setup is valid and guides on one
+axis.
+
+**`updated_at` and `deleted` exist from the first line of code.** They are what make the
+cloud tier a drop-in later rather than a migration. Last-write-wins per setup is
+sufficient: one user, infrequent edits, no CRDT needed.
+
+### The ambient re-zero — non-negotiable
+
+Brightness is stored **above ambient**, never raw. Capture is two steps: light off (read
+ambient), light on (read level), store the difference.
+
+A raw reading captured at 9 pm with blinds shut is wrong at 2 pm the next day — the setup
+would instruct the user to dim a light that is already correct. The ambient-subtracted
+delta survives the change.
+
+This reuses v1's existing calibration, whose method is already
+*"inverse-square-law self-calibration, ambient-subtracted"* (γ = 0.6233, r² = 0.997,
+`absolute_lux: false`). The maths exists; v2 supplies the two-step capture flow that feeds it.
+
+## 5. Storage and durability
+
+| Tier | Role | Notes |
+|---|---|---|
+| ESP32 LittleFS | **Run-time authority** | Full library as JSON. Guidance works with zero internet. ~200 B/setup. |
+| Phone / browser | **Cache only** | IndexedDB. Lets the user browse with the rig off. Safe to lose entirely. |
+| Cloud account | **System of record** | Deferred to next milestone. |
+
+Device-only storage is *not* durable — the board becomes the single point of failure on
+death or reflash. **JSON export/import ships in v1** as the interim answer and remains
+permanently as the anti-lock-in guarantee.
+
+When the cloud tier lands: no forced login. The app stays fully functional anonymously;
+backup is offered after the user has saved a few setups, framed as *"back these up?"* not
+*"sign up."* Existing local data is claimed into the new account, never discarded.
+
+## 6. Interface
+
+Four screens, no nested menus.
+
+```
+Library (home) → New setup → Setup detail → Live guidance
+      └──────── Quick guide ────────────────────┘
+```
+
+**Live guidance — two-axis target.** Distance on x, brightness on y; the green box is
+in-tolerance on both. The area around the target tints with state (green/amber) so the
+answer is readable from 2 m, while the target itself carries the detail up close. Below
+it, per-channel bars with the tolerance band and current pin.
+
+**Library — target cards.** Each row carries a mini target sized to that setup's
+tolerance, so fussy and forgiving setups are distinguishable at a glance. Reuses the live
+view's visual language.
+
+**New setup.** Name, distance (typed, or "use current reading"), light reference
+(capture, or skip). Save is confirmed by the device, never optimistic.
+
+## 7. Guidance logic
+
+Pure functions in `guidance/`, no I/O:
+
+```
+verdict(reading, target) → {
+  distance_delta_cm, distance_state,
+  brightness_delta,  brightness_state,
+  instruction, trustworthy
+}
+```
+
+State is `in_band` when `|current − target| ≤ tolerance`, otherwise directional. The
+instruction names one adjustment at a time, distance first — moving the stand changes the
+light level too, so correcting brightness before distance wastes the user's effort.
+
+## 8. Error handling
+
+Live hardware links fail in specific ways, and a wrong "you're on target" is worse than a
+visible disconnect.
+
+- **Wi-Fi drops** — target freezes, dims, timestamps the last good reading. Never render a
+  stale reading as live. Auto-reconnect with backoff.
+- **Sensor dropout** — ultrasonic misses on soft and angled surfaces. The contract carries
+  `null`, not `0`. The affected axis greys out; the other keeps working.
+- **Reading unstable** — the stand is still moving, or something crossed the beam.
+  Guidance holds rather than flickering between instructions.
+- **Save fails / storage full** — reported as a failure. No optimistic UI.
+
+## 9. Testing
+
+- `guidance/` is pure — the interesting logic unit-tests with zero mocking.
+- **One contract conformance suite that both `MockDeviceClient` and the real firmware must
+  pass.** This is what stops the two implementations drifting, and it is how an arriving
+  board gets validated in ten minutes rather than a day.
+- The mock replays v1's existing `data/raw/*.csv` at 10 Hz, so the live view is exercised
+  against real sensor traces including their genuine noise and dropouts.
+
+## 10. Deferred, with reasons
+
+| Item | Why not now | Trigger |
+|---|---|---|
+| Cloud accounts + sync | Would be built against a simulated device; riskiest part stays untested | After hardware validates the contract |
+| Reference photos | 200 KB+ each; needs object storage | With the cloud tier |
+| On-device ML | v1 guidance is genuinely arithmetic; a model would be decorative | When reading-trust becomes the problem (below) |
+| VL53L0X time-of-flight | Hardware already ordered | If ultrasonic accuracy proves insufficient |
+
+**Where ML earns its place in v2+:** not in classification — subtraction covers that — but
+in **reading trust**. Ultrasonic sensors produce garbage constantly: soft surfaces absorb
+the ping, angled surfaces deflect it, a person crosses the beam. Deciding *"the stand has
+settled and this reading is real"* versus *"discard, that was someone walking past"* is
+signal work a threshold cannot do, and it is the difference between a demo and a usable
+instrument.
+
+**Hardware note:** typed targets raise the distance-accuracy bar. Classifying into
+*too close / optimal / too far* tolerates ±5 cm; guiding to *exactly* 50 cm does not. If
+HC-SR04 is what arrives, VL53L0X gives millimetre precision and is unbothered by the soft
+and angled surfaces — fabric backdrops, human subjects — where ultrasonic fails.
