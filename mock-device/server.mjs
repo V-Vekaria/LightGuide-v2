@@ -11,6 +11,8 @@ const STORE = join(DIR, 'setups.json');
 const PORT = 8080;
 const ADC_MAX = 4095;      // 12-bit, matches v1 calibration
 const AMBIENT = 0.06;      // simulated ambient level, 0..1
+const parsedDropout = Number(process.env.MOCK_DROPOUT_PCT || '0');
+const MOCK_DROPOUT_PCT = Number.isFinite(parsedDropout) ? Math.max(0, Math.min(100, parsedDropout)) : 0;
 
 function loadSetups() {
   if (!existsSync(STORE)) return [];
@@ -48,6 +50,9 @@ function loadTrace() {
 
 const trace = loadTrace();
 console.log(`mock device: ${trace.length} rows loaded from real v1 traces`);
+if (MOCK_DROPOUT_PCT > 0) {
+  console.log(`mock device: injecting ${MOCK_DROPOUT_PCT}% distance dropouts`);
+}
 
 let setups = loadSetups();
 let activeTarget = null;
@@ -111,8 +116,12 @@ setInterval(() => {
   const row = trace[cursor % trace.length];
   cursor += 1;
   seq += 1;
+  let distance = row.distance_cm;
+  if (MOCK_DROPOUT_PCT > 0 && Math.random() * 100 < MOCK_DROPOUT_PCT) {
+    distance = null;
+  }
   const payload = JSON.stringify({
-    distance_cm: row.distance_cm,
+    distance_cm: distance,
     brightness: row.brightness,
     ambient: AMBIENT,
     seq,
