@@ -1,0 +1,71 @@
+:root {
+  --bg: #0b0f19;
+  --panel: #111827;
+  --line: #1f2937;
+  --text: #f9fafb;
+  --muted: #6b7280;
+  --dim: #94a3b8;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+  --info: #60a5fa;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+.screen { flex: 1; display: flex; flex-direction: column; }
+.screen-top {
+  padding: 14px 16px; border-bottom: 1px solid var(--line);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.screen-title { font-size: 18px; font-weight: 700; }
+.screen-body { flex: 1; padding: 16px; }
+.screen-foot { padding: 12px 16px 20px; border-top: 1px solid var(--line); }
+
+.btn {
+  width: 100%; padding: 13px; border-radius: 10px; border: 0;
+  background: var(--ok); color: #05240f; font-size: 15px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+}
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--dim); }
+.btn-info { background: #1e3a8a; color: #dbeafe; }
+.btn + .btn { margin-top: 8px; }
+
+.field { margin-bottom: 18px; }
+.field-label {
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+.input {
+  width: 100%; padding: 12px; border-radius: 9px; font-size: 16px;
+  background: #131c2b; border: 1px solid #2a3444; color: var(--text);
+  font-family: inherit;
+}
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.link-btn {
+  background: none; border: 0; color: var(--info); font-size: 13px;
+  padding: 6px 0; cursor: pointer; font-family: inherit;
+}
+
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.status-connected { background: var(--ok); }
+.status-connecting { background: var(--warn); }
+.status-disconnected { background: var(--bad); }
+
+.stale-banner {
+  background: rgba(239, 68, 68, .12); border: 1px solid rgba(239, 68, 68, .4);
+  color: #fecaca; padding: 10px 12px; border-radius: 9px;
+  font-size: 13px; margin-bottom: 14px;
+}
