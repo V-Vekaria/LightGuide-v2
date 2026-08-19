@@ -6,6 +6,7 @@ import { CaptureLight } from './CaptureLight';
 export function NewSetup() {
   const [name, setName] = useState('');
   const [distance, setDistance] = useState('');
+  const [distanceSource, setDistanceSource] = useState<'typed' | 'captured'>('typed');
   const [tolerance, setTolerance] = useState(String(DEFAULT_DISTANCE_TOL_CM));
   const [light, setLight] = useState<number | null>(null);
   const [capturing, setCapturing] = useState(false);
@@ -32,8 +33,8 @@ export function NewSetup() {
       await persistSetup(newSetup({
         name: name.trim(),
         distance_cm: distanceValue,
-        distance_source: 'typed',
-        distance_tol_cm: Number(tolerance) || DEFAULT_DISTANCE_TOL_CM,
+        distance_source: distanceSource,
+        distance_tol_cm: (() => { const n = Number(tolerance); return Number.isFinite(n) && n >= 0 ? n : DEFAULT_DISTANCE_TOL_CM; })(),
         brightness_above_ambient: light,
       }));
       screen.value = 'library';
@@ -71,10 +72,10 @@ export function NewSetup() {
             inputMode="decimal"
             value={distance}
             placeholder="50"
-            onInput={(e) => setDistance((e.currentTarget as HTMLInputElement).value)}
+            onInput={(e) => { setDistance((e.currentTarget as HTMLInputElement).value); setDistanceSource('typed'); }}
           />
           {liveDistance !== null && (
-            <button class="link-btn" onClick={() => setDistance(String(liveDistance))}>
+            <button class="link-btn" onClick={() => { setDistance(String(liveDistance)); setDistanceSource('captured'); }}>
               ↻ or use current reading — {liveDistance.toFixed(1)} cm
             </button>
           )}
