@@ -1,7 +1,9 @@
 // Mock ESP32. Implements the same HTTP + WS surface the firmware will.
 // Replays real v1 traces at 10 Hz. The traces carry genuine sensor noise,
-// but the vendored dataset has no dropouts (0 of 1832 rows have missed=1),
-// so set MOCK_DROPOUT_PCT to exercise the null-distance dropout path.
+// but no dropouts at all: the full v1 capture had missed=1 on 0 of its 1832
+// rows, and the ~181 rows vendored here under traces/ inherit that. Default
+// replay therefore never exercises the null-distance path — set
+// MOCK_DROPOUT_PCT to inject dropouts and exercise it.
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
