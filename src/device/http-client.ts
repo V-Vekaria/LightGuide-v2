@@ -51,6 +51,16 @@ export class HttpDeviceClient implements DeviceClient {
     if (!this.socket) this.connect();
     return () => {
       this.listeners.delete(cb);
+      // We deliberately do NOT close an already-open socket just because the
+      // last listener left — transport lifecycle belongs to close(). Tying it
+      // to subscriber count would cause resubscribe churn (open/close/open on
+      // every unsubscribe-then-resubscribe). We do still cancel a pending
+      // reconnect timer below, so a cancelled subscription can't cause a
+      // fresh socket to open later and serve zero listeners.
+      if (this.listeners.size === 0 && this.retryTimer) {
+        clearTimeout(this.retryTimer);
+        this.retryTimer = null;
+      }
     };
   }
 
@@ -84,7 +94,14 @@ export class HttpDeviceClient implements DeviceClient {
 
   private scheduleReconnect(): void {
     if (this.closed || this.listeners.size === 0) return;
-    this.retryTimer = setTimeout(() => this.connect(), this.backoff);
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      // Re-check on fire, not just on arm: a listener that unsubscribed
+      // between arming and firing (without clearing the timer some other
+      // way) must not cause a fresh socket to open for zero listeners.
+      if (this.closed || this.listeners.size === 0) return;
+      this.connect();
+    }, this.backoff);
     this.backoff = Math.min(this.backoff * 2, RECONNECT_MAX_MS);
   }
 
