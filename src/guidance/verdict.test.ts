@@ -93,4 +93,19 @@ describe('verdict', () => {
     expect(verdict(reading({ distance_cm: 55 }), target).distance_state).toBe('in_band');
     expect(verdict(reading({ distance_cm: 55.1 }), target).distance_state).toBe('over');
   });
+
+  it('warns when light guidance is active but sensor drops out', () => {
+    const v = verdict(reading({ ambient: null }), target);
+    expect(v.distance_state).toBe('in_band');
+    expect(v.brightness_state).toBe('unknown');
+    expect(v.instruction).toBe('On target for distance — no light reading');
+  });
+
+  it('still says on target for distance-only setups even when light is unreadable', () => {
+    const distanceOnly: Target = { ...target, brightness_above_ambient: null };
+    const v = verdict(reading({ brightness: null, ambient: null }), distanceOnly);
+    expect(v.distance_state).toBe('in_band');
+    expect(v.brightness_state).toBe('unknown');
+    expect(v.instruction).toBe('On target');
+  });
 });

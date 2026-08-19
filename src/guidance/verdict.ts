@@ -14,6 +14,7 @@ function instructionFor(
   distanceState: ChannelState,
   distanceDelta: number | null,
   brightnessState: ChannelState,
+  guidingOnLight: boolean,
 ): string {
   if (distanceState === 'unknown' || distanceDelta === null) {
     return 'Waiting for a clear reading';
@@ -23,6 +24,9 @@ function instructionFor(
   if (distanceState === 'under') return `Move ${round(Math.abs(distanceDelta), 1)} cm further`;
   if (brightnessState === 'under') return 'Raise the light';
   if (brightnessState === 'over') return 'Lower the light';
+  if (guidingOnLight && brightnessState === 'unknown') {
+    return 'On target for distance — no light reading';
+  }
   return 'On target';
 }
 
@@ -49,7 +53,7 @@ export function verdict(reading: Reading, target: Target): Verdict {
     distance_state,
     brightness_delta,
     brightness_state,
-    instruction: instructionFor(distance_state, distance_delta_cm, brightness_state),
+    instruction: instructionFor(distance_state, distance_delta_cm, brightness_state, guidingOnLight),
     trustworthy: distance_state !== 'unknown',
   };
 }
