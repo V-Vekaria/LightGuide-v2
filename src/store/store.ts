@@ -43,8 +43,10 @@ export function connect(client: DeviceClient): void {
       setups.value = cached;
     }
   });
+  // Generation-guarded like every other write above: a stale connect()'s
+  // failure must not clobber the status of a newer, live connection.
   void refreshSetups().catch(() => {
-    status.value = 'disconnected';
+    if (myGeneration === generation) status.value = 'disconnected';
   });
 }
 
