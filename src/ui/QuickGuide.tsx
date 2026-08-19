@@ -9,50 +9,43 @@ export function QuickGuide() {
   const valid = Number.isFinite(value) && value > 0;
 
   return (
-    <div class="screen">
-      <div class="screen-top">
-        <div class="screen-title">Quick guide</div>
-        <button class="link-btn" onClick={() => (screen.value = 'library')}>Cancel</button>
+    <div class="wrap-tight">
+      <div class="row">
+        <span class="section-title">Quick guide</span>
+        <button class="link-btn" onClick={() => (screen.value = 'library')}>
+          Cancel
+        </button>
       </div>
 
-      <div class="screen-body">
-        <p style={{ color: 'var(--dim)', fontSize: 14, lineHeight: 1.6, marginTop: 0 }}>
-          Where do you want the light? We'll walk you to it. Nothing is saved.
-        </p>
+      <p class="hint" style={{ marginTop: 0, marginBottom: 22, fontSize: 13.5 }}>
+        Where do you want the light? We'll walk you to it. Nothing is saved — use{' '}
+        <strong>New setup</strong> if you want to keep it.
+      </p>
 
-        <div class="field">
-          <div class="field-label">Target distance (cm)</div>
-          <input
-            class="input"
-            type="number"
-            inputMode="decimal"
-            value={distance}
-            placeholder="50"
-            autofocus
-            onInput={(e) => setDistance((e.currentTarget as HTMLInputElement).value)}
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {[30, 50, 80, 120].map((preset) => (
-            <button
-              key={preset}
-              class="link-btn"
-              style={{
-                border: '1px solid var(--line)', borderRadius: 8,
-                padding: '8px 14px', color: 'var(--text)',
-              }}
-              onClick={() => setDistance(String(preset))}
-            >
-              {preset} cm
-            </button>
-          ))}
-        </div>
+      <div class="field">
+        <div class="field-label">Target distance (cm)</div>
+        <input
+          class="input"
+          type="number"
+          inputMode="decimal"
+          value={distance}
+          placeholder="50"
+          autofocus
+          onInput={(e) => setDistance((e.currentTarget as HTMLInputElement).value)}
+        />
       </div>
 
-      <div class="screen-foot">
+      <div class="preset-row">
+        {[30, 50, 80, 120].map((preset) => (
+          <button key={preset} class="preset" onClick={() => setDistance(String(preset))}>
+            {preset} cm
+          </button>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 26 }}>
         <button
-          class="btn"
+          class="btn btn-block"
           disabled={!valid}
           onClick={() => {
             void startGuiding({

@@ -22,7 +22,7 @@ function axisFraction(delta: number | null, tol: number): number | null {
   return Math.max(-1, Math.min(1, scaled));
 }
 
-const NEUTRAL_TINT = 'rgba(148,163,184,.10)';
+const NEUTRAL_TINT = 'rgba(107,117,126,.09)';
 
 function surroundColour(distance: ChannelState, brightness: ChannelState, guidingOnLight: boolean): string {
   if (distance === 'unknown') return NEUTRAL_TINT;
@@ -32,99 +32,97 @@ function surroundColour(distance: ChannelState, brightness: ChannelState, guidin
   // and that's expected, not a dropout.
   if (guidingOnLight && brightness === 'unknown') return NEUTRAL_TINT;
   const settled = distance === 'in_band' && (brightness === 'in_band' || !guidingOnLight);
-  return settled ? 'rgba(34,197,94,.14)' : 'rgba(245,158,11,.12)';
+  return settled ? 'rgba(31,157,85,.10)' : 'rgba(217,119,6,.10)';
 }
 
 // Dot geometry: the rendered dot's visible extent is its own box plus the halo ring around
 // it. Keep that whole footprint inside the plot (rather than clamping only the centre) so
-// nothing sits outside the container at full deflection.
-const DOT_SIZE = 18;
-const DOT_RADIUS = DOT_SIZE / 2;
-const HALO_WIDTH = 6;
-const DOT_INSET = DOT_RADIUS + HALO_WIDTH;
+// nothing sits outside the container at full deflection. Positions are percentages so the
+// plot can scale with the viewport; the CSS clamp mixes px and % to hold the inset at any
+// size, and overflow:hidden on the plot is the belt-and-braces backstop.
+const DOT_SIZE = 20;
+const HALO_WIDTH = 7;
+const DOT_INSET = DOT_SIZE / 2 + HALO_WIDTH;
 
-function clampToPlot(px: number, size: number, inset: number): number {
-  return Math.max(inset, Math.min(size - inset, px));
+/** One tolerance is a quarter of the half-width, so the in-band box spans 37.5%–62.5%. */
+const BAND_INSET_PCT = 37.5;
+
+function axisPosition(fraction: number): string {
+  const pct = 50 + fraction * 50;
+  return `clamp(${DOT_INSET}px, ${pct}%, calc(100% - ${DOT_INSET}px))`;
 }
 
 export function TargetView({ verdict, distanceTolCm, brightnessTol, guidingOnLight }: Props) {
-  const SIZE = 240;
-  const half = SIZE / 2;
-
   const dx = axisFraction(verdict.distance_delta_cm, distanceTolCm);
   // Brightness axis is inverted: brighter is up, and positive delta means brighter.
   const dy = axisFraction(verdict.brightness_delta, brightnessTol);
 
-  const bandPx = (SIZE / 2) * 0.25; // one tolerance = a quarter of the half-width
-  const dotX = clampToPlot(half + (dx ?? 0) * half, SIZE, DOT_INSET);
-  const dotY = clampToPlot(half - (dy ?? 0) * half, SIZE, DOT_INSET);
   const known = dx !== null;
   // Position is known (distance reading present) but the light channel is unverified on a
   // setup that's supposed to be guiding on light — draw the dot hollow, not solid.
   const lightUnverified = guidingOnLight && verdict.brightness_state === 'unknown';
+  const inBand = verdict.distance_state === 'in_band';
+
+  const dotBase = {
+    position: 'absolute' as const,
+    left: axisPosition(dx ?? 0),
+    top: axisPosition(-(dy ?? 0)),
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    marginLeft: -DOT_SIZE / 2,
+    marginTop: -DOT_SIZE / 2,
+    borderRadius: '50%',
+    transition: 'left .12s linear, top .12s linear',
+  };
 
   return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 10, letterSpacing: '.1em', color: 'var(--muted)' }}>BRIGHTER</div>
+    <div class="target">
+      <div class="target-axis target-axis-top">BRIGHTER</div>
+
       <div
+        class="target-plot"
         style={{
-          position: 'relative', width: SIZE, height: SIZE, margin: '6px auto',
-          borderRadius: 14, overflow: 'hidden',
           background: surroundColour(verdict.distance_state, verdict.brightness_state, guidingOnLight),
-          transition: 'background .3s',
         }}
       >
-        <div style={{ position: 'absolute', inset: 0, border: '1px solid var(--line)', borderRadius: 14 }} />
+        <div class="target-frame" />
         <div
-          style={{
-            position: 'absolute', left: half - bandPx, top: half - bandPx,
-            width: bandPx * 2, height: bandPx * 2,
-            border: '2px solid var(--ok)', borderRadius: 8, background: 'rgba(34,197,94,.10)',
-          }}
+          class="target-band"
+          style={{ inset: `${BAND_INSET_PCT}%` }}
         />
-        <div style={{ position: 'absolute', left: half, top: 0, bottom: 0, width: 1, background: 'var(--line)' }} />
-        <div style={{ position: 'absolute', top: half, left: 0, right: 0, height: 1, background: 'var(--line)' }} />
+        <div class="target-cross-v" />
+        <div class="target-cross-h" />
+
         {known ? (
           lightUnverified ? (
             <div
               style={{
-                position: 'absolute', left: dotX - DOT_RADIUS, top: dotY - DOT_RADIUS,
-                width: DOT_SIZE, height: DOT_SIZE, borderRadius: '50%',
-                background: 'transparent', border: '2px solid var(--dim)',
-                transition: 'left .12s linear, top .12s linear',
+                ...dotBase,
+                background: 'transparent',
+                border: '2px solid var(--muted)',
               }}
             />
           ) : (
             <div
               style={{
-                position: 'absolute', left: dotX - DOT_RADIUS, top: dotY - DOT_RADIUS,
-                width: DOT_SIZE, height: DOT_SIZE,
-                borderRadius: '50%',
-                background: verdict.distance_state === 'in_band' ? 'var(--ok)' : 'var(--warn)',
-                boxShadow: `0 0 0 ${HALO_WIDTH}px ${verdict.distance_state === 'in_band'
-                  ? 'rgba(34,197,94,.22)' : 'rgba(245,158,11,.22)'}`,
-                transition: 'left .12s linear, top .12s linear',
+                ...dotBase,
+                background: inBand ? 'var(--ok)' : 'var(--warn-dot)',
+                boxShadow: `0 0 0 ${HALO_WIDTH}px ${
+                  inBand ? 'rgba(31,157,85,.20)' : 'rgba(217,119,6,.18)'
+                }`,
               }}
             />
           )
         ) : (
-          <div style={{
-            position: 'absolute', inset: 0, display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            color: 'var(--muted)', fontSize: 13,
-          }}>
-            no reading
-          </div>
+          <div class="target-empty">no reading</div>
         )}
       </div>
-      <div style={{
-        display: 'flex', justifyContent: 'space-between',
-        width: SIZE, margin: '0 auto', fontSize: 10,
-        letterSpacing: '.1em', color: 'var(--muted)',
-      }}>
-        <span>CLOSER</span><span>FURTHER</span>
+
+      <div class="target-axis target-axis-sides">
+        <span>CLOSER</span>
+        <span>FURTHER</span>
       </div>
-      <div style={{ fontSize: 10, letterSpacing: '.1em', color: 'var(--muted)', marginTop: 4 }}>DIMMER</div>
+      <div class="target-axis target-axis-bottom">DIMMER</div>
     </div>
   );
 }

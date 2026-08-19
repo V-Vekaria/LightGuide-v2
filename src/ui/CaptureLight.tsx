@@ -6,6 +6,33 @@ interface Props {
   onCancel: () => void;
 }
 
+function BulbIcon({ on }: { on: boolean }) {
+  return (
+    <svg
+      width="28"
+      height="28"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={on ? 'var(--warn-dot)' : 'var(--faint)'}
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M9 18h6" />
+      <path d="M10 21h4" />
+      <path d="M12 3a6 6 0 0 0-3.6 10.8c.5.4.8.9.9 1.5l.1.7h5.2l.1-.7c.1-.6.4-1.1.9-1.5A6 6 0 0 0 12 3Z" />
+      {on && (
+        <>
+          <path d="M12 1v-.01" />
+          <path d="m4.5 4.5-.01-.01" />
+          <path d="m19.5 4.5.01-.01" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 /**
  * Two steps, and the first one is the point: reading ambient with the light off is
  * what makes the reference still valid next week under different daylight.
@@ -27,105 +54,102 @@ export function CaptureLight({ onCaptured, onCancel }: Props) {
   if (ambientAtConfirm === null) {
     const ambientNow = live?.ambient ?? null;
     return (
-      <div class="screen">
-        <div class="screen-top">
-          <div class="screen-title">Capture light</div>
-          <span style={{ fontSize: 11, color: 'var(--muted)' }}>step 1 of 2</span>
+      <div class="wrap-tight">
+        <div class="row">
+          <span class="section-title">Capture light</span>
+          <span style={{ fontSize: 11, color: 'var(--faint)' }}>Step 1 of 2</span>
         </div>
-        <div class="screen-body" style={{ textAlign: 'center', paddingTop: 40 }}>
-          <div style={{ fontSize: 34 }}>💡</div>
-          <div style={{ fontSize: 17, fontWeight: 600, margin: '14px 0 10px' }}>
-            Switch the light off
-          </div>
-          <p style={{ fontSize: 13, color: 'var(--dim)', lineHeight: 1.6 }}>
+
+        <div class="capture-stage">
+          <BulbIcon on={false} />
+          <div class="capture-title">Switch the light off</div>
+          <p class="capture-copy">
             Reading the room's ambient level first is what keeps this reference valid next week,
             under different daylight.
           </p>
-          <div style={{
-            marginTop: 24, background: '#131c2b', border: '1px solid #2a3444',
-            borderRadius: 10, padding: 14,
-          }}>
-            <div style={{ fontSize: 10, letterSpacing: '.1em', color: 'var(--muted)' }}>
-              AMBIENT NOW
+
+          <div class="capture-readout">
+            <div class="field-label" style={{ marginBottom: 0 }}>
+              Ambient now
             </div>
-            <div style={{ fontSize: 26, fontWeight: 700, marginTop: 4 }}>
-              {ambientNow === null ? '—' : ambientNow.toFixed(2)}
-            </div>
+            <div class="capture-value">{ambientNow === null ? '—' : ambientNow.toFixed(3)}</div>
           </div>
         </div>
-        <div class="screen-foot">
-          <button
-            class="btn"
-            disabled={ambientNow === null}
-            onClick={() => setAmbientAtConfirm(ambientNow)}
-          >
-            Ambient captured — next
-          </button>
-          {ambientNow === null && (
-            <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
-              No live reading from the device.
-            </p>
-          )}
-          <button class="btn btn-ghost" onClick={onCancel}>Cancel</button>
-        </div>
+
+        {ambientNow === null && (
+          <div class="notice" style={{ marginBottom: 12 }}>
+            No live reading from the device.
+          </div>
+        )}
+
+        <button
+          class="btn btn-block"
+          disabled={ambientNow === null}
+          onClick={() => setAmbientAtConfirm(ambientNow)}
+        >
+          Ambient captured — next
+        </button>
+        <button class="btn btn-ghost btn-block" style={{ marginTop: 8 }} onClick={onCancel}>
+          Cancel
+        </button>
       </div>
     );
   }
 
-  const aboveAmbient = live?.brightness == null || live?.ambient == null
-    ? null
-    : Number((live.brightness - live.ambient).toFixed(3));
+  const aboveAmbient =
+    live?.brightness == null || live?.ambient == null
+      ? null
+      : Number((live.brightness - live.ambient).toFixed(3));
   const notAboveAmbient = aboveAmbient !== null && aboveAmbient <= 0;
 
   return (
-    <div class="screen">
-      <div class="screen-top">
-        <div class="screen-title">Capture light</div>
-        <span style={{ fontSize: 11, color: 'var(--muted)' }}>step 2 of 2</span>
+    <div class="wrap-tight">
+      <div class="row">
+        <span class="section-title">Capture light</span>
+        <span style={{ fontSize: 11, color: 'var(--faint)' }}>Step 2 of 2</span>
       </div>
-      <div class="screen-body" style={{ textAlign: 'center', paddingTop: 40 }}>
-        <div style={{ fontSize: 34 }}>🔆</div>
-        <div style={{ fontSize: 17, fontWeight: 600, margin: '14px 0 10px' }}>
-          Switch the light on and set it how you want it
-        </div>
-        <p style={{ fontSize: 13, color: 'var(--dim)', lineHeight: 1.6 }}>
-          We store the difference from ambient, not the raw level.
-        </p>
-        <div style={{
-          marginTop: 24, background: '#131c2b', border: '1px solid #2a3444',
-          borderRadius: 10, padding: 14,
-        }}>
-          <div style={{ fontSize: 10, letterSpacing: '.1em', color: 'var(--muted)' }}>
-            ABOVE AMBIENT
+
+      <div class="capture-stage">
+        <BulbIcon on />
+        <div class="capture-title">Switch the light on and set it how you want it</div>
+        <p class="capture-copy">We store the difference from ambient, not the raw level.</p>
+
+        <div class="capture-readout">
+          <div class="field-label" style={{ marginBottom: 0 }}>
+            Above ambient
           </div>
-          <div style={{ fontSize: 26, fontWeight: 700, marginTop: 4 }}>
-            {aboveAmbient === null ? '—' : aboveAmbient.toFixed(2)}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-            ambient was {ambientAtConfirm.toFixed(2)}
+          <div class="capture-value">{aboveAmbient === null ? '—' : aboveAmbient.toFixed(3)}</div>
+          <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 4 }}>
+            ambient was {ambientAtConfirm.toFixed(3)}
           </div>
         </div>
       </div>
-      <div class="screen-foot">
-        <button
-          class="btn"
-          disabled={aboveAmbient === null || notAboveAmbient}
-          onClick={() => onCaptured(aboveAmbient!)}
-        >
-          Use this light level
-        </button>
-        {noLiveReading && (
-          <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
-            No live reading from the device.
-          </p>
-        )}
-        {!noLiveReading && notAboveAmbient && (
-          <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
-            The light must read brighter than ambient before it can be used as a reference.
-          </p>
-        )}
-        <button class="btn btn-ghost" onClick={() => setAmbientAtConfirm(null)}>Back</button>
-      </div>
+
+      {noLiveReading && (
+        <div class="notice" style={{ marginBottom: 12 }}>
+          No live reading from the device.
+        </div>
+      )}
+      {!noLiveReading && notAboveAmbient && (
+        <div class="notice" style={{ marginBottom: 12 }}>
+          The light must read brighter than ambient before it can be used as a reference.
+        </div>
+      )}
+
+      <button
+        class="btn btn-block"
+        disabled={aboveAmbient === null || notAboveAmbient}
+        onClick={() => onCaptured(aboveAmbient!)}
+      >
+        Use this light level
+      </button>
+      <button
+        class="btn btn-ghost btn-block"
+        style={{ marginTop: 8 }}
+        onClick={() => setAmbientAtConfirm(null)}
+      >
+        Back
+      </button>
     </div>
   );
 }

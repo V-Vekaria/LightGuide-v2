@@ -1,10 +1,24 @@
 import { useEffect } from 'preact/hooks';
 import { HttpDeviceClient } from './device/http-client';
 import { connect, disconnect, screen } from './store/store';
+import { AppBar } from './ui/Chrome';
 import { Library } from './ui/Library';
 import { LiveGuidance } from './ui/LiveGuidance';
 import { NewSetup } from './ui/NewSetup';
 import { QuickGuide } from './ui/QuickGuide';
+
+function Screen() {
+  switch (screen.value) {
+    case 'new':
+      return <NewSetup />;
+    case 'live':
+      return <LiveGuidance />;
+    case 'quick':
+      return <QuickGuide />;
+    default:
+      return <Library />;
+  }
+}
 
 export function App() {
   useEffect(() => {
@@ -20,10 +34,10 @@ export function App() {
     };
   }, []);
 
-  switch (screen.value) {
-    case 'new': return <NewSetup />;
-    case 'live': return <LiveGuidance />;
-    case 'quick': return <QuickGuide />;
-    default: return <Library />;
-  }
+  return (
+    <>
+      <AppBar />
+      <Screen />
+    </>
+  );
 }

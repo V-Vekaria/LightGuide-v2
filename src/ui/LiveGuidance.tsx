@@ -1,7 +1,16 @@
 import { TargetView } from './Target';
 import { verdict as computeVerdict } from '../guidance/verdict';
 import { isFeedStale, shouldSuppressGuidance, STALE_AFTER_MS } from '../guidance/liveness';
-import { activeTarget, lastGoodAt, reading, status, stopGuiding, tick } from '../store/store';
+import {
+  activeSetupId,
+  activeTarget,
+  lastGoodAt,
+  reading,
+  setups,
+  status,
+  stopGuiding,
+  tick,
+} from '../store/store';
 
 export function LiveGuidance() {
   // Read (and discard) the heartbeat so this component re-renders every 500ms
@@ -27,17 +36,67 @@ export function LiveGuidance() {
   // those two must render differently, and only the target can distinguish them.
   const guidingOnLight = target.brightness_above_ambient !== null;
 
-  return (
-    <div class="screen">
-      <div class="screen-top">
-        <div class="screen-title">Guiding</div>
-        <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-          <span class={`status-dot status-${status.value}`} />
-          {target.distance_cm} cm target
-        </span>
-      </div>
+  const settled =
+    v.distance_state === 'in_band' &&
+    v.brightness_state !== 'over' &&
+    v.brightness_state !== 'under' &&
+    !(guidingOnLight && v.brightness_state === 'unknown');
 
-      <div class="screen-body">
+  const named = setups.value.find((setup) => setup.id === activeSetupId.value);
+
+  // Live readouts follow the same rule as the target: suppressed means no number.
+  const shownDistance = suppressed ? null : (live?.distance_cm ?? null);
+  const shownLight =
+    suppressed || !live || live.brightness === null || live.ambient === null
+      ? null
+      : live.brightness - live.ambient;
+
+  return (
+    <>
+      <div class="wrap" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div class="guide-head">
+          <div>
+            <div class="guide-name">{named ? named.name : 'Quick guide'}</div>
+            <div class="guide-target">
+              Target {target.distance_cm} cm ±{target.distance_tol_cm}
+              {guidingOnLight
+                ? ` · light ${target.brightness_above_ambient} ±${target.brightness_tol}`
+                : ' · distance only'}
+            </div>
+          </div>
+          <div class="guide-readouts">
+            <div>
+              <div class="readout-label">Distance</div>
+              <div
+                class="readout-value"
+                style={{ color: v.distance_state === 'in_band' ? 'var(--ok)' : undefined }}
+              >
+                {shownDistance === null ? (
+                  <span style={{ color: 'var(--faint)' }}>—</span>
+                ) : (
+                  <>
+                    {shownDistance.toFixed(1)}
+                    <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 3 }}>cm</span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div>
+              <div class="readout-label">Light</div>
+              <div
+                class="readout-value"
+                style={{ color: v.brightness_state === 'in_band' ? 'var(--ok)' : undefined }}
+              >
+                {shownLight === null ? (
+                  <span style={{ color: 'var(--faint)' }}>—</span>
+                ) : (
+                  shownLight.toFixed(3)
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {suppressed && (
           <div class="stale-banner">
             {disconnected ? 'Device disconnected' : 'No usable reading'} — showing no guidance rather
@@ -48,7 +107,7 @@ export function LiveGuidance() {
           </div>
         )}
 
-        <div style={{ opacity: suppressed ? 0.4 : 1, transition: 'opacity .2s' }}>
+        <div class="guide-stage" style={{ opacity: suppressed ? 0.4 : 1, transition: 'opacity .2s' }}>
           <TargetView
             verdict={v}
             distanceTolCm={target.distance_tol_cm}
@@ -57,29 +116,27 @@ export function LiveGuidance() {
           />
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: 22 }}>
-          <div style={{
-            fontSize: 24, fontWeight: 700,
-            color: v.distance_state === 'in_band' && v.brightness_state !== 'over'
-              && v.brightness_state !== 'under'
-              && !(guidingOnLight && v.brightness_state === 'unknown') ? 'var(--ok)' : 'var(--warn)',
-          }}>
-            {v.instruction}
+        <div class="guide-foot">
+          <div>
+            <div class={`instruction ${settled ? 'is-ok' : 'is-warn'}`}>{v.instruction}</div>
+            {v.distance_delta_cm !== null && (
+              <div class="instruction-sub">
+                distance {v.distance_delta_cm > 0 ? '+' : ''}
+                {v.distance_delta_cm} cm
+                {v.brightness_delta !== null && (
+                  <>
+                    {' · '}light {v.brightness_delta > 0 ? '+' : ''}
+                    {v.brightness_delta}
+                  </>
+                )}
+              </div>
+            )}
           </div>
-          {v.distance_delta_cm !== null && (
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 8 }}>
-              distance {v.distance_delta_cm > 0 ? '+' : ''}{v.distance_delta_cm} cm
-              {v.brightness_delta !== null && (
-                <> · light {v.brightness_delta > 0 ? '+' : ''}{v.brightness_delta}</>
-              )}
-            </div>
-          )}
+          <button class="btn btn-ghost" onClick={() => void stopGuiding()}>
+            Done
+          </button>
         </div>
       </div>
-
-      <div class="screen-foot">
-        <button class="btn btn-ghost" onClick={() => void stopGuiding()}>Done</button>
-      </div>
-    </div>
+    </>
   );
 }
