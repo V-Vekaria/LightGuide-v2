@@ -12,6 +12,16 @@ export const activeTarget = signal<Target | null>(null);
 export const activeSetupId = signal<string | null>(null);
 /** Wall-clock ms of the last reading with a usable distance. Drives the stale banner. */
 export const lastGoodAt = signal<number | null>(null);
+/**
+ * Bumped every 500ms while connected — the heartbeat. Preact signals only
+ * re-render on a *write*, and nothing writes a signal when time merely
+ * passes, so without this a UI computing staleness from `Date.now() -
+ * lastGoodAt.value` during render would never re-render once frames stop
+ * arriving (e.g. a Wi-Fi stall that never formally closes the socket). Any
+ * component that needs to detect staleness must read `tick.value` during
+ * render to subscribe to this heartbeat.
+ */
+export const tick = signal(0);
 
 let device: DeviceClient | null = null;
 let unsubscribe: (() => void) | null = null;
@@ -19,8 +29,16 @@ let unsubscribe: (() => void) | null = null;
 let generation = 0;
 /** True once the current generation's device has answered listSetups(), authoritatively or not. */
 let deviceAnswered = false;
+/** Heartbeat interval id, module-scoped so connect()/disconnect() can always find and clear it. */
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
 export function connect(client: DeviceClient): void {
+  // Clear any previous heartbeat first so repeated connect() calls never stack intervals.
+  if (heartbeatTimer !== null) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+
   generation += 1;
   const myGeneration = generation;
   deviceAnswered = false;
@@ -32,6 +50,14 @@ export function connect(client: DeviceClient): void {
     if (r.distance_cm !== null) lastGoodAt.value = Date.now();
     status.value = client.status();
   });
+  // The heartbeat: refreshes status even when no frame arrives, and — critically —
+  // increments `tick` unconditionally on every tick. Writing the *same* value to a
+  // signal does not trigger a re-render, so refreshing `status` alone would not be
+  // enough to invalidate a view that only depends on elapsed time.
+  heartbeatTimer = setInterval(() => {
+    tick.value += 1;
+    status.value = client.status();
+  }, 500);
   // Cached setups render immediately, but the device is the sole authority.
   // Apply the cache only if this is still the current connect(), the device
   // hasn't answered yet, and setups is still empty — otherwise the cache
@@ -60,6 +86,18 @@ export async function refreshSetups(): Promise<void> {
   setups.value = list;
   status.value = client.status();
   void cacheSetups(list);
+}
+
+/** Tears down the live connection: heartbeat, live subscription, and device reference. */
+export function disconnect(): void {
+  if (heartbeatTimer !== null) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+  unsubscribe?.();
+  unsubscribe = null;
+  status.value = 'disconnected';
+  device = null;
 }
 
 export async function persistSetup(setup: Setup): Promise<void> {

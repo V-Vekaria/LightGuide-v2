@@ -8,7 +8,7 @@ vi.mock('../cache/idb', () => ({
 
 import { readCachedSetups, cacheSetups } from '../cache/idb';
 import { InMemoryDeviceClient } from '../device/in-memory-client';
-import { setups, reading, lastGoodAt, connect, persistSetup } from './store';
+import { setups, reading, lastGoodAt, tick, connect, disconnect, persistSetup } from './store';
 
 /** Flushes microtasks (promise chains) so async signal updates have landed. */
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -114,5 +114,26 @@ describe('store', () => {
     const setup = makeSetup('new-1');
     await expect(persistSetup(setup)).rejects.toThrow('device rejected save');
     expect(setups.value).toEqual([]);
+  });
+
+  it('starts a heartbeat on connect() and stops it on disconnect()', async () => {
+    vi.useFakeTimers();
+    try {
+      const client = new InMemoryDeviceClient([]);
+      connect(client);
+
+      const afterConnect = tick.value;
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(tick.value).toBeGreaterThan(afterConnect);
+
+      disconnect();
+      const afterDisconnect = tick.value;
+      await vi.advanceTimersByTimeAsync(1500);
+      // The interval must actually be cleared, not merely stop mattering —
+      // otherwise it leaks across connects and keeps firing forever.
+      expect(tick.value).toBe(afterDisconnect);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
