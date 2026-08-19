@@ -3,6 +3,29 @@ import type { ConnectionStatus, DeviceClient, Reading, Setup, Target } from '../
 const RECONNECT_MIN_MS = 500;
 const RECONNECT_MAX_MS = 8000;
 
+function isFiniteOrNull(value: unknown): value is number | null {
+  return value === null || (typeof value === 'number' && Number.isFinite(value));
+}
+
+/**
+ * Guards against a frame that parses as valid JSON but isn't a well-formed
+ * `Reading` — e.g. `{"foo":1}`, or a numeric field sent as a string. Without
+ * this, such a frame would be cast straight to `Reading` and its missing/
+ * wrong-typed fields would surface downstream as `undefined`, rendering as
+ * things like "Move NaN cm closer".
+ */
+function isValidReading(value: unknown): value is Reading {
+  if (typeof value !== 'object' || value === null) return false;
+  const r = value as Record<string, unknown>;
+  return (
+    isFiniteOrNull(r.distance_cm) &&
+    isFiniteOrNull(r.brightness) &&
+    isFiniteOrNull(r.ambient) &&
+    typeof r.seq === 'number' && Number.isFinite(r.seq) &&
+    typeof r.ts === 'number' && Number.isFinite(r.ts)
+  );
+}
+
 /** Talks to the ESP32 — and to the mock server, which implements the same surface. */
 export class HttpDeviceClient implements DeviceClient {
   private listeners = new Set<(r: Reading) => void>();
@@ -78,8 +101,9 @@ export class HttpDeviceClient implements DeviceClient {
     };
     socket.onmessage = (event) => {
       try {
-        const reading = JSON.parse(event.data as string) as Reading;
-        for (const listener of this.listeners) listener(reading);
+        const parsed: unknown = JSON.parse(event.data as string);
+        if (!isValidReading(parsed)) return;
+        for (const listener of this.listeners) listener(parsed);
       } catch {
         // A malformed frame is dropped, not rendered. Never show a bad reading.
       }

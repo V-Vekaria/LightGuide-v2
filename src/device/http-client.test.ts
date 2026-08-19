@@ -97,6 +97,52 @@ describe('HttpDeviceClient frame handling', () => {
     client.close();
   });
 
+  it('drops a wrong-shaped frame (valid JSON, not a Reading) without notifying subscribers', () => {
+    const client = new HttpDeviceClient('http://device.local');
+    const cb = vi.fn();
+    client.subscribeLive(cb);
+    latestSocket().onopen?.();
+
+    latestSocket().onmessage?.({ data: JSON.stringify({ foo: 1 }) });
+
+    expect(cb).not.toHaveBeenCalled();
+
+    client.close();
+  });
+
+  it('drops a frame whose distance_cm is a string, not a number', () => {
+    const client = new HttpDeviceClient('http://device.local');
+    const cb = vi.fn();
+    client.subscribeLive(cb);
+    latestSocket().onopen?.();
+
+    latestSocket().onmessage?.({
+      data: JSON.stringify({ distance_cm: 'far', brightness: 0.4, ambient: 0.1, seq: 1, ts: 111 }),
+    });
+
+    expect(cb).not.toHaveBeenCalled();
+
+    client.close();
+  });
+
+  it('keeps delivering after a wrong-shaped frame — a bad frame must not kill the stream', () => {
+    const client = new HttpDeviceClient('http://device.local');
+    const cb = vi.fn();
+    client.subscribeLive(cb);
+    latestSocket().onopen?.();
+
+    latestSocket().onmessage?.({ data: JSON.stringify({ foo: 1 }) });
+    expect(cb).not.toHaveBeenCalled();
+
+    const reading: Reading = { distance_cm: 30, brightness: 0.6, ambient: 0.2, seq: 2, ts: 222 };
+    latestSocket().onmessage?.({ data: JSON.stringify(reading) });
+
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(cb).toHaveBeenCalledWith(reading);
+
+    client.close();
+  });
+
   it('reports connected status after onopen fires', () => {
     const client = new HttpDeviceClient('http://device.local');
     client.subscribeLive(() => {});

@@ -1,5 +1,8 @@
 import type { ConnectionStatus } from '../contract/types';
 
+/** How long a feed can go without a good reading before it's treated as stale. */
+export const STALE_AFTER_MS = 2000;
+
 /**
  * True when the feed is stale and must not be rendered as live: either no
  * good reading has ever landed (`lastGoodAt` is null), or more than

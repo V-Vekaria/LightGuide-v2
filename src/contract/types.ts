@@ -20,7 +20,14 @@ export interface Reading {
   distance_cm: number | null;
   /** Raw normalised brightness 0..1, ambient NOT subtracted. */
   brightness: number | null;
-  /** Device's current ambient estimate, 0..1. */
+  /**
+   * The device's own ambient estimate, 0..1: what the sensor reads with the
+   * guided light switched off. The device maintains this value continuously
+   * (not just during capture), and it is the shared zero for both ends of
+   * the brightness axis — capture (CaptureLight) and live guidance
+   * (verdict.ts) both compute `brightness - ambient` against this same
+   * field, never a client-side snapshot of raw brightness.
+   */
   ambient: number | null;
   seq: number;
   ts: number;

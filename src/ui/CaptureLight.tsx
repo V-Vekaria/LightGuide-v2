@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { reading } from '../store/store';
+import { liveReading } from '../store/store';
 
 interface Props {
   onCaptured: (aboveAmbient: number) => void;
@@ -9,13 +9,23 @@ interface Props {
 /**
  * Two steps, and the first one is the point: reading ambient with the light off is
  * what makes the reference still valid next week under different daylight.
+ *
+ * Both steps share one zero, `reading.ambient` — the device's own ambient
+ * estimate — never a client-side snapshot of raw brightness. Step 1 exists so
+ * the *device* can settle that estimate; confirming it only records that the
+ * user has acknowledged it looks settled, captured purely to redisplay for
+ * context in step 2. Step 2 stores `brightness - ambient`, read live at the
+ * moment of confirming, which is exactly the formula guidance later compares
+ * against (src/guidance/verdict.ts) — so the stored reference and the live
+ * comparison never disagree about what "zero" means.
  */
 export function CaptureLight({ onCaptured, onCancel }: Props) {
-  const [ambient, setAmbient] = useState<number | null>(null);
-  const live = reading.value;
-  const brightness = live?.brightness ?? null;
+  const [ambientAtConfirm, setAmbientAtConfirm] = useState<number | null>(null);
+  const live = liveReading();
+  const noLiveReading = live === null;
 
-  if (ambient === null) {
+  if (ambientAtConfirm === null) {
+    const ambientNow = live?.ambient ?? null;
     return (
       <div class="screen">
         <div class="screen-top">
@@ -39,25 +49,33 @@ export function CaptureLight({ onCaptured, onCancel }: Props) {
               AMBIENT NOW
             </div>
             <div style={{ fontSize: 26, fontWeight: 700, marginTop: 4 }}>
-              {brightness === null ? '—' : brightness.toFixed(2)}
+              {ambientNow === null ? '—' : ambientNow.toFixed(2)}
             </div>
           </div>
         </div>
         <div class="screen-foot">
           <button
             class="btn"
-            disabled={brightness === null}
-            onClick={() => setAmbient(brightness)}
+            disabled={ambientNow === null}
+            onClick={() => setAmbientAtConfirm(ambientNow)}
           >
             Ambient captured — next
           </button>
+          {ambientNow === null && (
+            <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
+              No live reading from the device.
+            </p>
+          )}
           <button class="btn btn-ghost" onClick={onCancel}>Cancel</button>
         </div>
       </div>
     );
   }
 
-  const aboveAmbient = brightness === null ? null : Number((brightness - ambient).toFixed(3));
+  const aboveAmbient = live?.brightness == null || live?.ambient == null
+    ? null
+    : Number((live.brightness - live.ambient).toFixed(3));
+  const notAboveAmbient = aboveAmbient !== null && aboveAmbient <= 0;
 
   return (
     <div class="screen">
@@ -84,19 +102,29 @@ export function CaptureLight({ onCaptured, onCancel }: Props) {
             {aboveAmbient === null ? '—' : aboveAmbient.toFixed(2)}
           </div>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-            ambient was {ambient.toFixed(2)}
+            ambient was {ambientAtConfirm.toFixed(2)}
           </div>
         </div>
       </div>
       <div class="screen-foot">
         <button
           class="btn"
-          disabled={aboveAmbient === null || aboveAmbient <= 0}
+          disabled={aboveAmbient === null || notAboveAmbient}
           onClick={() => onCaptured(aboveAmbient!)}
         >
           Use this light level
         </button>
-        <button class="btn btn-ghost" onClick={() => setAmbient(null)}>Back</button>
+        {noLiveReading && (
+          <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
+            No live reading from the device.
+          </p>
+        )}
+        {!noLiveReading && notAboveAmbient && (
+          <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
+            The light must read brighter than ambient before it can be used as a reference.
+          </p>
+        )}
+        <button class="btn btn-ghost" onClick={() => setAmbientAtConfirm(null)}>Back</button>
       </div>
     </div>
   );

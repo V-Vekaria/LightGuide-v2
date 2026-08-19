@@ -1,6 +1,7 @@
 import { signal } from '@preact/signals';
 import type { ConnectionStatus, DeviceClient, Reading, Setup, Target } from '../contract/types';
 import { cacheSetups, readCachedSetups } from '../cache/idb';
+import { isFeedStale, STALE_AFTER_MS } from '../guidance/liveness';
 
 export type Screen = 'library' | 'new' | 'live' | 'quick';
 
@@ -22,6 +23,23 @@ export const lastGoodAt = signal<number | null>(null);
  * render to subscribe to this heartbeat.
  */
 export const tick = signal(0);
+
+/**
+ * The current reading, but only when it's trustworthy: the connection is
+ * `'connected'` and the feed isn't stale per `isFeedStale`. Otherwise null.
+ * `reading` itself is never cleared — it holds the last frame received
+ * indefinitely, even across disconnects — so any screen that would act on a
+ * reading (capture a reference value, offer "use current reading") must go
+ * through this instead of reading the raw signal, or it risks treating a
+ * stale frame as live. Reads `tick.value` so callers re-render on the
+ * heartbeat even when no new frame arrives.
+ */
+export function liveReading(): Reading | null {
+  void tick.value;
+  if (status.value !== 'connected') return null;
+  if (isFeedStale(lastGoodAt.value, Date.now(), STALE_AFTER_MS)) return null;
+  return reading.value;
+}
 
 let device: DeviceClient | null = null;
 let unsubscribe: (() => void) | null = null;
@@ -156,7 +174,15 @@ export async function stopGuiding(): Promise<void> {
   // Deliberately no "no device connected" guard here (unlike persistSetup/
   // removeSetup/startGuiding): the user must always be able to leave the
   // live screen, even if the device dropped or was never connected.
-  await device?.setActiveTarget(null);
+  // Clearing the active target on the device is best-effort only: if it
+  // rejects (device unreachable), that failure must not prevent the local
+  // state reset and screen change below — those are what actually let the
+  // user leave the screen.
+  try {
+    await device?.setActiveTarget(null);
+  } catch {
+    // Ignored — best-effort. The device just won't hear that guidance stopped.
+  }
   activeTarget.value = null;
   activeSetupId.value = null;
   screen.value = 'library';

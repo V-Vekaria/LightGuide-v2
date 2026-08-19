@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { DEFAULT_DISTANCE_TOL_CM, newSetup } from '../contract/types';
-import { persistSetup, reading, screen } from '../store/store';
+import { liveReading, persistSetup, screen } from '../store/store';
 import { CaptureLight } from './CaptureLight';
 
 export function NewSetup() {
@@ -13,7 +13,7 @@ export function NewSetup() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const liveDistance = reading.value?.distance_cm ?? null;
+  const liveDistance = liveReading()?.distance_cm ?? null;
   const distanceValue = Number(distance);
   const valid = name.trim().length > 0 && Number.isFinite(distanceValue) && distanceValue > 0;
 
@@ -74,10 +74,17 @@ export function NewSetup() {
             placeholder="50"
             onInput={(e) => { setDistance((e.currentTarget as HTMLInputElement).value); setDistanceSource('typed'); }}
           />
-          {liveDistance !== null && (
-            <button class="link-btn" onClick={() => { setDistance(String(liveDistance)); setDistanceSource('captured'); }}>
-              ↻ or use current reading — {liveDistance.toFixed(1)} cm
-            </button>
+          <button
+            class="link-btn"
+            disabled={liveDistance === null}
+            onClick={() => { setDistance(String(liveDistance)); setDistanceSource('captured'); }}
+          >
+            {liveDistance === null
+              ? '↻ or use current reading'
+              : `↻ or use current reading — ${liveDistance.toFixed(1)} cm`}
+          </button>
+          {liveDistance === null && (
+            <div class="hint">No live reading from the device.</div>
           )}
         </div>
 

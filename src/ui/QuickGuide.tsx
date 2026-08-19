@@ -54,12 +54,14 @@ export function QuickGuide() {
         <button
           class="btn"
           disabled={!valid}
-          onClick={() => void startGuiding({
-            distance_cm: value,
-            distance_tol_cm: DEFAULT_DISTANCE_TOL_CM,
-            brightness_above_ambient: null,
-            brightness_tol: DEFAULT_BRIGHTNESS_TOL,
-          })}
+          onClick={() => {
+            void startGuiding({
+              distance_cm: value,
+              distance_tol_cm: DEFAULT_DISTANCE_TOL_CM,
+              brightness_above_ambient: null,
+              brightness_tol: DEFAULT_BRIGHTNESS_TOL,
+            }).catch((error) => alert((error as Error).message));
+          }}
         >
           Guide me
         </button>

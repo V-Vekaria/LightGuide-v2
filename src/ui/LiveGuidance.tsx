@@ -1,9 +1,7 @@
 import { TargetView } from './Target';
 import { verdict as computeVerdict } from '../guidance/verdict';
-import { isFeedStale, shouldSuppressGuidance } from '../guidance/liveness';
+import { isFeedStale, shouldSuppressGuidance, STALE_AFTER_MS } from '../guidance/liveness';
 import { activeTarget, lastGoodAt, reading, status, stopGuiding, tick } from '../store/store';
-
-const STALE_AFTER_MS = 2000;
 
 export function LiveGuidance() {
   // Read (and discard) the heartbeat so this component re-renders every 500ms
