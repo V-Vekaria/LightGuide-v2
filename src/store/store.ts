@@ -107,6 +107,37 @@ export async function persistSetup(setup: Setup): Promise<void> {
   await refreshSetups();
 }
 
+/** Thrown by persistSetups when a write fails partway; carries how many setups were saved before it did. */
+export class PartialPersistError extends Error {
+  constructor(message: string, public readonly written: number) {
+    super(message);
+    this.name = 'PartialPersistError';
+  }
+}
+
+/**
+ * Writes only the given setups, confirming each with the device before it
+ * reaches the UI (never optimistic) — same discipline as persistSetup, but
+ * batched: a single refreshSetups() after the loop instead of one per
+ * setup, so callers that already know which setups changed (e.g. import)
+ * don't pay for a full-list round-trip and flash write per unchanged entry.
+ */
+export async function persistSetups(list: Setup[]): Promise<number> {
+  let written = 0;
+  try {
+    if (!device) throw new Error('no device connected');
+    for (const setup of list) {
+      await device.saveSetup(setup);
+      written += 1;
+    }
+  } catch (error) {
+    await refreshSetups();
+    throw new PartialPersistError((error as Error).message, written);
+  }
+  await refreshSetups();
+  return written;
+}
+
 export async function removeSetup(id: string): Promise<void> {
   if (!device) throw new Error('no device connected');
   await device.deleteSetup(id);

@@ -1,6 +1,14 @@
 import { targetFromSetup, type Setup } from '../contract/types';
 import { exportSetups, importSetups } from '../backup/transfer';
-import { persistSetup, removeSetup, screen, setups, startGuiding, status } from '../store/store';
+import {
+  PartialPersistError,
+  persistSetups,
+  removeSetup,
+  screen,
+  setups,
+  startGuiding,
+  status,
+} from '../store/store';
 
 function MiniTarget({ setup }: { setup: Setup }) {
   // Tolerance drives the inset: a tighter band draws a smaller box.
@@ -23,8 +31,12 @@ function download(filename: string, text: string) {
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = filename;
+  document.body.appendChild(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  // Some browsers cancel the download if the object URL is revoked
+  // synchronously; give it a beat since this is the user's only backup path.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export function Library() {
@@ -36,7 +48,21 @@ export function Library() {
     if (!file) return;
     try {
       const merged = importSetups(await file.text(), list);
-      for (const setup of merged) await persistSetup(setup);
+      // Only write what the import actually changes: re-importing your own
+      // export should not rewrite every unchanged setup to device flash.
+      const currentById = new Map(list.map((setup) => [setup.id, setup]));
+      const toWrite = merged.filter((incoming) => {
+        const current = currentById.get(incoming.id);
+        return !current || current.updated_at !== incoming.updated_at;
+      });
+      if (toWrite.length > 0) {
+        await persistSetups(toWrite).catch((error) => {
+          const written = error instanceof PartialPersistError ? error.written : 0;
+          throw new Error(
+            `Import failed after saving ${written} of ${toWrite.length} setups: ${(error as Error).message}`
+          );
+        });
+      }
     } catch (error) {
       alert((error as Error).message);
     }
@@ -84,14 +110,22 @@ export function Library() {
             </div>
             <button
               class="link-btn"
-              onClick={() => void startGuiding(targetFromSetup(setup), setup.id)}
+              onClick={() => {
+                void startGuiding(targetFromSetup(setup), setup.id).catch((error) =>
+                  alert((error as Error).message)
+                );
+              }}
             >
               Guide
             </button>
             <button
               class="link-btn"
               style={{ color: 'var(--bad)' }}
-              onClick={() => { if (confirm(`Delete "${setup.name}"?`)) void removeSetup(setup.id); }}
+              onClick={() => {
+                if (confirm(`Delete "${setup.name}"?`)) {
+                  void removeSetup(setup.id).catch((error) => alert((error as Error).message));
+                }
+              }}
             >
               Delete
             </button>

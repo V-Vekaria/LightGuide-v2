@@ -8,7 +8,17 @@ vi.mock('../cache/idb', () => ({
 
 import { readCachedSetups, cacheSetups } from '../cache/idb';
 import { InMemoryDeviceClient } from '../device/in-memory-client';
-import { setups, reading, lastGoodAt, tick, connect, disconnect, persistSetup } from './store';
+import {
+  setups,
+  reading,
+  lastGoodAt,
+  tick,
+  connect,
+  disconnect,
+  persistSetup,
+  persistSetups,
+  PartialPersistError,
+} from './store';
 
 /** Flushes microtasks (promise chains) so async signal updates have landed. */
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -114,6 +124,47 @@ describe('store', () => {
     const setup = makeSetup('new-1');
     await expect(persistSetup(setup)).rejects.toThrow('device rejected save');
     expect(setups.value).toEqual([]);
+  });
+
+  it('persists a batch of setups in one call and refreshes once', async () => {
+    const client = new InMemoryDeviceClient([]);
+    connect(client);
+    await flush();
+    expect(setups.value).toEqual([]);
+
+    const batch = [makeSetup('a'), makeSetup('b'), makeSetup('c')];
+    const count = await persistSetups(batch);
+
+    expect(count).toBe(3);
+    expect(setups.value.map((s) => s.id).sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('reports a partial write count and reflects only what landed when persistSetups fails midway', async () => {
+    const client = new InMemoryDeviceClient([]);
+    connect(client);
+    await flush();
+    expect(setups.value).toEqual([]);
+
+    let calls = 0;
+    const originalSave = client.saveSetup.bind(client);
+    client.saveSetup = async (setup) => {
+      calls += 1;
+      if (calls === 2) throw new Error('device rejected save');
+      return originalSave(setup);
+    };
+
+    const batch = [makeSetup('first'), makeSetup('second'), makeSetup('third')];
+
+    let caught: unknown;
+    try {
+      await persistSetups(batch);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(PartialPersistError);
+    expect((caught as PartialPersistError).written).toBe(1);
+    expect(setups.value.map((s) => s.id)).toEqual(['first']);
   });
 
   it('starts a heartbeat on connect() and stops it on disconnect()', async () => {
