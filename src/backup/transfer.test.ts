@@ -46,4 +46,52 @@ describe('export / import', () => {
   it('rejects malformed JSON with a readable message', () => {
     expect(() => importSetups('not json', [])).toThrow(/could not be read/i);
   });
+
+  it('rejects a setup entry missing required fields, leaving existing setups untouched', () => {
+    const existing = newSetup({ name: 'Legit', distance_cm: 50, distance_source: 'typed' });
+    const malformed = JSON.stringify({
+      version: 1,
+      exported_at: 'x',
+      setups: [{ id: existing.id, updated_at: '2099-01-01T00:00:00.000Z' }],
+    });
+    expect(() => importSetups(malformed, [existing])).toThrow(/entry 0/i);
+    const result = importSetups(JSON.stringify({ version: 1, exported_at: 'x', setups: [] }), [existing]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(existing);
+  });
+
+  it('throws a readable error instead of crashing on a null setup entry', () => {
+    const json = JSON.stringify({ version: 1, exported_at: 'x', setups: [null] });
+    expect(() => importSetups(json, [])).toThrow(Error);
+    expect(() => importSetups(json, [])).not.toThrow(TypeError);
+    expect(() => importSetups(json, [])).toThrow(/entry 0/i);
+  });
+
+  it('throws a readable error when a setup entry is not an object', () => {
+    const json = JSON.stringify({ version: 1, exported_at: 'x', setups: ['nope', 42] });
+    expect(() => importSetups(json, [])).toThrow(/entry 0/i);
+  });
+
+  it('rejects a file written by a different version, distinctly from an unrecognised file', () => {
+    const json = JSON.stringify({ version: 2, exported_at: 'x', setups: [] });
+    expect(() => importSetups(json, [])).toThrow(/different version of LightGuide/i);
+    expect(() => importSetups(json, [])).not.toThrow(/not a LightGuide export/i);
+  });
+
+  it('lets a newer tombstone win over an older live copy', () => {
+    const base = newSetup({ name: 'Live', distance_cm: 50, distance_source: 'typed' });
+    const tombstone = { ...base, deleted: true, updated_at: '2099-01-01T00:00:00.000Z' };
+    const merged = importSetups(exportSetups([tombstone]), [base]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]!.deleted).toBe(true);
+  });
+
+  it('does not let an older tombstone override a newer live copy', () => {
+    const base = newSetup({ name: 'Live', distance_cm: 50, distance_source: 'typed' });
+    const newerLive = { ...base, name: 'Live', updated_at: '2099-01-01T00:00:00.000Z', deleted: false };
+    const olderTombstone = { ...base, deleted: true, updated_at: '2000-01-01T00:00:00.000Z' };
+    const merged = importSetups(exportSetups([olderTombstone]), [newerLive]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]!.deleted).toBe(false);
+  });
 });
