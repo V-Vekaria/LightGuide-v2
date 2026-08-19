@@ -9,6 +9,10 @@ export const setups = signal<Setup[]>([]);
 export const reading = signal<Reading | null>(null);
 export const status = signal<ConnectionStatus>('disconnected');
 export const screen = signal<Screen>('library');
+/** Setup being edited on the 'new' screen, or null when creating a fresh one. */
+export const editingSetupId = signal<string | null>(null);
+/** Distance to prefill the 'new' screen with — set when saving a quick guide. */
+export const prefillDistanceCm = signal<number | null>(null);
 export const activeTarget = signal<Target | null>(null);
 export const activeSetupId = signal<string | null>(null);
 /** Wall-clock ms of the last reading with a usable distance. Drives the stale banner. */
@@ -39,6 +43,51 @@ export function liveReading(): Reading | null {
   if (status.value !== 'connected') return null;
   if (isFeedStale(lastGoodAt.value, Date.now(), STALE_AFTER_MS)) return null;
   return reading.value;
+}
+
+/**
+ * All screen changes go through here so the browser Back gesture works — on a
+ * phone in a studio that is the navigation people actually reach for. Never
+ * assign `screen.value` directly from a component; a screen reached without a
+ * history entry becomes a dead end that Back exits the whole app from.
+ */
+export function navigate(next: Screen, options: { replace?: boolean } = {}): void {
+  screen.value = next;
+  try {
+    const entry = { lgScreen: next };
+    if (options.replace) history.replaceState(entry, '');
+    else history.pushState(entry, '');
+  } catch {
+    // Non-browser environment (tests): navigation still works, just no history.
+  }
+}
+
+/** Applies a screen from a popstate event without pushing another entry. */
+export function applyHistoryScreen(next: Screen): void {
+  screen.value = next;
+}
+
+/**
+ * Best-effort clear of the device's active target. Used by stopGuiding and by
+ * the page-teardown handler: if the tab closes mid-guide the device would
+ * otherwise keep guiding to a target no app is showing.
+ */
+export async function clearDeviceTarget(): Promise<void> {
+  await device?.setActiveTarget(null);
+}
+
+/** Opens the 'new' screen as an editor for an existing setup. */
+export function editSetup(id: string): void {
+  editingSetupId.value = id;
+  prefillDistanceCm.value = null;
+  navigate('new');
+}
+
+/** Opens the 'new' screen fresh, optionally prefilled with a distance. */
+export function createSetup(distanceCm?: number): void {
+  editingSetupId.value = null;
+  prefillDistanceCm.value = distanceCm ?? null;
+  navigate('new');
 }
 
 let device: DeviceClient | null = null;
@@ -167,7 +216,7 @@ export async function startGuiding(target: Target, setupId?: string): Promise<vo
   await device.setActiveTarget(target);
   activeTarget.value = target;
   activeSetupId.value = setupId ?? null;
-  screen.value = 'live';
+  navigate('live');
 }
 
 export async function stopGuiding(): Promise<void> {
@@ -179,11 +228,20 @@ export async function stopGuiding(): Promise<void> {
   // state reset and screen change below — those are what actually let the
   // user leave the screen.
   try {
-    await device?.setActiveTarget(null);
+    await clearDeviceTarget();
   } catch {
     // Ignored — best-effort. The device just won't hear that guidance stopped.
   }
   activeTarget.value = null;
   activeSetupId.value = null;
-  screen.value = 'library';
+  navigate('library');
+}
+
+/**
+ * Leaves the live screen WITHOUT stopping guidance — the device keeps its
+ * active target and the app bar shows a chip to come back. This is what makes
+ * "browse the library while the stand is still being placed" possible.
+ */
+export function leaveGuidanceScreen(): void {
+  navigate('library');
 }

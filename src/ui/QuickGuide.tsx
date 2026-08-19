@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { DEFAULT_BRIGHTNESS_TOL, DEFAULT_DISTANCE_TOL_CM } from '../contract/types';
-import { screen, startGuiding } from '../store/store';
+import { navigate, startGuiding } from '../store/store';
 
 /** Type a distance, get guided. Nothing named, nothing saved — the common case. */
 export function QuickGuide() {
@@ -12,7 +12,7 @@ export function QuickGuide() {
     <div class="wrap-tight">
       <div class="row">
         <span class="section-title">Quick guide</span>
-        <button class="link-btn" onClick={() => (screen.value = 'library')}>
+        <button class="link-btn" onClick={() => navigate('library')}>
           Cancel
         </button>
       </div>

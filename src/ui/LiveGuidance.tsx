@@ -4,7 +4,9 @@ import { isFeedStale, shouldSuppressGuidance, STALE_AFTER_MS } from '../guidance
 import {
   activeSetupId,
   activeTarget,
+  createSetup,
   lastGoodAt,
+  leaveGuidanceScreen,
   reading,
   setups,
   status,
@@ -132,9 +134,22 @@ export function LiveGuidance() {
               </div>
             )}
           </div>
-          <button class="btn btn-ghost" onClick={() => void stopGuiding()}>
-            Done
-          </button>
+          <div class="actions">
+            {/* A quick guide has no setup behind it. Offer to keep a good
+                ad-hoc result in one tap rather than making the user retype it
+                into New setup — the spec's promised save-after-quick-guide. */}
+            {!named && (
+              <button class="btn btn-ghost" onClick={() => createSetup(target.distance_cm)}>
+                Save as setup
+              </button>
+            )}
+            <button class="btn btn-ghost" onClick={leaveGuidanceScreen}>
+              Setups
+            </button>
+            <button class="btn" onClick={() => void stopGuiding()}>
+              Stop guiding
+            </button>
+          </div>
         </div>
       </div>
     </>

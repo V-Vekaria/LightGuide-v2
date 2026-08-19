@@ -3,9 +3,11 @@ import { exportSetups, importSetups } from '../backup/transfer';
 import {
   PartialPersistError,
   activeSetupId,
+  createSetup,
+  editSetup,
+  navigate,
   persistSetups,
   removeSetup,
-  screen,
   setups,
   startGuiding,
 } from '../store/store';
@@ -32,7 +34,9 @@ function Row({ setup, active }: { setup: Setup; active: boolean }) {
           class="status-dot"
           style={{ background: active ? 'var(--ok)' : 'var(--line)' }}
         />
-        <span class="tname-text">{setup.name}</span>
+        <button class="tname-btn" onClick={() => editSetup(setup.id)} title="Edit this setup">
+          <span class="tname-text">{setup.name}</span>
+        </button>
       </div>
       <div class="tcell">{setup.distance_cm.toFixed(1)}</div>
       <div class="tcell tcell-dim">±{setup.distance_tol_cm}</div>
@@ -119,10 +123,10 @@ export function Library() {
             >
               Export
             </button>
-            <button class="btn btn-ghost" onClick={() => (screen.value = 'quick')}>
+            <button class="btn btn-ghost" onClick={() => navigate('quick')}>
               Quick guide
             </button>
-            <button class="btn" onClick={() => (screen.value = 'new')}>
+            <button class="btn" onClick={() => createSetup()}>
               New setup
             </button>
           </div>

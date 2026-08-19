@@ -1,23 +1,47 @@
-import { activeTarget, liveReading, setups, status } from '../store/store';
+import {
+  activeSetupId,
+  activeTarget,
+  liveReading,
+  navigate,
+  screen,
+  setups,
+  status,
+} from '../store/store';
 
 export function AppBar() {
+  const guiding = activeTarget.value !== null;
+  const elsewhere = screen.value !== 'live';
+  const named = setups.value.find((setup) => setup.id === activeSetupId.value);
+
   return (
-    <div class="app-bar">
-      <div class="brand">
+    <header class="app-bar">
+      <button class="brand" onClick={() => navigate('library')} title="Back to setups">
         <span class="brand-name">LightGuide</span>
         <span class="brand-sub">Studio lighting placement</span>
+      </button>
+
+      <div class="app-bar-right">
+        {/* Leaving the live screen doesn't stop guidance — the device keeps its
+            target. This chip is how you get back to it. */}
+        {guiding && elsewhere && (
+          <button class="guiding-chip" onClick={() => navigate('live')}>
+            <span class="status-dot status-connected" />
+            <span>Guiding{named ? `: ${named.name}` : ''}</span>
+            <span class="guiding-chip-go">Return</span>
+          </button>
+        )}
+        <div class="conn">
+          <span class={`status-dot status-${status.value}`} />
+          <span>
+            {status.value === 'connected'
+              ? 'Device connected'
+              : status.value === 'connecting'
+                ? 'Connecting…'
+                : 'Device disconnected'}
+          </span>
+        </div>
       </div>
-      <div class="conn">
-        <span class={`status-dot status-${status.value}`} />
-        <span>
-          {status.value === 'connected'
-            ? 'Device connected'
-            : status.value === 'connecting'
-              ? 'Connecting…'
-              : 'Device disconnected'}
-        </span>
-      </div>
-    </div>
+    </header>
   );
 }
 
