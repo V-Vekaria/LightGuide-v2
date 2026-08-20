@@ -62,7 +62,7 @@ makes today's work useful before hardware exists.
 │  listSetups · saveSetup · deleteSetup       │
 │  setActiveTarget · subscribeLive            │
 │                                             │
-│  MockDeviceClient  ←→  HttpDeviceClient     │
+│  InMemoryDeviceClient ←→ HttpDeviceClient   │
 └─────────────────────────────────────────────┘
                      ↕
 ┌─────────────────────────────────────────────┐
@@ -119,8 +119,22 @@ sufficient: one user, infrequent edits, no CRDT needed.
 
 ### The ambient re-zero — non-negotiable
 
-Brightness is stored **above ambient**, never raw. Capture is two steps: light off (read
-ambient), light on (read level), store the difference.
+Brightness is stored **above ambient**, never raw, where "ambient" means one specific
+thing: `Reading.ambient`, the **device's own ambient estimate** — what the sensor reads
+with the guided light off, maintained by the firmware. That single definition is shared by
+both sides. Capture stores `brightness - ambient`; guidance compares `brightness - ambient`
+against it. The stored reference and the live comparison can therefore never disagree about
+where zero is.
+
+Capture is still two steps, but step 1 is not a client-side measurement. Step 1 ("switch
+the light off") exists so the *device* can settle its ambient estimate, and the app displays
+that estimate so the user can see it settle. Step 2 ("switch the light on") stores the
+difference, read live at the moment of confirming.
+
+**This puts a requirement on firmware:** the ESP32 must maintain and report an ambient
+estimate, not merely a raw brightness. It is documented on the type in
+`src/contract/types.ts` and must be covered by the contract conformance suite before a real
+board is trusted.
 
 A raw reading captured at 9 pm with blinds shut is wrong at 2 pm the next day — the setup
 would instruct the user to dim a light that is already correct. The ambient-subtracted
@@ -151,21 +165,35 @@ backup is offered after the user has saved a few setups, framed as *"back these 
 Four screens, no nested menus.
 
 ```
-Library (home) → New setup → Setup detail → Live guidance
-      └──────── Quick guide ────────────────────┘
+Library (home) ──→ New setup / Edit setup ──→ (save) ──→ Library
+      ├──────────→ Quick guide ─────────────→ Live guidance
+      └──────────→ Live guidance (from a saved setup)
 ```
+
+There is no separate Setup detail screen: tapping a setup's name opens it in the New setup
+form as an editor. Every screen change pushes a history entry, so the browser and phone Back
+gesture work. The app bar is a home button, and while a target is active it carries a chip
+back to the live screen — leaving that screen does not stop guidance.
 
 **Live guidance — two-axis target.** Distance on x, brightness on y; the green box is
 in-tolerance on both. The area around the target tints with state (green/amber) so the
-answer is readable from 2 m, while the target itself carries the detail up close. Below
-it, per-channel bars with the tolerance band and current pin.
+answer is readable from 2 m, while the target itself carries the detail up close. Live
+distance and light readouts sit in the screen header. A setup with no light target renders
+a one-dimensional horizontal track rather than a two-axis box — there is no vertical
+judgement to read, and drawing one invites the user to read meaning into a dot that cannot
+move.
 
-**Library — target cards.** Each row carries a mini target sized to that setup's
-tolerance, so fussy and forgiving setups are distinguishable at a glance. Reuses the live
-view's visual language.
+**Library — instrument table.** A live strip of sensor tiles above a dense table: name,
+distance, tolerance, light. The table was chosen over the originally-specified mini-target
+cards because the live strip already carries the visual language, and a table shows far more
+setups per screen.
 
-**New setup.** Name, distance (typed, or "use current reading"), light reference
-(capture, or skip). Save is confirmed by the device, never optimistic.
+**New setup / Edit setup.** Name, distance (typed, or "use current reading"), tolerance,
+light reference (capture, or skip). Save is confirmed by the device, never optimistic, and
+every save touches `updated_at` so last-write-wins ordering stays correct.
+
+**Quick guide.** A typed distance and four presets, straight into guidance with nothing
+saved. Guidance then offers a one-tap "Save as setup" prefilled with that distance.
 
 ## 7. Guidance logic
 
@@ -188,10 +216,12 @@ light level too, so correcting brightness before distance wastes the user's effo
 Live hardware links fail in specific ways, and a wrong "you're on target" is worse than a
 visible disconnect.
 
-- **Wi-Fi drops** — target freezes, dims, timestamps the last good reading. Never render a
-  stale reading as live. Auto-reconnect with backoff.
+- **Wi-Fi drops** — the target blanks (not freezes — a frozen dot is a stale reading
+  rendered as live), dims, and timestamps the last good reading. Auto-reconnect with backoff.
 - **Sensor dropout** — ultrasonic misses on soft and angled surfaces. The contract carries
-  `null`, not `0`. The affected axis greys out; the other keeps working.
+  `null`, not `0`. Staleness is tracked **per axis**: a missed ping greys the distance axis
+  while the light readout keeps working, and vice versa. A dead connection still suppresses
+  both.
 - **Reading unstable** — the stand is still moving, or something crossed the beam.
   Guidance holds rather than flickering between instructions.
 - **Save fails / storage full** — reported as a failure. No optimistic UI.
@@ -199,11 +229,15 @@ visible disconnect.
 ## 9. Testing
 
 - `guidance/` is pure — the interesting logic unit-tests with zero mocking.
-- **One contract conformance suite that both `MockDeviceClient` and the real firmware must
-  pass.** This is what stops the two implementations drifting, and it is how an arriving
-  board gets validated in ten minutes rather than a day.
-- The mock replays v1's existing `data/raw/*.csv` at 10 Hz, so the live view is exercised
-  against real sensor traces including their genuine noise and dropouts.
+- **One contract conformance suite that every `DeviceClient` implementation must pass.**
+  This is what stops implementations drifting, and it is how an arriving board gets
+  validated in ten minutes rather than a day. **Known gap:** it currently runs against
+  `InMemoryDeviceClient` only — it has never been pointed at `HttpDeviceClient`, and the
+  mock server itself has no automated test.
+- The mock replays v1's real `data/raw/*.csv` traces at 10 Hz, so the live view is exercised
+  against genuine sensor noise. **It is not exercised against dropouts:** the source dataset
+  contains zero `missed=1` rows in all 1832 samples. The null-distance path is reachable only
+  via the opt-in `MOCK_DROPOUT_PCT` environment variable, which is off by default.
 
 ## 10. Deferred, with reasons
 
