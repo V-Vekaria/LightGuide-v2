@@ -52,10 +52,44 @@ export interface Verdict {
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
 export interface DeviceClient {
+  /**
+   * The setups a screen may show: tombstones (`deleted: true`) are never
+   * included. Every list a user looks at comes from here.
+   */
   listSetups(): Promise<Setup[]>;
+  /**
+   * Everything the device holds, tombstones included — the backup read.
+   *
+   * A deletion is a record, not an absence: `deleted: true` with a newer
+   * `updated_at` is how "I deleted this" survives a round trip through an
+   * export file. `listSetups()` cannot express that, so an export built from
+   * it silently resurrects every setup the user ever deleted the moment it is
+   * re-imported. This is deliberately a separate method rather than a flag on
+   * `listSetups()`: the set of callers allowed to see tombstones is small
+   * (export, and the merge that import runs against), and keeping them
+   * greppable is worth one extra method.
+   */
+  listSetupsIncludingDeleted(): Promise<Setup[]>;
+  /**
+   * Stores the setup exactly as given, `updated_at` and `deleted` included —
+   * the device never re-stamps either. Last-write-wins ordering is decided by
+   * the `updated_at` the *writer* chose, so a device that overwrote it would
+   * make an imported backup always look newer than what is already there.
+   *
+   * Writing a setup with `deleted: true` is a legitimate call: it is how an
+   * import carries a deletion forward.
+   */
   saveSetup(setup: Setup): Promise<Setup>;
+  /**
+   * Tombstones the setup: `deleted: true`, `updated_at` stamped from the
+   * device clock. The record itself is kept, and stays visible to
+   * `listSetupsIncludingDeleted()`.
+   */
   deleteSetup(id: string): Promise<void>;
+  /** `null` clears the target — an explicit erase, not an empty write. */
   setActiveTarget(target: Target | null): Promise<void>;
+  /** What the device is currently guiding to, or null if it is guiding to nothing. */
+  getActiveTarget(): Promise<Target | null>;
   subscribeLive(cb: (reading: Reading) => void): () => void;
   status(): ConnectionStatus;
   close(): void;

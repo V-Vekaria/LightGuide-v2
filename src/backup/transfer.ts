@@ -8,6 +8,13 @@ interface Envelope {
   setups: Setup[];
 }
 
+/**
+ * Serialises the full record, tombstones included — `list` must come from
+ * `DeviceClient.listSetupsIncludingDeleted()` (via the store's `allSetups`),
+ * never from `listSetups()`. A file built from the active list has no way to
+ * express a deletion, so re-importing it silently brings back every setup the
+ * user has deleted since it was written.
+ */
 export function exportSetups(list: Setup[]): string {
   const envelope: Envelope = {
     version: VERSION,
@@ -36,7 +43,18 @@ function isValidSetup(value: unknown): value is Setup {
   );
 }
 
-/** Last-write-wins per setup, by updated_at. Enough for one user. */
+/**
+ * Last-write-wins per setup, by updated_at. Enough for one user.
+ *
+ * `existing` must also be the full record including tombstones. A deletion is
+ * only expressible as a tombstone that is *newer*, so filtering either side
+ * of the merge turns "deleted on Tuesday" into "unknown to the device" and
+ * an older file adds it back.
+ *
+ * Consequence, deliberately: a file whose tombstone is newer than the saved
+ * copy deletes that setup. Import is a merge, not a snapshot restore — the
+ * argument is in .superpowers/sdd/device-contract-report.md.
+ */
 export function importSetups(json: string, existing: Setup[]): Setup[] {
   let parsed: unknown;
   try {

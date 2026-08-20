@@ -14,7 +14,13 @@ export class InMemoryDeviceClient implements DeviceClient {
     return this.setups.filter((s) => !s.deleted);
   }
 
+  async listSetupsIncludingDeleted(): Promise<Setup[]> {
+    return [...this.setups];
+  }
+
   async saveSetup(setup: Setup): Promise<Setup> {
+    // Stored verbatim — `updated_at` and `deleted` are the writer's to decide,
+    // which is what lets an import write a tombstone and keep its ordering.
     this.setups = this.setups.filter((s) => s.id !== setup.id).concat(setup);
     return setup;
   }
@@ -29,6 +35,10 @@ export class InMemoryDeviceClient implements DeviceClient {
 
   async setActiveTarget(target: Target | null): Promise<void> {
     this.target = target;
+  }
+
+  async getActiveTarget(): Promise<Target | null> {
+    return this.target;
   }
 
   subscribeLive(cb: (reading: Reading) => void): () => void {
@@ -47,10 +57,5 @@ export class InMemoryDeviceClient implements DeviceClient {
   /** Test-only: push a reading to subscribers. */
   emit(reading: Reading): void {
     for (const listener of this.listeners) listener(reading);
-  }
-
-  /** Test-only: the target last set. */
-  activeTarget(): Target | null {
-    return this.target;
   }
 }

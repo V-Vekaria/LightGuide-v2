@@ -86,6 +86,34 @@ describe('export / import', () => {
     expect(merged[0]!.deleted).toBe(true);
   });
 
+  it('carries a deletion across an export/import round trip instead of resurrecting it', () => {
+    // The reported failure, end to end: export Monday, delete on Tuesday,
+    // re-import Monday's file on Wednesday.
+    const keep = newSetup({ name: 'Key', distance_cm: 50, distance_source: 'typed' });
+    const doomed = newSetup({ name: 'Fill', distance_cm: 90, distance_source: 'typed' });
+    const mondayFile = exportSetups([keep, doomed]);
+
+    const tombstone = { ...doomed, deleted: true, updated_at: '2099-01-01T00:00:00.000Z' };
+    const recordAfterDelete = [keep, tombstone];
+
+    const merged = importSetups(mondayFile, recordAfterDelete);
+    expect(merged.find((s) => s.id === doomed.id)!.deleted).toBe(true);
+    expect(merged.filter((s) => !s.deleted).map((s) => s.name)).toEqual(['Key']);
+  });
+
+  it('exports a tombstone, so a restore onto a fresh device stays deleted', () => {
+    const keep = newSetup({ name: 'Key', distance_cm: 50, distance_source: 'typed' });
+    const doomed = newSetup({ name: 'Fill', distance_cm: 90, distance_source: 'typed' });
+    const tombstone = { ...doomed, deleted: true, updated_at: '2099-01-01T00:00:00.000Z' };
+
+    const file = exportSetups([keep, tombstone]);
+    expect(JSON.parse(file).setups).toHaveLength(2);
+
+    const ontoEmptyDevice = importSetups(file, []);
+    expect(ontoEmptyDevice).toHaveLength(2);
+    expect(ontoEmptyDevice.filter((s) => !s.deleted).map((s) => s.name)).toEqual(['Key']);
+  });
+
   it('does not let an older tombstone override a newer live copy', () => {
     const base = newSetup({ name: 'Live', distance_cm: 50, distance_source: 'typed' });
     const newerLive = { ...base, name: 'Live', updated_at: '2099-01-01T00:00:00.000Z', deleted: false };

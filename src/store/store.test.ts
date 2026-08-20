@@ -11,7 +11,9 @@ import { InMemoryDeviceClient } from '../device/in-memory-client';
 import { shouldSuppressAxis, STALE_AFTER_MS } from '../guidance/liveness';
 import {
   setups,
+  allSetups,
   reading,
+  removeSetup,
   lastGoodAt,
   lastGoodLightAt,
   stableReading,
@@ -47,6 +49,7 @@ function makeSetup(id: string): Setup {
 describe('store', () => {
   beforeEach(() => {
     setups.value = [];
+    allSetups.value = [];
     reading.value = null;
     lastGoodAt.value = null;
     lastGoodLightAt.value = null;
@@ -99,7 +102,9 @@ describe('store', () => {
 
     let resolveDevice!: (list: Setup[]) => void;
     const client = new InMemoryDeviceClient([]);
-    client.listSetups = () =>
+    // refreshSetups reads the full record (tombstones included) and derives
+    // the visible list from it, so that is the call to hold open here.
+    client.listSetupsIncludingDeleted = () =>
       new Promise<Setup[]>((resolve) => {
         resolveDevice = resolve;
       });
@@ -170,6 +175,53 @@ describe('store', () => {
     expect(caught).toBeInstanceOf(PartialPersistError);
     expect((caught as PartialPersistError).written).toBe(1);
     expect(setups.value.map((s) => s.id)).toEqual(['first']);
+  });
+
+  it('keeps a deleted setup out of the visible list but inside the backup record', async () => {
+    const doomed = makeSetup('doomed');
+    const client = new InMemoryDeviceClient([makeSetup('live'), doomed]);
+    connect(client);
+    await flush();
+    expect(setups.value.map((s) => s.id)).toEqual(['live', 'doomed']);
+
+    await removeSetup('doomed');
+
+    // The screens must not start showing deleted setups...
+    expect(setups.value.map((s) => s.id)).toEqual(['live']);
+    // ...but export must still be able to say it was deleted, or restoring
+    // an older file brings it back.
+    expect(allSetups.value.map((s) => s.id).sort()).toEqual(['doomed', 'live']);
+    expect(allSetups.value.find((s) => s.id === 'doomed')!.deleted).toBe(true);
+  });
+
+  it('caches the full record, tombstones included', async () => {
+    const doomed = makeSetup('doomed');
+    const client = new InMemoryDeviceClient([doomed]);
+    connect(client);
+    await flush();
+    await removeSetup('doomed');
+
+    // An export taken from a cold start with no device reachable reads this
+    // cache. Caching the visible list would drop the deletion.
+    const lastCall = vi.mocked(cacheSetups).mock.calls.at(-1);
+    expect(lastCall?.[0].map((s) => s.id)).toEqual(['doomed']);
+    expect(lastCall?.[0][0]!.deleted).toBe(true);
+  });
+
+  it('filters tombstones out of a cache seed before any screen sees them', async () => {
+    const tombstone = { ...makeSetup('gone'), deleted: true };
+    vi.mocked(readCachedSetups).mockResolvedValue([makeSetup('kept'), tombstone]);
+
+    const client = new InMemoryDeviceClient([]);
+    // Hold the device off so the cache is what lands.
+    client.listSetupsIncludingDeleted = () => new Promise<Setup[]>(() => {});
+    connect(client);
+    await flush();
+
+    expect(setups.value.map((s) => s.id)).toEqual(['kept']);
+    expect(allSetups.value.map((s) => s.id)).toEqual(['kept', 'gone']);
+
+    disconnect();
   });
 
   it('stamps the light axis only when both brightness and ambient are usable', () => {

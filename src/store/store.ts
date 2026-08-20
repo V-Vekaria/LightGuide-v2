@@ -6,7 +6,26 @@ import { createStabilityState, stabilise, type StabilityState } from '../guidanc
 
 export type Screen = 'library' | 'new' | 'live' | 'quick';
 
+/**
+ * The setups every screen renders: active only, never a tombstone. Derived
+ * from `allSetups` — nothing writes this without writing that.
+ */
 export const setups = signal<Setup[]>([]);
+/**
+ * Everything the device holds, tombstones included. Backup only: export writes
+ * this, and import merges against it. Two reasons it is not just `setups`:
+ *
+ *  - An export built from the active list physically cannot contain a
+ *    deletion, so re-importing it resurrects every setup deleted since.
+ *  - The *local* side of the merge needs tombstones too. Merging an old file
+ *    against the active list makes a setup deleted last Tuesday look like one
+ *    the device has never heard of, and it comes back as an addition.
+ *
+ * Holding the full record here (rather than fetching it when Export is
+ * pressed) keeps export synchronous and available while the device is gone —
+ * which is exactly when a backup matters.
+ */
+export const allSetups = signal<Setup[]>([]);
 export const reading = signal<Reading | null>(null);
 export const status = signal<ConnectionStatus>('disconnected');
 export const screen = signal<Screen>('library');
@@ -191,7 +210,10 @@ export function connect(client: DeviceClient): void {
   // setup and the device correctly reports zero).
   void readCachedSetups().then((cached) => {
     if (myGeneration === generation && !deviceAnswered && setups.value.length === 0) {
-      setups.value = cached;
+      // The cache holds the full record, tombstones included, so an export
+      // taken before the device answers still carries deletions. They are
+      // filtered back out of `setups` here, same as a device response.
+      applySnapshot(cached);
     }
   });
   // Generation-guarded like every other write above: a stale connect()'s
@@ -205,12 +227,25 @@ export async function refreshSetups(): Promise<void> {
   const myGeneration = generation;
   const client = device;
   if (!client) return;
-  const list = await client.listSetups();
+  // One read of the whole record, split into the two views. The screens get
+  // the active list they have always had; backup gets the tombstones it
+  // cannot work without.
+  const list = await client.listSetupsIncludingDeleted();
   if (myGeneration !== generation) return; // superseded by a newer connect()
   deviceAnswered = true;
-  setups.value = list;
+  applySnapshot(list);
   status.value = client.status();
   void cacheSetups(list);
+}
+
+/**
+ * The single place tombstones are filtered out of what screens see. Every
+ * write to `setups` goes through here, so a deleted setup cannot reach a
+ * screen by some path that forgot to filter.
+ */
+function applySnapshot(list: Setup[]): void {
+  allSetups.value = list;
+  setups.value = list.filter((s) => !s.deleted);
 }
 
 /** Tears down the live connection: heartbeat, live subscription, and device reference. */

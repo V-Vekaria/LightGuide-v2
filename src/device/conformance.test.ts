@@ -3,6 +3,9 @@ import { describeDeviceClient } from './conformance';
 import { InMemoryDeviceClient } from './in-memory-client';
 import type { Reading } from '../contract/types';
 
+// A fresh instance per call is what gives the suite its clean device — the
+// in-memory equivalent of the fresh mock server conformance.http.test.ts
+// starts for each of its runs.
 describeDeviceClient('InMemoryDeviceClient', () => new InMemoryDeviceClient());
 
 // The shared conformance suite can't verify delivery (see the comment atop

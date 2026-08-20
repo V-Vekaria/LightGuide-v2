@@ -26,6 +26,22 @@ function isValidReading(value: unknown): value is Reading {
   );
 }
 
+/**
+ * Guards `GET /api/active`. A malformed target must not be quietly read as
+ * "not guiding": that reads as a fact about the device ("nothing is active")
+ * when the truth is "the device said something we could not understand".
+ */
+function isValidTarget(value: unknown): value is Target {
+  if (typeof value !== 'object' || value === null) return false;
+  const t = value as Record<string, unknown>;
+  return (
+    typeof t.distance_cm === 'number' && Number.isFinite(t.distance_cm) &&
+    typeof t.distance_tol_cm === 'number' && Number.isFinite(t.distance_tol_cm) &&
+    typeof t.brightness_tol === 'number' && Number.isFinite(t.brightness_tol) &&
+    isFiniteOrNull(t.brightness_above_ambient)
+  );
+}
+
 /** Talks to the ESP32 — and to the mock server, which implements the same surface. */
 export class HttpDeviceClient implements DeviceClient {
   private listeners = new Set<(r: Reading) => void>();
@@ -51,6 +67,10 @@ export class HttpDeviceClient implements DeviceClient {
     return this.json<Setup[]>('/api/setups');
   }
 
+  listSetupsIncludingDeleted(): Promise<Setup[]> {
+    return this.json<Setup[]>('/api/setups?include_deleted=1');
+  }
+
   saveSetup(setup: Setup): Promise<Setup> {
     return this.json<Setup>(`/api/setups/${setup.id}`, {
       method: 'PUT',
@@ -62,11 +82,27 @@ export class HttpDeviceClient implements DeviceClient {
     await this.json<void>(`/api/setups/${id}`, { method: 'DELETE' });
   }
 
+  /**
+   * Clearing is its own verb. It used to be `POST /api/active` with `{}`, and
+   * the mock inferred "empty object means clear" — nothing in the contract
+   * said so, and the same inference makes a *truncated* body (a real outcome
+   * on a flaky access point) mean "stop guiding". `DELETE` carries no body at
+   * all, so there is nothing left to misread.
+   */
   async setActiveTarget(target: Target | null): Promise<void> {
-    await this.json<void>('/api/active', {
-      method: 'POST',
-      body: JSON.stringify(target ?? {}),
-    });
+    if (target === null) {
+      await this.json<void>('/api/active', { method: 'DELETE' });
+      return;
+    }
+    await this.json<void>('/api/active', { method: 'POST', body: JSON.stringify(target) });
+  }
+
+  async getActiveTarget(): Promise<Target | null> {
+    const body = await this.json<unknown>('/api/active');
+    const target = (body as { target?: unknown } | null)?.target;
+    if (target === undefined || target === null) return null;
+    if (!isValidTarget(target)) throw new Error('GET /api/active returned a malformed target');
+    return target;
   }
 
   subscribeLive(cb: (reading: Reading) => void): () => void {

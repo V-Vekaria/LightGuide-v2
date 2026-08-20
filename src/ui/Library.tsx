@@ -4,6 +4,7 @@ import { exportSetups, importSetups } from '../backup/transfer';
 import {
   PartialPersistError,
   activeSetupId,
+  allSetups,
   createSetup,
   editSetup,
   navigate,
@@ -122,6 +123,11 @@ function Row({
 
 export function Library() {
   const list = setups.value;
+  /**
+   * The full record, tombstones included — what backup works on. Rows are
+   * still drawn from `list`; nothing deleted is ever rendered.
+   */
+  const record = allSetups.value;
   const activeId = activeSetupId.value;
   const connected = status.value === 'connected';
   const connection = connectionNotice(status.value);
@@ -175,8 +181,12 @@ export function Library() {
     clearMessages();
     setPending(null);
     try {
-      const merged = importSetups(await file.text(), setups.value);
-      const summary = summariseImport(setups.value, merged);
+      // Merged against the full record, not the visible list: a setup deleted
+      // last Tuesday must look like a deletion to the merge, not like one the
+      // device has never heard of — otherwise an older file adds it straight
+      // back.
+      const merged = importSetups(await file.text(), allSetups.value);
+      const summary = summariseImport(allSetups.value, merged);
       if (summary.changed.length === 0) {
         // Nothing to confirm, and nothing to write. Say so out loud — a silent
         // no-op is indistinguishable from a failure.
@@ -245,11 +255,13 @@ export function Library() {
               onChange={onImport}
             />
             {/* Export never touches the device: it stays available precisely
-                when the device is gone, because that is when a backup matters. */}
+                when the device is gone, because that is when a backup matters.
+                It writes the full record — tombstones included — so restoring
+                this file carries deletions forward instead of undoing them. */}
             <button
               class="btn btn-ghost"
               disabled={list.length === 0}
-              onClick={() => download('lightguide-setups.json', exportSetups(list))}
+              onClick={() => download('lightguide-setups.json', exportSetups(record))}
             >
               Export
             </button>
