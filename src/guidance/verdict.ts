@@ -22,8 +22,11 @@ function instructionFor(
   // Distance first: moving the stand changes the light level too.
   if (distanceState === 'over') return `Move ${round(Math.abs(distanceDelta), 1)} cm closer`;
   if (distanceState === 'under') return `Move ${round(Math.abs(distanceDelta), 1)} cm further`;
-  if (brightnessState === 'under') return 'Raise the light';
-  if (brightnessState === 'over') return 'Lower the light';
+  // Never "raise"/"lower" the light: in a studio those mean the height of the
+  // stand, which is the one adjustment this instruction does NOT want. The
+  // axis is the head's output, so the word "output" carries the sentence.
+  if (brightnessState === 'under') return 'Increase the light output';
+  if (brightnessState === 'over') return 'Reduce the light output';
   if (guidingOnLight && brightnessState === 'unknown') {
     return 'On target for distance — no light reading';
   }

@@ -1,12 +1,42 @@
 import { useState } from 'preact/hooks';
 import { DEFAULT_BRIGHTNESS_TOL, DEFAULT_DISTANCE_TOL_CM } from '../contract/types';
-import { navigate, startGuiding } from '../store/store';
+import { navigate, startGuiding, status } from '../store/store';
+import { Banner } from './Banner';
+import {
+  connectionNotice,
+  deviceActionReason,
+  deviceErrorMessage,
+  type UserMessage,
+} from './messages';
 
 /** Type a distance, get guided. Nothing named, nothing saved — the common case. */
 export function QuickGuide() {
   const [distance, setDistance] = useState('');
+  const [failure, setFailure] = useState<UserMessage | null>(null);
+  const [starting, setStarting] = useState(false);
   const value = Number(distance);
   const valid = Number.isFinite(value) && value > 0;
+
+  const connected = status.value === 'connected';
+  const connection = connectionNotice(status.value);
+  const reason = deviceActionReason(status.value);
+
+  async function guide() {
+    setFailure(null);
+    setStarting(true);
+    try {
+      await startGuiding({
+        distance_cm: value,
+        distance_tol_cm: DEFAULT_DISTANCE_TOL_CM,
+        brightness_above_ambient: null,
+        brightness_tol: DEFAULT_BRIGHTNESS_TOL,
+      });
+    } catch (caught) {
+      setFailure(deviceErrorMessage(caught, 'start guiding'));
+    } finally {
+      setStarting(false);
+    }
+  }
 
   return (
     <div class="wrap-tight">
@@ -21,6 +51,9 @@ export function QuickGuide() {
         Where do you want the light? We'll walk you to it. Nothing is saved — use{' '}
         <strong>New setup</strong> if you want to keep it.
       </p>
+
+      {connection && <Banner tone="warn" message={connection} />}
+      {failure && <Banner tone="warn" message={failure} onDismiss={() => setFailure(null)} />}
 
       <div class="field">
         <div class="field-label">Target distance (cm)</div>
@@ -44,19 +77,16 @@ export function QuickGuide() {
       </div>
 
       <div style={{ marginTop: 26 }}>
+        {/* Guiding is the device's job — the target has to be sent to it. With
+            no device there is nothing to press, so the button says so rather
+            than failing after the tap. */}
         <button
           class="btn btn-block"
-          disabled={!valid}
-          onClick={() => {
-            void startGuiding({
-              distance_cm: value,
-              distance_tol_cm: DEFAULT_DISTANCE_TOL_CM,
-              brightness_above_ambient: null,
-              brightness_tol: DEFAULT_BRIGHTNESS_TOL,
-            }).catch((error) => alert((error as Error).message));
-          }}
+          disabled={!valid || !connected || starting}
+          title={reason ?? undefined}
+          onClick={() => void guide()}
         >
-          Guide me
+          {starting ? 'Starting…' : 'Guide me'}
         </button>
       </div>
     </div>

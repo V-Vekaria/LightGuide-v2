@@ -48,16 +48,27 @@ describe('verdict', () => {
     expect(v.brightness_state).toBe('in_band');
   });
 
-  it('asks to raise the light when underlit', () => {
+  it('asks for more light output when underlit', () => {
     const v = verdict(reading({ brightness: 0.30 }), target);
     expect(v.brightness_state).toBe('under');
-    expect(v.instruction).toBe('Raise the light');
+    expect(v.instruction).toBe('Increase the light output');
   });
 
-  it('asks to lower the light when overlit', () => {
+  it('asks for less light output when overlit', () => {
     const v = verdict(reading({ brightness: 0.90 }), target);
     expect(v.brightness_state).toBe('over');
-    expect(v.instruction).toBe('Lower the light');
+    expect(v.instruction).toBe('Reduce the light output');
+  });
+
+  it('never tells a photographer to raise or lower the light, which means the stand', () => {
+    // "Raise the light" is a height change in a studio. The brightness axis is
+    // the head's output, so neither word may appear in either instruction.
+    const under = verdict(reading({ brightness: 0.30 }), target).instruction;
+    const over = verdict(reading({ brightness: 0.90 }), target).instruction;
+    expect(under).not.toMatch(/raise|lower/i);
+    expect(over).not.toMatch(/raise|lower/i);
+    expect(under).toMatch(/output/i);
+    expect(over).toMatch(/output/i);
   });
 
   it('corrects distance before brightness', () => {

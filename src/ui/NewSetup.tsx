@@ -7,8 +7,17 @@ import {
   persistSetup,
   prefillDistanceCm,
   setups,
+  status,
 } from '../store/store';
 import { CaptureLight } from './CaptureLight';
+import { Banner } from './Banner';
+import {
+  connectionNotice,
+  deviceActionReason,
+  deviceErrorMessage,
+  liveReadingNotice,
+  type UserMessage,
+} from './messages';
 
 export function NewSetup() {
   // Mounted fresh per edit (app.tsx keys this component on editingSetupId), so
@@ -16,26 +25,38 @@ export function NewSetup() {
   const existing = setups.value.find((setup) => setup.id === editingSetupId.value) ?? null;
   const isEdit = existing !== null;
 
-  const [name, setName] = useState(existing?.name ?? '');
-  const [distance, setDistance] = useState(
-    existing
+  // Snapshotted on first render only. This is the baseline every "have you
+  // changed anything?" question is answered against, so it must not drift
+  // when the device refreshes the list underneath us.
+  const [initial] = useState(() => ({
+    name: existing?.name ?? '',
+    distance: existing
       ? String(existing.distance_cm)
       : prefillDistanceCm.value !== null
         ? String(prefillDistanceCm.value)
-        : ''
-  );
+        : '',
+    tolerance: String(existing?.distance_tol_cm ?? DEFAULT_DISTANCE_TOL_CM),
+    light: existing?.brightness_above_ambient ?? null,
+  }));
+
+  const [name, setName] = useState(initial.name);
+  const [distance, setDistance] = useState(initial.distance);
   const [distanceSource, setDistanceSource] = useState<'typed' | 'captured'>(
     existing?.distance_source ?? 'typed'
   );
-  const [tolerance, setTolerance] = useState(
-    String(existing?.distance_tol_cm ?? DEFAULT_DISTANCE_TOL_CM)
-  );
-  const [light, setLight] = useState<number | null>(existing?.brightness_above_ambient ?? null);
+  const [tolerance, setTolerance] = useState(initial.tolerance);
+  const [light, setLight] = useState<number | null>(initial.light);
   const [capturing, setCapturing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<UserMessage | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+
+  const connected = status.value === 'connected';
+  const connection = connectionNotice(status.value);
+  const reason = deviceActionReason(status.value);
 
   const liveDistance = liveReading()?.distance_cm ?? null;
+  const readingNotice = liveReadingNotice(status.value, liveDistance !== null);
   const distanceValue = Number(distance);
   const toleranceValue = Number(tolerance);
   // A tolerance of 0 is never satisfiable — verdict() can only report in_band
@@ -47,6 +68,20 @@ export function NewSetup() {
     Number.isFinite(distanceValue) &&
     distanceValue > 0 &&
     toleranceValid;
+
+  const dirty =
+    name !== initial.name ||
+    distance !== initial.distance ||
+    tolerance !== initial.tolerance ||
+    light !== initial.light;
+  /**
+   * A light reference is the one thing on this form that cost physical work:
+   * the studio light had to be switched off, the reading had to settle, then
+   * the light went back on and was set again. Typing a name costs nothing;
+   * this costs a trip to the stand and a client's patience. So the leave
+   * confirmation names it specifically instead of saying "unsaved changes".
+   */
+  const capturedLight = light !== null && light !== initial.light;
 
   if (capturing) {
     return (
@@ -60,9 +95,17 @@ export function NewSetup() {
     );
   }
 
+  function leave() {
+    if (!dirty) {
+      navigate('library');
+      return;
+    }
+    setConfirmLeave(true);
+  }
+
   async function save() {
     setSaving(true);
-    setError(null);
+    setFailure(null);
     try {
       const lightChanged = (existing?.brightness_above_ambient ?? null) !== light;
       const setup =
@@ -96,8 +139,9 @@ export function NewSetup() {
       await persistSetup(setup);
       navigate('library');
     } catch (caught) {
-      // Save is confirmed by the device. If it failed, say so.
-      setError((caught as Error).message || 'The device did not confirm the save.');
+      // Save is confirmed by the device. If it failed, say so — and say what
+      // to do about it, with the form still filled in behind the message.
+      setFailure(deviceErrorMessage(caught, isEdit ? 'save your changes' : 'save this setup'));
     } finally {
       setSaving(false);
     }
@@ -107,10 +151,40 @@ export function NewSetup() {
     <div class="wrap-tight">
       <div class="row">
         <span class="section-title">{isEdit ? 'Edit setup' : 'New setup'}</span>
-        <button class="link-btn" onClick={() => navigate('library')}>
+        <button class="link-btn" onClick={leave}>
           Cancel
         </button>
       </div>
+
+      {connection && <Banner tone="warn" message={connection} />}
+
+      {confirmLeave && (
+        <Banner
+          tone="warn"
+          message={
+            capturedLight && light !== null
+              ? {
+                  title: 'Leave and lose the light you just captured?',
+                  detail: `The reference reads ${light.toFixed(
+                    3
+                  )} above ambient. Capturing it again means switching the studio light off, waiting for the reading to settle, switching it back on and setting it how you want it.`,
+                }
+              : {
+                  title: 'Leave without saving?',
+                  detail: 'The name, distance and tolerance on this form have not been saved yet.',
+                }
+          }
+        >
+          <div class="banner-actions">
+            <button class="btn btn-ghost" onClick={() => setConfirmLeave(false)}>
+              Keep editing
+            </button>
+            <button class="btn" onClick={() => navigate('library')}>
+              Leave without saving
+            </button>
+          </div>
+        </Banner>
+      )}
 
       <div class="field">
         <div class="field-label">Name</div>
@@ -147,7 +221,14 @@ export function NewSetup() {
             ? 'Use current reading'
             : `Use current reading — ${liveDistance.toFixed(1)} cm`}
         </button>
-        {liveDistance === null && <div class="hint">No live reading from the device.</div>}
+        {readingNotice && (
+          <div class="hint">
+            {/* When the device is gone the banner above already carries the
+                recovery steps; repeating them under every field is noise. */}
+            {readingNotice.title}
+            {connected ? ` ${readingNotice.detail}` : ''}
+          </div>
+        )}
       </div>
 
       <div class="field">
@@ -200,9 +281,16 @@ export function NewSetup() {
         )}
       </div>
 
-      {error && <div class="stale-banner">{error}</div>}
+      {failure && <Banner tone="warn" message={failure} onDismiss={() => setFailure(null)} />}
 
-      <button class="btn btn-block" disabled={!valid || saving} onClick={() => void save()}>
+      {/* The device confirms every save — there is no optimistic write to fall
+          back on, so with no device there is nothing this button can do. */}
+      <button
+        class="btn btn-block"
+        disabled={!valid || saving || !connected}
+        title={connected ? undefined : (reason ?? undefined)}
+        onClick={() => void save()}
+      >
         {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Save setup'}
       </button>
     </div>

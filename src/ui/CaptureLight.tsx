@@ -1,5 +1,7 @@
 import { useState } from 'preact/hooks';
-import { liveReading } from '../store/store';
+import type { ConnectionStatus } from '../contract/types';
+import { liveReading, status } from '../store/store';
+import { liveReadingNotice } from './messages';
 
 interface Props {
   onCaptured: (aboveAmbient: number) => void;
@@ -33,6 +35,16 @@ function BulbIcon({ on }: { on: boolean }) {
   );
 }
 
+function ReadingNotice({ status, hasReading }: { status: ConnectionStatus; hasReading: boolean }) {
+  const notice = liveReadingNotice(status, hasReading);
+  if (!notice) return null;
+  return (
+    <div class="notice" style={{ marginBottom: 12 }}>
+      <strong>{notice.title}</strong> {notice.detail}
+    </div>
+  );
+}
+
 /**
  * Two steps, and the first one is the point: reading ambient with the light off is
  * what makes the reference still valid next week under different daylight.
@@ -50,6 +62,7 @@ export function CaptureLight({ onCaptured, onCancel }: Props) {
   const [ambientAtConfirm, setAmbientAtConfirm] = useState<number | null>(null);
   const live = liveReading();
   const noLiveReading = live === null;
+  const connection = status.value;
 
   if (ambientAtConfirm === null) {
     const ambientNow = live?.ambient ?? null;
@@ -76,11 +89,10 @@ export function CaptureLight({ onCaptured, onCancel }: Props) {
           </div>
         </div>
 
-        {ambientNow === null && (
-          <div class="notice" style={{ marginBottom: 12 }}>
-            No live reading from the device.
-          </div>
-        )}
+        {/* This screen is reached with the studio light already switched off,
+            so a bare "no reading" would leave the user standing in the dark
+            with nothing to try. Name which failure it is and what fixes it. */}
+        <ReadingNotice status={connection} hasReading={ambientNow !== null} />
 
         <button
           class="btn btn-block"
@@ -125,11 +137,7 @@ export function CaptureLight({ onCaptured, onCancel }: Props) {
         </div>
       </div>
 
-      {noLiveReading && (
-        <div class="notice" style={{ marginBottom: 12 }}>
-          No live reading from the device.
-        </div>
-      )}
+      <ReadingNotice status={connection} hasReading={!noLiveReading} />
       {!noLiveReading && notAboveAmbient && (
         <div class="notice" style={{ marginBottom: 12 }}>
           The light must read brighter than ambient before it can be used as a reference.
