@@ -233,9 +233,9 @@ export async function createMockDevice(options = {}) {
       activeTarget = null;
       return noContent();
     }
-    if (url.pathname === '/api/ambient' && req.method === 'GET') {
-      return json(200, { ambient: AMBIENT });
-    }
+    // No GET /api/ambient. Ambient is a per-frame field on the live feed and
+    // nothing has ever fetched it separately — leaving the route here only
+    // gave a firmware author a fifth endpoint to implement for no caller.
     return json(404, { error: 'not found' });
   });
 
