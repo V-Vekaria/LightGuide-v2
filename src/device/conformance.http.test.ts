@@ -44,7 +44,16 @@ describe('HttpDeviceClient live delivery over a real WebSocket', () => {
     const client = new HttpDeviceClient(device.url);
 
     const received: Reading[] = [];
+    // A second subscriber that never leaves, so "the feed is still running"
+    // becomes something this test can *observe* rather than assume. Without
+    // it the only way to check that unsubscribing stopped delivery is to
+    // sleep a few frames and see if anything arrived — which asserts nothing
+    // at all on a loaded machine where those 300 ms happen to buy zero
+    // frames, and would pass just as happily against a mock that had stopped
+    // sending to everyone.
+    const control: Reading[] = [];
     const off = client.subscribeLive((r) => received.push(r));
+    client.subscribeLive((r) => control.push(r));
 
     await waitFor(() => received.length >= 2, 5000, 'two live readings');
 
@@ -61,7 +70,18 @@ describe('HttpDeviceClient live delivery over a real WebSocket', () => {
 
     off();
     const countAtUnsubscribe = received.length;
-    await delay(300); // ~3 frames at the mock's 10 Hz
+    const controlAtUnsubscribe = control.length;
+
+    // Wait for the feed to demonstrably deliver three more frames to the
+    // listener that is still subscribed...
+    await waitFor(
+      () => control.length >= controlAtUnsubscribe + 3,
+      5000,
+      'three more frames on the still-subscribed listener',
+    );
+    // ...and only then assert that not one of them reached the listener that
+    // unsubscribed. Now the assertion has a known number of real delivery
+    // opportunities behind it instead of an elapsed-time guess.
     expect(received.length).toBe(countAtUnsubscribe);
 
     client.close();
