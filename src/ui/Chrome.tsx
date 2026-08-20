@@ -25,13 +25,13 @@ export function AppBar() {
             target. This chip is how you get back to it. */}
         {guiding && elsewhere && (
           <button class="guiding-chip" onClick={() => navigate('live')}>
-            <span class="status-dot status-connected" />
+            <span class="status-dot status-connected" aria-hidden="true" />
             <span>Guiding{named ? `: ${named.name}` : ''}</span>
             <span class="guiding-chip-go">Return</span>
           </button>
         )}
         <div class="conn">
-          <span class={`status-dot status-${status.value}`} />
+          <span class={`status-dot status-${status.value}`} aria-hidden="true" />
           <span>
             {status.value === 'connected'
               ? 'Device connected'
@@ -84,6 +84,15 @@ export function LiveStrip() {
           {distance !== null && <span class="tile-unit">cm</span>}
         </div>
         <div class={`tile-note${distanceInBand === null ? '' : distanceInBand ? ' is-ok' : ' is-warn'}`}>
+          {/* "+2.3 from target" is the same sentence whether it is good news or
+              bad; green vs amber was the only thing telling them apart. The
+              mark carries that difference as a shape instead — aria-hidden, so
+              nothing is added to what a screen reader reads out. */}
+          {distanceInBand !== null && (
+            <span class="note-mark" aria-hidden="true">
+              {distanceInBand ? '✓' : '!'}
+            </span>
+          )}
           {distanceDelta === null
             ? target
               ? 'no reading'
@@ -102,6 +111,11 @@ export function LiveStrip() {
           )}
         </div>
         <div class={`tile-note${lightInBand === null ? '' : lightInBand ? ' is-ok' : ' is-warn'}`}>
+          {lightInBand !== null && (
+            <span class="note-mark" aria-hidden="true">
+              {lightInBand ? '✓' : '!'}
+            </span>
+          )}
           {target?.brightness_above_ambient == null
             ? 'no light target'
             : lightDelta === null

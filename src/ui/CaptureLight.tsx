@@ -67,15 +67,15 @@ export function CaptureLight({ onCaptured, onCancel }: Props) {
   if (ambientAtConfirm === null) {
     const ambientNow = live?.ambient ?? null;
     return (
-      <div class="wrap-tight">
+      <main class="wrap-tight">
         <div class="row">
-          <span class="section-title">Capture light</span>
-          <span style={{ fontSize: 11, color: 'var(--faint)' }}>Step 1 of 2</span>
+          <h1 class="section-title">Capture light</h1>
+          <span class="capture-step">Step 1 of 2</span>
         </div>
 
         <div class="capture-stage">
           <BulbIcon on={false} />
-          <div class="capture-title">Switch the light off</div>
+          <h2 class="capture-title">Switch the light off</h2>
           <p class="capture-copy">
             Reading the room's ambient level first is what keeps this reference valid next week,
             under different daylight.
@@ -104,7 +104,7 @@ export function CaptureLight({ onCaptured, onCancel }: Props) {
         <button class="btn btn-ghost btn-block" style={{ marginTop: 8 }} onClick={onCancel}>
           Cancel
         </button>
-      </div>
+      </main>
     );
   }
 
@@ -115,15 +115,15 @@ export function CaptureLight({ onCaptured, onCancel }: Props) {
   const notAboveAmbient = aboveAmbient !== null && aboveAmbient <= 0;
 
   return (
-    <div class="wrap-tight">
+    <main class="wrap-tight">
       <div class="row">
-        <span class="section-title">Capture light</span>
-        <span style={{ fontSize: 11, color: 'var(--faint)' }}>Step 2 of 2</span>
+        <h1 class="section-title">Capture light</h1>
+        <span class="capture-step">Step 2 of 2</span>
       </div>
 
       <div class="capture-stage">
         <BulbIcon on />
-        <div class="capture-title">Switch the light on and set it how you want it</div>
+        <h2 class="capture-title">Switch the light on and set it how you want it</h2>
         <p class="capture-copy">We store the difference from ambient, not the raw level.</p>
 
         <div class="capture-readout">
@@ -131,7 +131,7 @@ export function CaptureLight({ onCaptured, onCancel }: Props) {
             Above ambient
           </div>
           <div class="capture-value">{aboveAmbient === null ? '—' : aboveAmbient.toFixed(3)}</div>
-          <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 4 }}>
+          <div class="capture-step" style={{ marginTop: 4 }}>
             ambient was {ambientAtConfirm.toFixed(3)}
           </div>
         </div>
@@ -158,6 +158,6 @@ export function CaptureLight({ onCaptured, onCancel }: Props) {
       >
         Back
       </button>
-    </div>
+    </main>
   );
 }

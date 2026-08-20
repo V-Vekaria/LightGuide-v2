@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { targetFromSetup, type Setup } from '../contract/types';
 import { exportSetups, importSetups } from '../backup/transfer';
 import {
@@ -63,15 +63,23 @@ function Row({
   onGuide: (setup: Setup) => void;
   onDelete: (setup: Setup) => void;
 }) {
+  // Out of context, "Guide" and "Delete" name no particular setup — every row
+  // has a pair, and a screen reader announces them one after another with
+  // nothing to tell them apart. Pointing each button's label at its own text
+  // plus the row's name gives "Guide, Portrait key" without inventing any
+  // copy: both halves are already on screen.
+  const nameId = `setup-${setup.id}-name`;
+  const guideId = `setup-${setup.id}-guide`;
+  const deleteId = `setup-${setup.id}-delete`;
+
   return (
     <div class={`trow${active ? ' is-active' : ''}`}>
       <div class="tname">
-        <span
-          class="status-dot"
-          style={{ background: active ? 'var(--ok)' : 'var(--line)' }}
-        />
+        <span class={`status-dot ${active ? 'dot-active' : 'dot-idle'}`} aria-hidden="true" />
         <button class="tname-btn" onClick={() => editSetup(setup.id)} title="Edit this setup">
-          <span class="tname-text">{setup.name}</span>
+          <span class="tname-text" id={nameId}>
+            {setup.name}
+          </span>
         </button>
       </div>
       <div class="tcell">{setup.distance_cm.toFixed(1)}</div>
@@ -84,17 +92,25 @@ function Row({
             it is gone only produces a failure the user cannot act on — so the
             state of the connection is shown on the control itself. */}
         <button
-          class="link-btn"
+          id={guideId}
+          class="row-guide"
           disabled={!connected}
           title={reason ?? undefined}
+          aria-labelledby={`${guideId} ${nameId}`}
           onClick={() => onGuide(setup)}
         >
           {active ? 'Guiding' : 'Guide'}
         </button>
+        {/* Guide is a bordered button, Delete is bare text, and this rule holds
+            28px of empty space between the two hit areas. They used to be
+            identical text buttons ~10px apart at the thumb edge of the row. */}
+        <span class="row-sep" aria-hidden="true" />
         <button
+          id={deleteId}
           class="link-btn link-danger"
           disabled={!connected}
           title={reason ?? undefined}
+          aria-labelledby={`${deleteId} ${nameId}`}
           onClick={() => onDelete(setup)}
         >
           Delete
@@ -116,6 +132,7 @@ export function Library() {
   const [pending, setPending] = useState<PendingImport | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Setup | null>(null);
   const [busy, setBusy] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   function clearMessages() {
     setFailure(null);
@@ -201,24 +218,32 @@ export function Library() {
   return (
     <>
       <LiveStrip />
-      <div class="wrap">
+      <main class="wrap">
         <div class="row">
-          <span class="section-title">Saved setups</span>
+          <h1 class="section-title">Saved setups</h1>
           <div class="actions">
-            <label
-              class={`btn btn-ghost${connected ? '' : ' is-disabled'}`}
-              style={{ cursor: connected ? 'pointer' : 'not-allowed' }}
+            {/* Was a <label> wrapping the hidden input. A <label> is not
+                focusable, which made import — one of the two primary actions on
+                this screen, and half of the only backup route there is —
+                impossible to reach without a pointer. A real button that clicks
+                the input for it is focusable, Enter/Space-activatable, and can
+                be genuinely :disabled rather than only looking it. */}
+            <button
+              class="btn btn-ghost"
+              disabled={!connected}
               title={reason ?? undefined}
+              onClick={() => fileInput.current?.click()}
             >
               Import
-              <input
-                type="file"
-                accept="application/json"
-                style={{ display: 'none' }}
-                disabled={!connected}
-                onChange={onImport}
-              />
-            </label>
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="application/json"
+              style={{ display: 'none' }}
+              disabled={!connected}
+              onChange={onImport}
+            />
             {/* Export never touches the device: it stays available precisely
                 when the device is gone, because that is when a backup matters. */}
             <button
@@ -346,7 +371,7 @@ export function Library() {
           Light is stored above ambient, not raw — a reference captured at night still holds at noon.
           Export writes a JSON file you can re-import; it is the only backup until cloud sync lands.
         </div>
-      </div>
+      </main>
     </>
   );
 }

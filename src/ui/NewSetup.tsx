@@ -148,9 +148,9 @@ export function NewSetup() {
   }
 
   return (
-    <div class="wrap-tight">
+    <main class="wrap-tight">
       <div class="row">
-        <span class="section-title">{isEdit ? 'Edit setup' : 'New setup'}</span>
+        <h1 class="section-title">{isEdit ? 'Edit setup' : 'New setup'}</h1>
         <button class="link-btn" onClick={leave}>
           Cancel
         </button>
@@ -186,9 +186,16 @@ export function NewSetup() {
         </Banner>
       )}
 
+      {/* Every field label is a real <label for>, so tapping the label focuses
+          the field — and assistive tech announces "Target distance, edit"
+          instead of an anonymous spin button. The hints are wired up with
+          aria-describedby rather than left floating next to the input. */}
       <div class="field">
-        <div class="field-label">Name</div>
+        <label class="field-label" for="setup-name">
+          Name
+        </label>
         <input
+          id="setup-name"
           class="input"
           value={name}
           placeholder="Portrait key"
@@ -197,13 +204,17 @@ export function NewSetup() {
       </div>
 
       <div class="field">
-        <div class="field-label">Target distance (cm)</div>
+        <label class="field-label" for="setup-distance">
+          Target distance (cm)
+        </label>
         <input
+          id="setup-distance"
           class="input"
           type="number"
           inputMode="decimal"
           value={distance}
           placeholder="50"
+          aria-describedby={readingNotice ? 'setup-distance-hint' : undefined}
           onInput={(e) => {
             setDistance((e.currentTarget as HTMLInputElement).value);
             setDistanceSource('typed');
@@ -222,7 +233,7 @@ export function NewSetup() {
             : `Use current reading — ${liveDistance.toFixed(1)} cm`}
         </button>
         {readingNotice && (
-          <div class="hint">
+          <div class="hint" id="setup-distance-hint">
             {/* When the device is gone the banner above already carries the
                 recovery steps; repeating them under every field is noise. */}
             {readingNotice.title}
@@ -232,24 +243,36 @@ export function NewSetup() {
       </div>
 
       <div class="field">
-        <div class="field-label">Tolerance (± cm)</div>
+        <label class="field-label" for="setup-tolerance">
+          Tolerance (± cm)
+        </label>
+        {/* aria-invalid + describedby rather than role="alert": the message is
+            already on screen beside the field, and an alert would re-announce
+            it on every keystroke while the value is still being typed. */}
         <input
+          id="setup-tolerance"
           class="input"
           type="number"
           inputMode="decimal"
           value={tolerance}
+          aria-invalid={!toleranceValid}
+          aria-describedby={toleranceValid ? undefined : 'setup-tolerance-hint'}
           onInput={(e) => setTolerance((e.currentTarget as HTMLInputElement).value)}
         />
         {!toleranceValid && (
-          <div class="hint" style={{ color: 'var(--bad)' }}>
+          <div class="hint" id="setup-tolerance-hint" style={{ color: 'var(--bad)' }}>
             Needs to be at least 0.5 cm — a zero tolerance can never be met, so the setup
             would never read as on target.
           </div>
         )}
       </div>
 
-      <div class="field">
-        <div class="field-label">Light reference</div>
+      {/* Not a <label>: this names a capture control and a readout, not a
+          field, so it is a group label instead of a mislabelled input. */}
+      <div class="field" role="group" aria-labelledby="setup-light-label">
+        <div class="field-label" id="setup-light-label">
+          Light reference
+        </div>
         {light === null ? (
           <>
             <button class="btn btn-info" onClick={() => setCapturing(true)}>
@@ -265,7 +288,9 @@ export function NewSetup() {
               background: 'var(--surface)',
               border: '1px solid var(--line)',
               borderRadius: 6,
-              padding: '11px 12px',
+              // Trimmed on the button side so the now 44px-tall Clear control
+              // does not inflate the whole readout box.
+              padding: '4px 6px 4px 12px',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -293,6 +318,6 @@ export function NewSetup() {
       >
         {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Save setup'}
       </button>
-    </div>
+    </main>
   );
 }

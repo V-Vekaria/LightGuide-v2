@@ -39,9 +39,9 @@ export function QuickGuide() {
   }
 
   return (
-    <div class="wrap-tight">
+    <main class="wrap-tight">
       <div class="row">
-        <span class="section-title">Quick guide</span>
+        <h1 class="section-title">Quick guide</h1>
         <button class="link-btn" onClick={() => navigate('library')}>
           Cancel
         </button>
@@ -56,8 +56,11 @@ export function QuickGuide() {
       {failure && <Banner tone="warn" message={failure} onDismiss={() => setFailure(null)} />}
 
       <div class="field">
-        <div class="field-label">Target distance (cm)</div>
+        <label class="field-label" for="quick-distance">
+          Target distance (cm)
+        </label>
         <input
+          id="quick-distance"
           class="input"
           type="number"
           inputMode="decimal"
@@ -89,6 +92,6 @@ export function QuickGuide() {
           {starting ? 'Starting…' : 'Guide me'}
         </button>
       </div>
-    </div>
+    </main>
   );
 }

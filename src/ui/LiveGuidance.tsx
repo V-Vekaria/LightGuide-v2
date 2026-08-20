@@ -137,10 +137,10 @@ function Guidance({ target }: { target: Target }) {
 
   return (
     <>
-      <div class="wrap" style={{ display: 'flex', flexDirection: 'column' }}>
+      <main class="wrap" style={{ display: 'flex', flexDirection: 'column' }}>
         <div class="guide-head">
           <div class="guide-head-main">
-            <div class="guide-name">{named ? named.name : 'Quick guide'}</div>
+            <h1 class="guide-name">{named ? named.name : 'Quick guide'}</h1>
             {editingTarget ? (
               <div class="target-edit">
                 <div class="target-edit-row">
@@ -154,6 +154,8 @@ function Guidance({ target }: { target: Target }) {
                     value={draft}
                     disabled={applying}
                     aria-label="Target distance in centimetres"
+                    aria-invalid={applyError !== null}
+                    aria-describedby={applyError ? 'target-edit-error' : undefined}
                     onInput={(e) => setDraft((e.currentTarget as HTMLInputElement).value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') applyTarget(draftValue);
@@ -193,7 +195,7 @@ function Guidance({ target }: { target: Target }) {
                   ))}
                 </div>
                 {applyError && (
-                  <div class="target-edit-error" role="alert">
+                  <div class="target-edit-error" id="target-edit-error" role="alert">
                     Target unchanged — {applyError}
                   </div>
                 )}
@@ -214,12 +216,15 @@ function Guidance({ target }: { target: Target }) {
               </button>
             )}
           </div>
+          {/* Both readouts turned green in band and stayed default out of it —
+              colour doing the work on its own. The tick repeats it as a shape,
+              and sits after the number so the digits never shift sideways when
+              the state flips. */}
           <div class="guide-readouts">
             <div>
               <div class="readout-label">Distance</div>
               <div
-                class="readout-value"
-                style={{ color: v.distance_state === 'in_band' ? 'var(--ok)' : undefined }}
+                class={`readout-value${v.distance_state === 'in_band' ? ' is-in-band' : ''}`}
               >
                 {shownDistance === null ? (
                   <span style={{ color: 'var(--faint)' }}>—</span>
@@ -229,18 +234,27 @@ function Guidance({ target }: { target: Target }) {
                     <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 3 }}>cm</span>
                   </>
                 )}
+                {v.distance_state === 'in_band' && (
+                  <span class="note-mark-after" aria-hidden="true">
+                    ✓
+                  </span>
+                )}
               </div>
             </div>
             <div>
               <div class="readout-label">Light</div>
               <div
-                class="readout-value"
-                style={{ color: v.brightness_state === 'in_band' ? 'var(--ok)' : undefined }}
+                class={`readout-value${v.brightness_state === 'in_band' ? ' is-in-band' : ''}`}
               >
                 {shownLight === null ? (
                   <span style={{ color: 'var(--faint)' }}>—</span>
                 ) : (
                   shownLight.toFixed(3)
+                )}
+                {v.brightness_state === 'in_band' && (
+                  <span class="note-mark-after" aria-hidden="true">
+                    ✓
+                  </span>
                 )}
               </div>
             </div>
@@ -318,7 +332,7 @@ function Guidance({ target }: { target: Target }) {
             </button>
           </div>
         </div>
-      </div>
+      </main>
     </>
   );
 }

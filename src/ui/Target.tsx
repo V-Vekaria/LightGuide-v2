@@ -22,17 +22,32 @@ function axisFraction(delta: number | null, tol: number): number | null {
   return Math.max(-1, Math.min(1, scaled));
 }
 
-const NEUTRAL_TINT = 'rgba(107,117,126,.09)';
+/**
+ * The plot's three states, named rather than resolved straight to a colour.
+ *
+ * This used to return the tint directly. It reports the state instead because
+ * the tint can no longer be the only thing carrying it: green-vs-amber is the
+ * pairing red-green colour blindness collapses, so the settled state also has
+ * to reach the band's border style (solid vs dashed, see theme.css). Both cues
+ * now read off one decision instead of two that could drift apart.
+ */
+type PlotState = 'unknown' | 'settled' | 'adjust';
 
-function surroundColour(distance: ChannelState, brightness: ChannelState, guidingOnLight: boolean): string {
-  if (distance === 'unknown') return NEUTRAL_TINT;
+const PLOT_TINT: Record<PlotState, string> = {
+  unknown: 'rgba(84,93,101,.09)',
+  settled: 'rgba(23,124,67,.10)',
+  adjust: 'rgba(184,101,5,.10)',
+};
+
+function plotState(distance: ChannelState, brightness: ChannelState, guidingOnLight: boolean): PlotState {
+  if (distance === 'unknown') return 'unknown';
   // A dropped-out light sensor on a setup that guides on light is unverified, not settled —
   // give it the same neutral treatment as an unknown distance. Distance-only setups are
   // exempt: they have no light target, so brightness_state is permanently 'unknown' there
   // and that's expected, not a dropout.
-  if (guidingOnLight && brightness === 'unknown') return NEUTRAL_TINT;
+  if (guidingOnLight && brightness === 'unknown') return 'unknown';
   const settled = distance === 'in_band' && (brightness === 'in_band' || !guidingOnLight);
-  return settled ? 'rgba(31,157,85,.10)' : 'rgba(217,119,6,.10)';
+  return settled ? 'settled' : 'adjust';
 }
 
 // Dot geometry: the rendered dot's visible extent is its own box plus the halo ring around
@@ -74,6 +89,7 @@ export function TargetView({ verdict, distanceTolCm, brightnessTol, guidingOnLig
   // setup that's supposed to be guiding on light — draw the dot hollow, not solid.
   const lightUnverified = guidingOnLight && verdict.brightness_state === 'unknown';
   const inBand = verdict.distance_state === 'in_band';
+  const state = plotState(verdict.distance_state, verdict.brightness_state, guidingOnLight);
 
   const dotBase = {
     position: 'absolute' as const,
@@ -96,10 +112,8 @@ export function TargetView({ verdict, distanceTolCm, brightnessTol, guidingOnLig
       {guidingOnLight && <div class="target-axis target-axis-top">BRIGHTER</div>}
 
       <div
-        class="target-plot"
-        style={{
-          background: surroundColour(verdict.distance_state, verdict.brightness_state, guidingOnLight),
-        }}
+        class={`target-plot${state === 'settled' ? ' is-in-band' : ''}`}
+        style={{ background: PLOT_TINT[state] }}
       >
         <div class="target-frame" />
         <div
@@ -124,7 +138,7 @@ export function TargetView({ verdict, distanceTolCm, brightnessTol, guidingOnLig
                 ...dotBase,
                 background: inBand ? 'var(--ok)' : 'var(--warn-dot)',
                 boxShadow: `0 0 0 ${HALO_WIDTH}px ${
-                  inBand ? 'rgba(31,157,85,.20)' : 'rgba(217,119,6,.18)'
+                  inBand ? 'rgba(23,124,67,.20)' : 'rgba(184,101,5,.18)'
                 }`,
               }}
             />
