@@ -1,10 +1,12 @@
 import {
   activeSetupId,
   activeTarget,
-  liveReading,
   navigate,
   screen,
   setups,
+  stableDistanceReading,
+  stableLightReading,
+  stableTarget,
   status,
 } from '../store/store';
 
@@ -46,19 +48,32 @@ export function AppBar() {
 }
 
 /**
- * The live sensor strip. Reads through `liveReading()`, which withholds the
- * frame entirely when the feed is stale or the device is gone — so a tile
- * showing a number is always a number worth trusting. A dash is the honest
- * answer, not a placeholder.
+ * The live sensor strip.
+ *
+ * Every tile is read per axis, through an accessor that withholds that axis
+ * entirely when it is stale or the device is gone — so a tile showing a number
+ * is always a number worth trusting, and a dropout on the ultrasonic no longer
+ * blanks a photodiode that is working perfectly. A dash is the honest answer,
+ * not a placeholder.
+ *
+ * It reads the *stabilised* feed and the widened target, which is what the
+ * guidance screen classifies against. Reading the raw frame and the unwidened
+ * tolerance meant this strip could show "+5.2 from target" in the same second
+ * the guidance screen said "On target", with the digits churning at 10 Hz —
+ * exactly the flicker guidance/stability.ts exists to remove, reintroduced
+ * two components away.
  */
 export function LiveStrip() {
-  const live = liveReading();
+  const distanceLive = stableDistanceReading();
+  const lightLive = stableLightReading();
+  // Shown to the user as the real target; classified against the widened one.
   const target = activeTarget.value;
+  const band = stableTarget.value ?? target;
 
-  const distance = live?.distance_cm ?? null;
+  const distance = distanceLive?.distance_cm ?? null;
   const aboveAmbient =
-    live && live.brightness !== null && live.ambient !== null
-      ? live.brightness - live.ambient
+    lightLive && lightLive.brightness !== null && lightLive.ambient !== null
+      ? lightLive.brightness - lightLive.ambient
       : null;
 
   const distanceDelta =
@@ -70,10 +85,10 @@ export function LiveStrip() {
       : null;
 
   const lightInBand =
-    lightDelta !== null && target ? Math.abs(lightDelta) <= target.brightness_tol : null;
+    lightDelta !== null && band ? Math.abs(lightDelta) <= band.brightness_tol : null;
 
   const distanceInBand =
-    distanceDelta !== null && target ? Math.abs(distanceDelta) <= target.distance_tol_cm : null;
+    distanceDelta !== null && band ? Math.abs(distanceDelta) <= band.distance_tol_cm : null;
 
   return (
     <div class="live-strip">
@@ -127,7 +142,11 @@ export function LiveStrip() {
       <div class="tile">
         <div class="tile-label">Ambient</div>
         <div class="tile-value" style={{ color: 'var(--muted)' }}>
-          {live?.ambient == null ? <span style={{ color: 'var(--faint)' }}>—</span> : live.ambient.toFixed(3)}
+          {lightLive?.ambient == null ? (
+            <span style={{ color: 'var(--faint)' }}>—</span>
+          ) : (
+            lightLive.ambient.toFixed(3)
+          )}
         </div>
         <div class="tile-note">device estimate</div>
       </div>

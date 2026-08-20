@@ -27,6 +27,22 @@ import type { Reading, Target } from '../contract/types';
  *    rather than averaging the two middles, so every number this module emits
  *    is a value the sensor actually reported — it never synthesises one.
  *
+ *    That rejection is a property of a *filled* window, not of the median
+ *    function. With one sample the median is the sample; with two, the lower
+ *    median is whichever ping came out lower — so a single wild reading is not
+ *    rejected, it is published verbatim. Every `resetStability()` (connect,
+ *    retarget, reconnect) re-enters exactly that state, and the frame right
+ *    after it is therefore unfiltered. So each step also reports whether the
+ *    window behind it was deep enough to have actually outvoted an outlier
+ *    (`minMedianSamples`, 3 of 5 — a strict majority, which is what it takes
+ *    for the median to be a value the sensor agreed on rather than one it
+ *    merely emitted once). `StabilityStep.filtered` carries that, and the
+ *    guidance screen requires it before it will call the stand *settled* —
+ *    which is what keeps a single wild ping inside tolerance from buzzing
+ *    "arrived" one frame after a reset. The reading itself is still published
+ *    immediately: showing the best number available is right, calling it an
+ *    arrival is not.
+ *
  * 2. **Output deadband with a settle timer.** The median of five noisy samples
  *    still wobbles every frame, and the instruction renders to 0.1 cm — so the
  *    median alone leaves "Move 6.3 cm closer" / "Move 6.4 cm closer" churning,
@@ -115,6 +131,14 @@ export interface StabilityOptions {
   jumpLight: number;
   /** Tolerance multiplier for LEAVING a band once entered. 1 disables hysteresis. */
   leaveToleranceFactor: number;
+  /**
+   * How many samples a channel's window must hold before its median counts as
+   * outlier-rejecting — a strict majority of `windowSize`. Below this the
+   * median is still emitted (the best number available is worth showing) but
+   * the step is reported as unfiltered, and callers that would act on it
+   * irreversibly — the arrival cue — must wait.
+   */
+  minMedianSamples: number;
 }
 
 export const DEFAULT_STABILITY_OPTIONS: StabilityOptions = {
@@ -126,6 +150,7 @@ export const DEFAULT_STABILITY_OPTIONS: StabilityOptions = {
   jumpDistanceCm: 3,
   jumpLight: 0.03,
   leaveToleranceFactor: 1.25,
+  minMedianSamples: 3,
 };
 
 interface Sample {
@@ -176,6 +201,24 @@ export interface StabilityStep {
   reading: Reading;
   /** `target` with tolerances widened per the hysteresis latches. Null in, null out. */
   target: Target | null;
+  /**
+   * True when every channel this step actually reports a number for had at
+   * least `minMedianSamples` samples behind its median — i.e. the outlier
+   * rejection this module advertises was really in force, not just nominally
+   * applied to a window of one.
+   *
+   * False for the first frames after any `resetStability()`, after a stall
+   * long enough to age the window out, and whenever `reading` is blank. A
+   * channel that is null contributes nothing either way: it is already
+   * reported as unknown downstream, so it can neither be trusted nor
+   * distrusted.
+   *
+   * Read this before treating a reading as an *arrival*. Do not read it before
+   * displaying one — a number that has not yet earned the median's protection
+   * is still the honest best estimate, and withholding it would blank the
+   * screen for 300 ms on every reconnect.
+   */
+  filtered: boolean;
 }
 
 export function createStabilityState(): StabilityState {
@@ -306,6 +349,13 @@ function blankReading(): Reading {
   return { distance_cm: null, brightness: null, ambient: null, seq: 0, ts: 0 };
 }
 
+/** How many samples in the window carry a real number for this channel. */
+function countPresent(samples: readonly Sample[], pick: (sample: Sample) => number | null): number {
+  let n = 0;
+  for (const sample of samples) if (pick(sample) !== null) n += 1;
+  return n;
+}
+
 /**
  * Folds one frame into the rolling state and returns what live guidance should
  * actually render: a smoothed reading and the target to classify it against.
@@ -330,7 +380,7 @@ export function stabilise(
     widenTarget(target, state.distanceInBand, state.brightnessInBand, options.leaveToleranceFactor);
 
   if (reading === null) {
-    return { state, reading: blankReading(), target: widened() };
+    return { state, reading: blankReading(), target: widened(), filtered: false };
   }
 
   const duplicate = state.lastSeq === reading.seq && state.lastTs === reading.ts;
@@ -391,6 +441,17 @@ export function stabilise(
   const ambient = ambientHold.value;
   const smoothed: Reading = { distance_cm, brightness, ambient, seq: reading.seq, ts: reading.ts };
 
+  // Whether the median that produced each published channel actually had a
+  // majority behind it. Only channels that published a number are judged: a
+  // null channel is already reported as unknown and has nothing to be right
+  // or wrong about.
+  const deepEnough = (pick: (sample: Sample) => number | null): boolean =>
+    countPresent(samples, pick) >= options.minMedianSamples;
+  const filtered =
+    (distance_cm === null || deepEnough((s) => s.distance_cm)) &&
+    (brightness === null || deepEnough((s) => s.brightness)) &&
+    (ambient === null || deepEnough((s) => s.ambient));
+
   let distanceInBand = false;
   let brightnessInBand = false;
   if (target !== null) {
@@ -428,5 +489,6 @@ export function stabilise(
     },
     reading: smoothed,
     target: widenTarget(target, distanceInBand, brightnessInBand, options.leaveToleranceFactor),
+    filtered,
   };
 }

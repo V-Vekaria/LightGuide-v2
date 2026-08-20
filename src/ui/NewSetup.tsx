@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks';
 import { DEFAULT_DISTANCE_TOL_CM, newSetup } from '../contract/types';
 import {
   editingSetupId,
-  liveReading,
+  liveDistanceReading,
   navigate,
   persistSetup,
   prefillDistanceCm,
@@ -55,7 +55,10 @@ export function NewSetup() {
   const connection = connectionNotice(status.value);
   const reason = deviceActionReason(status.value);
 
-  const liveDistance = liveReading()?.distance_cm ?? null;
+  // "Use current reading" offers a distance and nothing else, so it is gated
+  // on the distance axis alone — a dark room ageing out the light axis has no
+  // bearing on whether the ultrasonic is reading.
+  const liveDistance = liveDistanceReading()?.distance_cm ?? null;
   const readingNotice = liveReadingNotice(status.value, liveDistance !== null);
   const distanceValue = Number(distance);
   const toleranceValue = Number(tolerance);

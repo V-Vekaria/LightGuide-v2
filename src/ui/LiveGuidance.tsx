@@ -1,19 +1,15 @@
 import { useState } from 'preact/hooks';
 import { TargetView } from './Target';
 import { cuesEnabled, setCuesEnabled, useArrivalCue, useWakeLock } from './cues';
-import type { Reading, Target } from '../contract/types';
-import { verdict as computeVerdict } from '../guidance/verdict';
-import { shouldSuppressAxis, STALE_AFTER_MS } from '../guidance/liveness';
+import type { Target } from '../contract/types';
 import {
   activeSetupId,
   activeTarget,
   createSetup,
+  guidanceView,
   lastGoodAt,
-  lastGoodLightAt,
   leaveGuidanceScreen,
   setups,
-  stableReading,
-  stableTarget,
   startGuiding,
   status,
   stopGuiding,
@@ -24,11 +20,52 @@ import {
 const DISTANCE_PRESETS = [30, 50, 80, 120];
 
 /**
+ * The half of a guiding session that must outlive the live *screen*: the
+ * screen wake lock and the arrival cue. Renders nothing; it exists to hold
+ * hooks for exactly as long as there is an active target.
+ *
+ * Both used to live inside `Guidance`, scoped to the screen being mounted.
+ * That made two individually-correct features cancel each other out. The app
+ * bar chip promises, in as many words, that guidance continues after you leave
+ * the live screen — so the photographer taps "Setups" to check a name, walks
+ * to the stand with both hands on it, and arrives on target with no buzz and
+ * no chime, which is the exact case the cue exists for. The phone has slept
+ * too, so walking back means waking it one-handed.
+ *
+ * Mounted by `App` for the whole life of the app and gated on
+ * `activeTarget !== null`, so the lock and the tracker now span precisely what
+ * the chip claims: the guiding session, whatever screen is showing.
+ *
+ * The "no target" case returns before any hook runs, which is what lets
+ * `Session` use hooks unconditionally. Stopping guidance unmounts `Session`,
+ * releasing the lock and discarding the arrival tracker with no teardown code
+ * of its own.
+ */
+export function GuidanceSession() {
+  const target = activeTarget.value;
+  if (!target) return null;
+  return <Session target={target} />;
+}
+
+function Session({ target }: { target: Target }) {
+  // Keeps the screen awake for the whole session — not the whole screen.
+  // Absent API, rejected request, page hidden: all handled inside, all silent.
+  useWakeLock();
+
+  // `settled` comes from the store rather than from the screen below, because
+  // the screen may well not be mounted. Same derivation either way, so the
+  // buzz can never disagree with what the live screen would have shown.
+  //
+  // The tracker inside refuses to fire on its first observation, so returning
+  // to an already-settled stand stays silent: `Session` never unmounted, so
+  // it has been watching all along and knows nothing changed.
+  useArrivalCue(guidanceView(target).settled);
+  return null;
+}
+
+/**
  * Thin shell: it exists only so the "no target" case can return before any
- * hook runs, leaving `Guidance` free to use hooks unconditionally. It is also
- * what scopes the wake lock and the arrival tracker to an actual guiding
- * session — stopping guidance unmounts `Guidance`, which releases the lock and
- * discards the tracker, with no teardown code of its own.
+ * hook runs, leaving `Guidance` free to use hooks unconditionally.
  */
 export function LiveGuidance() {
   const target = activeTarget.value;
@@ -44,58 +81,26 @@ function Guidance({ target }: { target: Target }) {
   // "unused": removing it silently breaks the staleness gate (see store.ts).
   void tick.value;
 
-  // Keeps the screen awake for the whole session. Absent API, rejected
-  // request, page hidden — all handled inside, all silent. See cues.ts.
-  useWakeLock();
-
   const [editingTarget, setEditingTarget] = useState(false);
   const [draft, setDraft] = useState('');
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
 
-  // The stability-filtered reading, not the raw signal: at 10 Hz the raw feed
-  // makes the instruction and the dot flicker several times a second. See
-  // guidance/stability.ts for what it filters and what it deliberately doesn't.
-  const live = stableReading.value;
-
   const now = Date.now();
   const disconnected = status.value !== 'connected';
-  // Staleness is judged per axis. A missed ultrasonic ping ages out the
-  // distance axis only; the light readout keeps working, and vice versa
-  // (spec §8). A dead connection still suppresses both — shouldSuppressAxis
-  // keeps the connection check, so this can only ever be more granular.
-  const distanceDown = shouldSuppressAxis(status.value, lastGoodAt.value, now, STALE_AFTER_MS);
-  const lightDown = shouldSuppressAxis(status.value, lastGoodLightAt.value, now, STALE_AFTER_MS);
-  const suppressed = distanceDown && lightDown;
-
-  // A stale axis is never rendered as live: it is nulled out independently, so
-  // the verdict reports 'unknown' for that channel alone rather than blanking
-  // a perfectly good reading on the other one.
-  const gated: Reading = {
-    distance_cm: distanceDown ? null : live?.distance_cm ?? null,
-    brightness: lightDown ? null : live?.brightness ?? null,
-    ambient: lightDown ? null : live?.ambient ?? null,
-    seq: live?.seq ?? 0,
-    ts: live?.ts ?? 0,
-  };
-  // Classified against the hysteresis-widened target so the in-band boundary
-  // doesn't oscillate; the real `target` is what gets displayed below.
-  const v = computeVerdict(gated, stableTarget.value ?? target);
-  // Tells TargetView whether an 'unknown' brightness channel means "nothing to verify"
-  // (distance-only setup) or "sensor dropped out on a setup that guides on light" —
-  // those two must render differently, and only the target can distinguish them.
-  const guidingOnLight = target.brightness_above_ambient !== null;
-
-  const settled =
-    v.distance_state === 'in_band' &&
-    v.brightness_state !== 'over' &&
-    v.brightness_state !== 'under' &&
-    !(guidingOnLight && v.brightness_state === 'unknown');
-
-  // Buzz + chime on the not-settled -> settled edge only. This is the only
-  // channel that reaches someone standing at the stand with both hands full;
-  // everything below is invisible to them until they walk back.
-  useArrivalCue(settled);
+  // One derivation, shared with the guidance session that owns the buzz (see
+  // `GuidanceSession` above and `guidanceView` in store.ts). It reads the
+  // stability-filtered feed rather than the raw signal — at 10 Hz the raw feed
+  // makes the instruction and the dot flicker several times a second — and it
+  // judges staleness per axis, so a missed ultrasonic ping ages out the
+  // distance axis only and the light readout keeps working (spec §8).
+  //
+  // `guidingOnLight` tells TargetView whether an 'unknown' brightness channel
+  // means "nothing to verify" (distance-only setup) or "sensor dropped out on
+  // a setup that guides on light" — those two must render differently, and
+  // only the target can distinguish them.
+  const { distanceDown, lightDown, suppressed, gated, verdict: v, guidingOnLight, settled } =
+    guidanceView(target);
 
   const named = setups.value.find((setup) => setup.id === activeSetupId.value);
   const cuesOn = cuesEnabled.value;

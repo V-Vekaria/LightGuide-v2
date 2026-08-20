@@ -1,7 +1,16 @@
 import { signal } from '@preact/signals';
-import type { ConnectionStatus, DeviceClient, Reading, Setup, Target } from '../contract/types';
+import type {
+  ConnectionStatus,
+  DeviceClient,
+  Reading,
+  Setup,
+  Target,
+  Verdict,
+} from '../contract/types';
+import { targetFromSetup } from '../contract/types';
 import { cacheSetups, readCachedSetups } from '../cache/idb';
-import { isFeedStale, STALE_AFTER_MS } from '../guidance/liveness';
+import { shouldSuppressAxis, STALE_AFTER_MS } from '../guidance/liveness';
+import { verdict as computeVerdict } from '../guidance/verdict';
 import { createStabilityState, stabilise, type StabilityState } from '../guidance/stability';
 
 export type Screen = 'library' | 'new' | 'live' | 'quick';
@@ -75,20 +84,154 @@ export const stableTarget = signal<Target | null>(null);
 export const tick = signal(0);
 
 /**
- * The current reading, but only when it's trustworthy: the connection is
- * `'connected'` and the feed isn't stale per `isFeedStale`. Otherwise null.
- * `reading` itself is never cleared — it holds the last frame received
- * indefinitely, even across disconnects — so any screen that would act on a
- * reading (capture a reference value, offer "use current reading") must go
- * through this instead of reading the raw signal, or it risks treating a
- * stale frame as live. Reads `tick.value` so callers re-render on the
- * heartbeat even when no new frame arrives.
+ * Whether the window behind the published reading was deep enough to have
+ * actually rejected an outlier — `StabilityStep.filtered`, mirrored here.
+ *
+ * False for the first frames after every `resetStability()` (connect,
+ * retarget, reconnect) and after any stall long enough to age the window out.
+ * Gates arrival, never display: a reading that has not yet earned the median's
+ * protection is still the honest best estimate and is worth showing, but it is
+ * not worth buzzing about.
  */
-export function liveReading(): Reading | null {
+export const stableFiltered = signal(false);
+
+/** Which sensor axis a reading is being asked for. Each has its own clock. */
+type Axis = 'distance' | 'light';
+
+/**
+ * One frame, narrowed to a single axis and withheld unless that axis is live.
+ *
+ * Staleness is per axis (spec §8, and see `lastGoodAt`/`lastGoodLightAt`
+ * above): an ultrasonic miss against a soft backdrop must not blank a
+ * photodiode that is working perfectly, and vice versa. So the caller names
+ * the axis it needs and is answered about that axis alone.
+ *
+ * Two things make this safe to hand to a screen:
+ *
+ *  - **The axis is gated on its own timestamp.** `shouldSuppressAxis` also
+ *    keeps the connection check, so a dead link still withholds everything.
+ *  - **The channels belonging to the other axis are nulled out**, rather than
+ *    passed through. `reading` is never cleared — it holds the last frame
+ *    received indefinitely, across disconnects — so a caller that reached for
+ *    the wrong field on a whole frame would be reading something this
+ *    accessor never vouched for. There is nothing there to reach for.
+ *
+ * Reads `tick.value` so callers re-render on the 500 ms heartbeat and see an
+ * axis go stale even when no new frame ever arrives.
+ */
+function axisView(source: Reading | null, axis: Axis): Reading | null {
   void tick.value;
-  if (status.value !== 'connected') return null;
-  if (isFeedStale(lastGoodAt.value, Date.now(), STALE_AFTER_MS)) return null;
-  return reading.value;
+  const lastAt = axis === 'distance' ? lastGoodAt.value : lastGoodLightAt.value;
+  if (shouldSuppressAxis(status.value, lastAt, Date.now(), STALE_AFTER_MS)) return null;
+  if (source === null) return null;
+  return axis === 'distance'
+    ? { ...source, brightness: null, ambient: null }
+    : { ...source, distance_cm: null };
+}
+
+/**
+ * The live distance, or null if the distance axis is stale or the device is
+ * gone. Light channels are always null here — ask `liveLightReading()` for
+ * those. Raw rather than stabilised: the callers are the ones capturing an
+ * instantaneous value into a saved setup, and a setup should record what the
+ * sensor said, not what a smoothing window inferred.
+ */
+export function liveDistanceReading(): Reading | null {
+  return axisView(reading.value, 'distance');
+}
+
+/**
+ * The live brightness and ambient, or null if the light axis is stale or the
+ * device is gone. `distance_cm` is always null here.
+ *
+ * Both light channels share one clock because a light *verdict* needs both:
+ * `verdict()` compares `brightness - ambient`, so a frame carrying one without
+ * the other is no more usable than a frame carrying neither.
+ */
+export function liveLightReading(): Reading | null {
+  return axisView(reading.value, 'light');
+}
+
+/** As `liveDistanceReading`, over the stability-filtered feed. */
+export function stableDistanceReading(): Reading | null {
+  return axisView(stableReading.value, 'distance');
+}
+
+/** As `liveLightReading`, over the stability-filtered feed. */
+export function stableLightReading(): Reading | null {
+  return axisView(stableReading.value, 'light');
+}
+
+/** Everything the guidance screen renders, derived once so nothing can disagree. */
+export interface GuidanceView {
+  /** This axis is stale or the link is down: it must not be rendered as live. */
+  distanceDown: boolean;
+  lightDown: boolean;
+  /** Both axes down — there is no guidance to give at all. */
+  suppressed: boolean;
+  /** The stabilised reading with every suppressed axis nulled out. */
+  gated: Reading;
+  verdict: Verdict;
+  /** True when the target guides on light as well as distance. */
+  guidingOnLight: boolean;
+  /**
+   * On target on every axis this setup guides on — the condition the arrival
+   * buzz fires on. Requires `stableFiltered`: a wild ping that happens to land
+   * inside tolerance one frame after a reset is not an arrival, and buzzing
+   * for it would send a photographer to a stand that is in the wrong place.
+   */
+  settled: boolean;
+}
+
+/**
+ * Derives the whole guidance view from the stabilised feed.
+ *
+ * It lives here rather than in the component because two callers need the
+ * *same* answer: the live screen, which draws it, and the guidance session
+ * (see `GuidanceSession` in ui/LiveGuidance.tsx), which buzzes on it and
+ * outlives the screen. Two copies of this arithmetic would eventually
+ * disagree, and the way they would disagree is the screen saying one thing
+ * while the phone in your pocket says another.
+ */
+export function guidanceView(target: Target): GuidanceView {
+  void tick.value;
+  const now = Date.now();
+  const live = stableReading.value;
+
+  const distanceDown = shouldSuppressAxis(status.value, lastGoodAt.value, now, STALE_AFTER_MS);
+  const lightDown = shouldSuppressAxis(status.value, lastGoodLightAt.value, now, STALE_AFTER_MS);
+
+  // A stale axis is nulled out independently, so the verdict reports 'unknown'
+  // for that channel alone rather than blanking a good reading on the other.
+  const gated: Reading = {
+    distance_cm: distanceDown ? null : live?.distance_cm ?? null,
+    brightness: lightDown ? null : live?.brightness ?? null,
+    ambient: lightDown ? null : live?.ambient ?? null,
+    seq: live?.seq ?? 0,
+    ts: live?.ts ?? 0,
+  };
+
+  // Classified against the hysteresis-widened target so the in-band boundary
+  // doesn't oscillate; the real `target` is what the screen displays.
+  const verdict = computeVerdict(gated, stableTarget.value ?? target);
+  const guidingOnLight = target.brightness_above_ambient !== null;
+
+  const settled =
+    stableFiltered.value &&
+    verdict.distance_state === 'in_band' &&
+    verdict.brightness_state !== 'over' &&
+    verdict.brightness_state !== 'under' &&
+    !(guidingOnLight && verdict.brightness_state === 'unknown');
+
+  return {
+    distanceDown,
+    lightDown,
+    suppressed: distanceDown && lightDown,
+    gated,
+    verdict,
+    guidingOnLight,
+    settled,
+  };
 }
 
 /**
@@ -161,6 +304,9 @@ export function resetStability(): void {
   stability = createStabilityState();
   stableReading.value = null;
   stableTarget.value = null;
+  // The window is empty again, so nothing in it has outvoted anything yet.
+  // Until it refills, a reading inside tolerance is not an arrival.
+  stableFiltered.value = false;
 }
 
 export function connect(client: DeviceClient): void {
@@ -192,6 +338,7 @@ export function connect(client: DeviceClient): void {
     stability = step.state;
     stableReading.value = step.reading;
     stableTarget.value = step.target;
+    stableFiltered.value = step.filtered;
     status.value = client.status();
   });
   // The heartbeat: refreshes status even when no frame arrives, and — critically —
@@ -218,9 +365,65 @@ export function connect(client: DeviceClient): void {
   });
   // Generation-guarded like every other write above: a stale connect()'s
   // failure must not clobber the status of a newer, live connection.
-  void refreshSetups().catch(() => {
-    if (myGeneration === generation) status.value = 'disconnected';
-  });
+  //
+  // The setups have to land before the target can be restored: matching the
+  // device's target back to the setup it came from is what puts a *name* on
+  // the chip, and the list is where the names are.
+  void refreshSetups()
+    .then(() => restoreActiveTarget(myGeneration))
+    .catch(() => {
+      if (myGeneration === generation) status.value = 'disconnected';
+    });
+}
+
+/** True when two targets would guide the stand to exactly the same place. */
+function sameTarget(a: Target | null, b: Target | null): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.distance_cm === b.distance_cm &&
+    a.distance_tol_cm === b.distance_tol_cm &&
+    a.brightness_above_ambient === b.brightness_above_ambient &&
+    a.brightness_tol === b.brightness_tol
+  );
+}
+
+/**
+ * Adopts whatever the device is already guiding to.
+ *
+ * The device owns the active target — it keeps guiding across a page reload,
+ * a Wi-Fi blip, or the tab being closed and reopened. Without this the app
+ * came up believing nothing was active, so the guiding chip never appeared
+ * and the only control that stops the device (`stopGuiding`) was unreachable:
+ * the board went on guiding to a target with no route back to it.
+ *
+ * Deliberately narrow:
+ *
+ *  - It never overwrites a target set locally in the meantime. The user
+ *    tapping Guide during the round trip is newer information than the
+ *    device's answer to a question asked before they did.
+ *  - It never navigates. Reloading the page should not throw you onto the
+ *    live screen; the chip is the invitation, and it is the user's to accept.
+ *  - It never throws. A device that cannot answer this is a device with no
+ *    target worth adopting, and failing here must not mark a working
+ *    connection as broken.
+ */
+async function restoreActiveTarget(myGeneration: number): Promise<void> {
+  const client = device;
+  if (!client) return;
+  let target: Target | null;
+  try {
+    target = await client.getActiveTarget();
+  } catch {
+    return; // Unreachable or malformed: adopt nothing rather than guess.
+  }
+  if (myGeneration !== generation) return; // superseded by a newer connect()
+  if (target === null || activeTarget.value !== null) return;
+
+  activeTarget.value = target;
+  // Name it if one of the saved setups would produce exactly this target.
+  // A quick guide matches nothing and correctly stays anonymous.
+  activeSetupId.value = setups.value.find((s) => sameTarget(targetFromSetup(s), target))?.id ?? null;
+  resetStability();
 }
 
 export async function refreshSetups(): Promise<void> {
@@ -261,11 +464,87 @@ export function disconnect(): void {
   device = null;
 }
 
+/**
+ * Re-derives the active target from the setup it came from, after that setup
+ * has been written or deleted.
+ *
+ * The bug this closes: guiding "Portrait key" at 50 cm, the photographer edits
+ * it to 60 and saves. The list refreshes, but `activeTarget` is a *snapshot*
+ * taken when Guide was tapped — so the header kept saying 50, the device kept
+ * guiding to 50, and walking the stand to where the app said "on target" put
+ * it 10 cm wrong. Editing the setup you are standing in front of is not an
+ * exotic case; it is the main reason to edit one at all.
+ *
+ * Called after every path that can write or remove a setup — a single save, a
+ * delete, and an import batch, which can do either to the guided setup without
+ * the user ever naming it.
+ *
+ * The rule it enforces is the one the whole app is built on: **what the header
+ * says must be what the device is guiding to.** Where that cannot be
+ * established, guidance stops rather than being shown at a value nobody has
+ * confirmed.
+ */
+async function reconcileActiveSetup(): Promise<void> {
+  const id = activeSetupId.value;
+  if (id === null) return; // a quick guide, or not guiding: nothing to track
+
+  const current = allSetups.value.find((s) => s.id === id) ?? null;
+
+  // Deleted (or deleted by an import). Guidance stops. The alternative —
+  // carrying on untethered against a target whose setup is gone — leaves a
+  // chip naming a setup that is no longer in the library and a Return button
+  // going to a screen headed by a deleted name. Stopping is the only outcome
+  // the store and the UI can both state honestly.
+  if (current === null || current.deleted) {
+    await releaseGuidance();
+    return;
+  }
+
+  const next = targetFromSetup(current);
+  if (sameTarget(next, activeTarget.value)) return; // edited, but not in a way that moves the stand
+
+  try {
+    // Device first: it is the thing actually guiding. Only once it has
+    // accepted the new target does the app start claiming it.
+    await device?.setActiveTarget(next);
+  } catch {
+    // The save landed but the device would not take the new target, so it is
+    // still guiding to the old one. Showing either number would be a claim we
+    // cannot support, so the app stops claiming anything and the chip
+    // disappears — a visible gap, which is always the safe side here.
+    await releaseGuidance();
+    return;
+  }
+  activeTarget.value = next;
+  // New band, new geometry: never carry a hysteresis latch earned against the
+  // old distance into the first frames of the new one.
+  resetStability();
+}
+
+/**
+ * Drops guidance without the user having asked to stop: the setup behind it
+ * was deleted, or the device would not accept its new target. Unlike
+ * `stopGuiding` this leaves no history entry behind — the live screen it
+ * replaces has nothing left to render, so Back must not return to it.
+ */
+async function releaseGuidance(): Promise<void> {
+  activeTarget.value = null;
+  activeSetupId.value = null;
+  resetStability();
+  if (screen.value === 'live') navigate('library', { replace: true });
+  try {
+    await clearDeviceTarget();
+  } catch {
+    // Best-effort, exactly as in stopGuiding: the device just won't hear it.
+  }
+}
+
 export async function persistSetup(setup: Setup): Promise<void> {
   if (!device) throw new Error('no device connected');
   // Confirmed by the device before it reaches the UI — never optimistic.
   await device.saveSetup(setup);
   await refreshSetups();
+  await reconcileActiveSetup();
 }
 
 /** Thrown by persistSetups when a write fails partway; carries how many setups were saved before it did. */
@@ -293,9 +572,12 @@ export async function persistSetups(list: Setup[]): Promise<number> {
     }
   } catch (error) {
     await refreshSetups();
+    // Some writes did land before the failure, possibly to the guided setup.
+    await reconcileActiveSetup();
     throw new PartialPersistError((error as Error).message, written);
   }
   await refreshSetups();
+  await reconcileActiveSetup();
   return written;
 }
 
@@ -303,6 +585,9 @@ export async function removeSetup(id: string): Promise<void> {
   if (!device) throw new Error('no device connected');
   await device.deleteSetup(id);
   await refreshSetups();
+  // Deleting the setup you are guiding to used to leave activeSetupId pointing
+  // at a tombstone: a chip naming a setup no longer in the library.
+  await reconcileActiveSetup();
 }
 
 export async function startGuiding(target: Target, setupId?: string): Promise<void> {
@@ -313,7 +598,11 @@ export async function startGuiding(target: Target, setupId?: string): Promise<vo
   // New target, new band: never carry a hysteresis latch earned against a
   // different distance into the first frames of this one.
   resetStability();
-  navigate('live');
+  // Retargeting from the live screen is a change of target, not a change of
+  // screen. Pushing an entry for it meant four preset taps mid-shoot cost four
+  // Back presses that each appeared to do nothing — the screen never changes,
+  // only the number does. Replace, so Back still means "leave the live screen".
+  navigate('live', { replace: screen.value === 'live' });
 }
 
 export async function stopGuiding(): Promise<void> {

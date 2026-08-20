@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import type { ConnectionStatus } from '../contract/types';
-import { liveReading, status } from '../store/store';
+import { liveLightReading, status } from '../store/store';
 import { liveReadingNotice } from './messages';
 
 interface Props {
@@ -60,7 +60,14 @@ function ReadingNotice({ status, hasReading }: { status: ConnectionStatus; hasRe
  */
 export function CaptureLight({ onCaptured, onCancel }: Props) {
   const [ambientAtConfirm, setAmbientAtConfirm] = useState<number | null>(null);
-  const live = liveReading();
+  // The light axis alone. This screen never asks about distance, so a stale
+  // ultrasonic must not reach it: the whole of step 1 is done with the studio
+  // light off, and an ultrasonic that misses against a soft backdrop for two
+  // seconds is a documented, expected failure. Gating this screen on the
+  // distance clock disabled "Ambient captured — next" and told the user to
+  // check nothing was covering a sensor that was working perfectly — with no
+  // other route to a light reference until the ultrasonic recovered.
+  const live = liveLightReading();
   const noLiveReading = live === null;
   const connection = status.value;
 

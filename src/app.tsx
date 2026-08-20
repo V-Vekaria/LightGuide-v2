@@ -12,7 +12,7 @@ import {
 } from './store/store';
 import { AppBar } from './ui/Chrome';
 import { Library } from './ui/Library';
-import { LiveGuidance } from './ui/LiveGuidance';
+import { GuidanceSession, LiveGuidance } from './ui/LiveGuidance';
 import { NewSetup } from './ui/NewSetup';
 import { QuickGuide } from './ui/QuickGuide';
 
@@ -63,6 +63,12 @@ export function App() {
 
   return (
     <>
+      {/* Renders nothing. It holds the wake lock and the arrival cue for as
+          long as there is an active target, which is longer than the live
+          screen is mounted — leaving that screen does not stop guidance, and
+          the app bar chip says so. Sits outside <Screen /> precisely so a
+          screen change cannot tear it down. */}
+      <GuidanceSession />
       <AppBar />
       <Screen />
     </>
