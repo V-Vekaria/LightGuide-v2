@@ -1,5 +1,7 @@
+import { useState } from 'preact/hooks';
 import { TargetView } from './Target';
-import type { Reading } from '../contract/types';
+import { cuesEnabled, setCuesEnabled, useArrivalCue, useWakeLock } from './cues';
+import type { Reading, Target } from '../contract/types';
 import { verdict as computeVerdict } from '../guidance/verdict';
 import { shouldSuppressAxis, STALE_AFTER_MS } from '../guidance/liveness';
 import {
@@ -12,12 +14,29 @@ import {
   setups,
   stableReading,
   stableTarget,
+  startGuiding,
   status,
   stopGuiding,
   tick,
 } from '../store/store';
 
+/** Same rungs Quick guide offers, so the two places you set a distance agree. */
+const DISTANCE_PRESETS = [30, 50, 80, 120];
+
+/**
+ * Thin shell: it exists only so the "no target" case can return before any
+ * hook runs, leaving `Guidance` free to use hooks unconditionally. It is also
+ * what scopes the wake lock and the arrival tracker to an actual guiding
+ * session — stopping guidance unmounts `Guidance`, which releases the lock and
+ * discards the tracker, with no teardown code of its own.
+ */
 export function LiveGuidance() {
+  const target = activeTarget.value;
+  if (!target) return null;
+  return <Guidance target={target} />;
+}
+
+function Guidance({ target }: { target: Target }) {
   // Read (and discard) the heartbeat so this component re-renders every 500ms
   // while mounted, even when no new frame arrives. Staleness below depends on
   // elapsed wall-clock time, and signals only re-render on a write — nothing
@@ -25,12 +44,19 @@ export function LiveGuidance() {
   // "unused": removing it silently breaks the staleness gate (see store.ts).
   void tick.value;
 
-  const target = activeTarget.value;
+  // Keeps the screen awake for the whole session. Absent API, rejected
+  // request, page hidden — all handled inside, all silent. See cues.ts.
+  useWakeLock();
+
+  const [editingTarget, setEditingTarget] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+
   // The stability-filtered reading, not the raw signal: at 10 Hz the raw feed
   // makes the instruction and the dot flicker several times a second. See
   // guidance/stability.ts for what it filters and what it deliberately doesn't.
   const live = stableReading.value;
-  if (!target) return null;
 
   const now = Date.now();
   const disconnected = status.value !== 'connected';
@@ -66,7 +92,13 @@ export function LiveGuidance() {
     v.brightness_state !== 'under' &&
     !(guidingOnLight && v.brightness_state === 'unknown');
 
+  // Buzz + chime on the not-settled -> settled edge only. This is the only
+  // channel that reaches someone standing at the stand with both hands full;
+  // everything below is invisible to them until they walk back.
+  useArrivalCue(settled);
+
   const named = setups.value.find((setup) => setup.id === activeSetupId.value);
+  const cuesOn = cuesEnabled.value;
 
   // Live readouts follow exactly the same per-axis rule as the target, so a
   // number on screen always agrees with the channel the verdict was built from.
@@ -74,18 +106,113 @@ export function LiveGuidance() {
   const shownLight =
     gated.brightness === null || gated.ambient === null ? null : gated.brightness - gated.ambient;
 
+  const openTargetEditor = () => {
+    setDraft(String(target.distance_cm));
+    setApplyError(null);
+    setEditingTarget(true);
+  };
+
+  /**
+   * Retarget in place. `startGuiding` is the same call Quick guide makes, so
+   * the device gets the new target through exactly one code path — and the
+   * current setup association is carried through rather than dropped, so
+   * retargeting a named setup doesn't silently demote it to a quick guide.
+   *
+   * `startGuiding` rejects when the device is unreachable. That surfaces
+   * inline: swallowing it would leave the header showing a target the stand is
+   * not being guided to, which is the one thing this screen must never do.
+   */
+  const applyTarget = (distanceCm: number) => {
+    if (applying || !Number.isFinite(distanceCm) || distanceCm <= 0) return;
+    setApplying(true);
+    setApplyError(null);
+    void startGuiding({ ...target, distance_cm: distanceCm }, activeSetupId.value ?? undefined)
+      .then(() => setEditingTarget(false))
+      .catch((error: unknown) => setApplyError((error as Error).message))
+      .then(() => setApplying(false));
+  };
+
+  const draftValue = Number(draft);
+  const draftValid = draft.trim() !== '' && Number.isFinite(draftValue) && draftValue > 0;
+
   return (
     <>
       <div class="wrap" style={{ display: 'flex', flexDirection: 'column' }}>
         <div class="guide-head">
-          <div>
+          <div class="guide-head-main">
             <div class="guide-name">{named ? named.name : 'Quick guide'}</div>
-            <div class="guide-target">
-              Target {target.distance_cm} cm ±{target.distance_tol_cm}
-              {guidingOnLight
-                ? ` · light ${target.brightness_above_ambient} ±${target.brightness_tol}`
-                : ' · distance only'}
-            </div>
+            {editingTarget ? (
+              <div class="target-edit">
+                <div class="target-edit-row">
+                  {/* No autofocus: popping the numeric keyboard would cover the
+                      presets, which are the fast path for the mid-shoot case
+                      this editor exists for. */}
+                  <input
+                    class="input target-edit-input"
+                    type="number"
+                    inputMode="decimal"
+                    value={draft}
+                    disabled={applying}
+                    aria-label="Target distance in centimetres"
+                    onInput={(e) => setDraft((e.currentTarget as HTMLInputElement).value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') applyTarget(draftValue);
+                      if (e.key === 'Escape') setEditingTarget(false);
+                    }}
+                  />
+                  <span class="target-edit-unit">cm</span>
+                  <button
+                    class="btn"
+                    disabled={!draftValid || applying}
+                    onClick={() => applyTarget(draftValue)}
+                  >
+                    {applying ? 'Setting…' : 'Set'}
+                  </button>
+                  <button
+                    class="btn btn-ghost"
+                    disabled={applying}
+                    onClick={() => setEditingTarget(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {/* Presets apply on the single tap. The complaint this fixes is
+                    the number of small controls to hit mid-shoot; making a
+                    labelled preset a two-tap action would hand half of that
+                    back, and any mis-tap is undone by tapping the right one. */}
+                <div class="preset-row target-edit-presets">
+                  {DISTANCE_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      class="preset"
+                      disabled={applying}
+                      onClick={() => applyTarget(preset)}
+                    >
+                      {preset} cm
+                    </button>
+                  ))}
+                </div>
+                {applyError && (
+                  <div class="target-edit-error" role="alert">
+                    Target unchanged — {applyError}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                class="guide-target-btn"
+                onClick={openTargetEditor}
+                title="Change the target without stopping"
+              >
+                <span class="guide-target">
+                  Target {target.distance_cm} cm ±{target.distance_tol_cm}
+                  {guidingOnLight
+                    ? ` · light ${target.brightness_above_ambient} ±${target.brightness_tol}`
+                    : ' · distance only'}
+                </span>
+                <span class="guide-target-edit">Edit</span>
+              </button>
+            )}
           </div>
           <div class="guide-readouts">
             <div>
@@ -161,6 +288,20 @@ export function LiveGuidance() {
             )}
           </div>
           <div class="actions">
+            {/* First in the row, and deliberately not next to "Stop guiding":
+                muting is a one-off decision, stopping is destructive. */}
+            <button
+              class={`btn btn-ghost cue-toggle ${cuesOn ? 'is-on' : 'is-off'}`}
+              aria-pressed={cuesOn}
+              onClick={() => setCuesEnabled(!cuesOn)}
+              title={
+                cuesOn
+                  ? 'Buzzing and chiming when the stand reaches the target'
+                  : 'Arrival buzz and chime are muted'
+              }
+            >
+              {cuesOn ? 'Alert on arrival' : 'Alerts muted'}
+            </button>
             {/* A quick guide has no setup behind it. Offer to keep a good
                 ad-hoc result in one tap rather than making the user retype it
                 into New setup — the spec's promised save-after-quick-guide. */}

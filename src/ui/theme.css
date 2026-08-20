@@ -86,8 +86,24 @@ body {
 
 /* ---------- layout ---------- */
 
-.wrap { width: 100%; max-width: 1180px; margin: 0 auto; padding: 20px; flex: 1; min-height: 0; }
-.wrap-tight { width: 100%; max-width: 520px; margin: 0 auto; padding: 20px; flex: 1; }
+/* index.html opts into viewport-fit=cover, so on a notched iPhone the page
+   extends under the home indicator and the rounded corners. Every container
+   that ends in controls has to pay that back, or "Stop guiding" and the block
+   buttons sit under the indicator where a tap is swallowed as a system gesture.
+   env() resolves to 0px everywhere else, and a browser without env() drops the
+   declaration and keeps the plain 20px above it. */
+.wrap {
+  width: 100%; max-width: 1180px; margin: 0 auto; padding: 20px; flex: 1; min-height: 0;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+.wrap-tight {
+  width: 100%; max-width: 520px; margin: 0 auto; padding: 20px; flex: 1;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
 
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .section-title { font-size: 13px; font-weight: 600; }
@@ -152,6 +168,37 @@ body {
 .instruction.is-warn { color: var(--warn); }
 .instruction-sub { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
 
+/* ---------- retarget in place ---------- */
+
+/* Grows and shrinks rather than forcing the readouts onto a second row: on a
+   landscape phone that wrap alone costs 60px of the height the plot needs. */
+.guide-head-main { flex: 1 1 240px; min-width: 0; }
+
+/* The target line is the control. Changing your mind mid-shoot used to mean
+   stopping guidance and walking the whole Quick guide flow again. */
+.guide-target-btn {
+  display: inline-flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  background: none; border: 0; padding: 3px 0; margin: 0;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.guide-target-btn .guide-target { margin-top: 0; }
+.guide-target-btn:hover .guide-target { color: var(--ink-2); }
+.guide-target-btn:hover .guide-target-edit { border-color: var(--accent); background: var(--surface); }
+.guide-target-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 5px; }
+.guide-target-edit {
+  font-size: 11px; color: var(--accent); white-space: nowrap;
+  border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px;
+}
+
+.target-edit { margin-top: 7px; max-width: 460px; }
+.target-edit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.target-edit-input { width: 108px; }
+.target-edit-unit { font-size: 12px; color: var(--muted); margin-left: -3px; }
+.target-edit-presets { margin-top: 9px; }
+.target-edit-error { margin-top: 9px; font-size: 12.5px; color: var(--bad); line-height: 1.5; }
+
+.cue-toggle.is-off { color: var(--faint); }
+
 /* ---------- controls ---------- */
 
 .btn {
@@ -208,21 +255,44 @@ body {
 .foot-bar {
   display: flex; gap: 8px; justify-content: flex-end;
   padding: 14px 20px; border-top: 1px solid var(--line); background: var(--surface);
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
 }
 @media (max-width: 640px) { .foot-bar .btn { flex: 1; } }
 
 /* ---------- two-axis target ---------- */
 
-.target { text-align: center; }
+/* The plot is square, so its width is also its height. Sizing it from the
+   viewport width alone made it taller than a landscape phone's whole viewport,
+   which pushed the instruction and the buttons — the two things a photographer
+   actually acts on — below the fold. So the height term: `--plot-chrome` is
+   how much vertical space everything else on the guidance screen needs (app
+   bar, header, axis labels, instruction, actions, padding, safe area), and the
+   plot gets what is left. The 100px floor keeps it a readable instrument on a
+   very short viewport instead of letting it collapse to a smear. */
+.target {
+  --plot-vh: 100vh;
+  --plot-chrome: 320px;
+  --plot-min: 100px;
+  --plot-size: min(380px, 78vw, max(var(--plot-min), calc(var(--plot-vh) - var(--plot-chrome))));
+  text-align: center;
+}
+/* dvh where it exists: on mobile Safari a 100vh box is taller than what is
+   actually on screen while the URL bar is expanded, which is the exact
+   overflow this rule is here to prevent. */
+@supports (height: 100dvh) {
+  .target { --plot-vh: 100dvh; }
+}
 .target-axis { font-size: 10px; letter-spacing: 0.1em; color: var(--faint); }
 .target-axis-sides {
   display: flex; justify-content: space-between;
-  width: min(380px, 78vw); margin: 6px auto 0;
+  width: var(--plot-size); margin: 6px auto 0;
 }
 .target-axis-bottom { margin-top: 4px; }
 
 .target-plot {
-  position: relative; width: min(380px, 78vw); aspect-ratio: 1 / 1;
+  position: relative; width: var(--plot-size); aspect-ratio: 1 / 1;
   margin: 6px auto; border-radius: 12px; overflow: hidden;
   background: var(--surface); transition: background 0.3s;
 }
@@ -238,6 +308,34 @@ body {
 .target-empty {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   color: var(--faint); font-size: 13px;
+}
+
+/* ---------- short viewport (a phone turned sideways) ---------- */
+
+/* A landscape phone has roughly 375px of height to hold a screen designed for
+   812. Shrinking the plot alone is not enough — at that height the padding
+   around it costs more than the plot itself. So the chrome compacts too, and
+   `--plot-chrome` drops to match what the compacted chrome actually measures,
+   which is what keeps the instruction and the actions on screen. */
+@media (max-height: 560px) {
+  .wrap {
+    padding-top: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .guide-head { margin-bottom: 4px; }
+  .guide-stage { padding: 2px 0; }
+  .guide-foot { padding-top: 10px; }
+  .instruction { font-size: 19px; }
+  .target-plot { margin: 3px auto; }
+  .target { --plot-chrome: 258px; }
+}
+
+/* Shorter still: a small phone sideways. The BRIGHTER/DIMMER captions go —
+   they are a legend for an axis the dot itself still shows, and at this height
+   the instruction line is worth more than the legend. */
+@media (max-height: 400px) {
+  .target-axis-top, .target-axis-bottom { display: none; }
+  .target { --plot-chrome: 240px; --plot-min: 80px; }
 }
 
 /* ---------- app bar navigation ---------- */
