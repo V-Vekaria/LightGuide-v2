@@ -18,11 +18,13 @@ import { LiveStrip } from './Chrome';
 import { Banner } from './Banner';
 import {
   connectionNotice,
-  countOf,
   deviceActionReason,
   deviceErrorMessage,
+  importAckLabel,
+  importConfirmLabel,
   importPartialMessage,
   importPlanSummary,
+  importPlanTitle,
   importSuccessMessage,
   nameList,
   summariseImport,
@@ -136,9 +138,28 @@ export function Library() {
   const [failure, setFailure] = useState<UserMessage | null>(null);
   const [result, setResult] = useState<UserMessage | null>(null);
   const [pending, setPending] = useState<PendingImport | null>(null);
+  /**
+   * The deliberate second act a deletion has to pass through. One tap on
+   * "Import" is the right amount of friction for adding setups and even for
+   * overwriting them — the file still holds a copy of everything it wrote.
+   * A deletion is different: it is the one import outcome that leaves the
+   * user with strictly less than they had and no file anywhere that can
+   * restore it. So when the plan removes something, the confirm button stays
+   * inert until this is ticked, and the ticking is what cannot be done by
+   * muscle memory. It is only ever required for deletions.
+   */
+  const [ackDeletions, setAckDeletions] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Setup | null>(null);
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  function closePending() {
+    setPending(null);
+    setAckDeletions(false);
+  }
+
+  /** Non-null only when the pending import deletes something. */
+  const ackLabel = pending === null ? null : importAckLabel(pending.summary);
 
   function clearMessages() {
     setFailure(null);
@@ -171,15 +192,16 @@ export function Library() {
   /**
    * Reads and previews the file. Deliberately writes nothing: the merge is
    * last-write-wins by id, so a file can overwrite a setup that took a light
-   * capture and a shoot to tune. Export/import is the only backup there is,
-   * which makes that unrecoverable — so the user sees what will change first.
+   * capture and a shoot to tune — and, since exports carry tombstones, it can
+   * delete one outright. Export/import is the only backup there is, which
+   * makes both unrecoverable — so the user sees what will change first.
    */
   async function onImport(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
     clearMessages();
-    setPending(null);
+    closePending();
     try {
       // Merged against the full record, not the visible list: a setup deleted
       // last Tuesday must look like a deletion to the merge, not like one the
@@ -208,7 +230,7 @@ export function Library() {
 
   /** Writes exactly the setups the user was shown — never a freshly recomputed set. */
   async function confirmImport(plan: PendingImport) {
-    setPending(null);
+    closePending();
     clearMessages();
     setBusy(true);
     try {
@@ -216,10 +238,10 @@ export function Library() {
       setResult(importSuccessMessage(plan.summary));
     } catch (caught) {
       // Saves are confirmed by the device one at a time, so a failure partway
-      // through means some setups really did land. Report that count, never a
-      // blanket success or a blanket failure.
+      // through means some changes really did land — including, possibly, some
+      // of the deletions. Report which, never a blanket success or failure.
       const written = caught instanceof PartialPersistError ? caught.written : 0;
-      setFailure(importPartialMessage(written, plan.summary.changed.length, caught));
+      setFailure(importPartialMessage(written, plan.summary, caught));
     } finally {
       setBusy(false);
     }
@@ -302,14 +324,25 @@ export function Library() {
           <Banner
             tone="warn"
             message={{
-              title: `Import “${pending.fileName}”?`,
+              title: importPlanTitle(pending.fileName, pending.summary),
               detail: importPlanSummary(pending.summary),
             }}
           >
-            {pending.summary.added > 0 && (
-              <div class="banner-subhead">
-                Adding: {nameList(pending.summary.addedNames)}.
-              </div>
+            {/* Deletions first, always. They are the only outcome here that
+                leaves the user with less than they started with and no file
+                anywhere that can undo it. */}
+            {pending.summary.deleted.length > 0 && (
+              <>
+                <div class="banner-subhead">
+                  These setups are removed from the device. Their distance, tolerance and light
+                  reference go with them, and nothing in the app can bring them back:
+                </div>
+                <ul class="banner-list">
+                  {pending.summary.deleted.map((entry) => (
+                    <li key={entry.id}>{entry.name}</li>
+                  ))}
+                </ul>
+              </>
             )}
             {pending.summary.replaced.length > 0 && (
               <>
@@ -325,20 +358,55 @@ export function Library() {
                     </li>
                   ))}
                 </ul>
-                <div class="banner-subhead">Export first if you want to keep the current copies.</div>
               </>
             )}
+            {pending.summary.added > 0 && (
+              <div class="banner-subhead">
+                Adding: {nameList(pending.summary.addedNames)}.
+              </div>
+            )}
+
+            {(pending.summary.deleted.length > 0 || pending.summary.replaced.length > 0) && (
+              <div class="banner-subhead">
+                {/* The mitigation, not just the warning: the state about to be
+                    lost is still on the device right now, and this writes it to
+                    a file without leaving the confirmation. */}
+                <button
+                  class="link-btn"
+                  onClick={() => download('lightguide-setups-before-import.json', exportSetups(record))}
+                >
+                  Export a backup of the current setups first
+                </button>
+              </div>
+            )}
+
+            {ackLabel !== null && (
+              <div class="banner-ack">
+                <input
+                  type="checkbox"
+                  id="import-ack-deletions"
+                  checked={ackDeletions}
+                  onChange={(e) => setAckDeletions((e.currentTarget as HTMLInputElement).checked)}
+                />
+                <label for="import-ack-deletions">{ackLabel}</label>
+              </div>
+            )}
+
             <div class="banner-actions">
-              <button class="btn btn-ghost" onClick={() => setPending(null)}>
+              <button class="btn btn-ghost" onClick={closePending}>
                 Cancel
               </button>
               <button
                 class="btn"
-                disabled={!connected || busy}
-                title={reason ?? undefined}
+                disabled={!connected || busy || (ackLabel !== null && !ackDeletions)}
+                title={
+                  ackLabel !== null && !ackDeletions
+                    ? 'Tick the box above to confirm the deletions'
+                    : (reason ?? undefined)
+                }
                 onClick={() => void confirmImport(pending)}
               >
-                {busy ? 'Saving…' : `Import ${countOf(pending.summary.changed.length, 'setup')}`}
+                {busy ? 'Saving…' : importConfirmLabel(pending.summary)}
               </button>
             </div>
           </Banner>

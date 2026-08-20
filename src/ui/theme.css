@@ -559,3 +559,17 @@ body {
   color: inherit; opacity: 0.8; cursor: pointer;
 }
 .banner-dismiss:hover { opacity: 1; }
+
+/* The extra acknowledgement an import that deletes has to pass through.
+   Checkbox and label are separate elements so the label can be a real
+   <label for>; both carry the full tap height rather than leaving a 13px box
+   floating in a 44px row. */
+.banner-ack { display: flex; align-items: flex-start; gap: 12px; margin-top: 12px; }
+.banner-ack input[type="checkbox"] {
+  width: 22px; height: 22px; margin: 11px 0; flex-shrink: 0;
+  accent-color: var(--bad); cursor: pointer;
+}
+.banner-ack label {
+  min-height: var(--tap); display: flex; align-items: center;
+  cursor: pointer; line-height: 1.45;
+}

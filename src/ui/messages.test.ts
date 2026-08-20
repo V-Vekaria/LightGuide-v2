@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { newSetup, type Setup } from '../contract/types';
+import { exportSetups, importSetups } from '../backup/transfer';
 import {
   classifyDeviceError,
   connectionNotice,
@@ -7,12 +8,16 @@ import {
   deviceActionReason,
   deviceErrorMessage,
   deviceErrorStatus,
+  importAckLabel,
+  importConfirmLabel,
   importPartialMessage,
   importPlanSummary,
+  importPlanTitle,
   importSuccessMessage,
   liveReadingNotice,
   nameList,
   summariseImport,
+  visibleChanges,
 } from './messages';
 
 /** The failure the store throws before anything is sent to the device. */
@@ -27,6 +32,14 @@ function setup(fields: Partial<Setup> & { name: string }): Setup {
     ...newSetup({ name: fields.name, distance_cm: 50, distance_source: 'typed' }),
     ...fields,
   };
+}
+
+/**
+ * The shape an export now carries a deletion in: the same id, `deleted: true`,
+ * and an `updated_at` newer than the live copy so the merge takes it.
+ */
+function tombstoneOf(live: Setup, at = '2025-06-01T00:00:00.000Z'): Setup {
+  return { ...live, deleted: true, updated_at: at };
 }
 
 describe('classifying a device failure', () => {
@@ -221,7 +234,7 @@ describe('import copy', () => {
     expect(importPlanSummary(summary)).toMatch(/nothing would change/i);
     const done = importSuccessMessage(summary);
     expect(done.title).toMatch(/nothing to import/i);
-    expect(done.detail).toMatch(/no setups were added or replaced/i);
+    expect(done.detail).toMatch(/no setups were added, replaced or deleted/i);
     expect(done.title).not.toMatch(/saved|imported \d/i);
   });
 
@@ -231,22 +244,212 @@ describe('import copy', () => {
     const done = importSuccessMessage(summariseImport([mine], [newer, fresh]));
     expect(done.title).toContain('1 added');
     expect(done.title).toContain('1 replaced');
-    expect(done.detail).toContain('2 setups');
+    expect(done.detail).toContain('2 changes');
   });
 
+  /** Five straight additions — no deletions in the mix. */
+  const fivePlain = summariseImport(
+    [],
+    ['a', 'b', 'c', 'd', 'e'].map((name) => setup({ name }))
+  );
+
   it('never claims success when the write stopped partway', () => {
-    const message = importPartialMessage(2, 5, httpError(500));
-    expect(message.title).toContain('2 of 5 setups');
+    const message = importPartialMessage(2, fivePlain, httpError(500));
+    expect(message.title).toContain('2 of 5 changes');
     expect(message.title).not.toMatch(/saved —|success|imported all/i);
     // The three that did not land, and what to do about them.
-    expect(message.detail).toContain('3 setups');
+    expect(message.detail).toContain('3 changes');
     expect(message.detail).toMatch(/import the same file again/i);
   });
 
   it('carries the underlying reason into a partial failure', () => {
-    expect(importPartialMessage(0, 4, noDevice()).detail).toMatch(/power/i);
-    expect(importPartialMessage(0, 4, noDevice()).detail).not.toMatch(/internet/i);
-    expect(importPartialMessage(1, 4, httpError(500)).detail).toContain('500');
+    expect(importPartialMessage(0, fivePlain, noDevice()).detail).toMatch(/power/i);
+    expect(importPartialMessage(0, fivePlain, noDevice()).detail).not.toMatch(/internet/i);
+    expect(importPartialMessage(1, fivePlain, httpError(500)).detail).toContain('500');
+  });
+});
+
+describe('import summary: tombstones', () => {
+  // Exports carry deletions since feat(device): export tombstones. Before this,
+  // summariseImport classified on id presence and updated_at alone, so an
+  // incoming tombstone was announced as "1 new setup will be added" or "1 saved
+  // setup will be replaced" while the actual effect was a deletion.
+  const mine = setup({ name: 'Portrait key', updated_at: '2024-01-01T00:00:00.000Z' });
+  const other = setup({ name: 'Rim', updated_at: '2024-01-01T00:00:00.000Z' });
+
+  it('counts a tombstone over a live setup as a deletion, not an add or a replace', () => {
+    const summary = summariseImport([mine, other], [tombstoneOf(mine), other]);
+    expect(summary.deleted).toHaveLength(1);
+    expect(summary.deleted[0]!.id).toBe(mine.id);
+    // Named from the device's copy: the file's side is a tombstone, and a
+    // tombstone's name is whatever it happened to carry when it was written.
+    expect(summary.deleted[0]!.name).toBe('Portrait key');
+    expect(summary.added).toBe(0);
+    expect(summary.replaced).toEqual([]);
+    expect(summary.unchanged).toBe(1);
+    // It still has to be written — that write is the deletion.
+    expect(summary.changed).toHaveLength(1);
+    expect(summary.changed[0]!.deleted).toBe(true);
+  });
+
+  it('treats a tombstone for a setup the device never held as no change at all', () => {
+    const stranger = tombstoneOf(setup({ name: 'Never seen here' }));
+    const summary = summariseImport([mine], [mine, stranger]);
+    expect(summary.added).toBe(0);
+    expect(summary.addedNames).toEqual([]);
+    expect(summary.deleted).toEqual([]);
+    expect(summary.replaced).toEqual([]);
+    expect(summary.changed).toEqual([]);
+    // Not "unchanged" either: that count means setups the user can see.
+    expect(summary.unchanged).toBe(1);
+    expect(visibleChanges(summary)).toBe(0);
+  });
+
+  it('counts a newer live copy over a local tombstone as an add, since a row appears', () => {
+    const deletedHere = tombstoneOf(mine, '2024-06-01T00:00:00.000Z');
+    const revived = { ...mine, name: 'Portrait key', updated_at: '2025-06-01T00:00:00.000Z' };
+    const summary = summariseImport([deletedHere], [revived]);
+    // "Replaced" would be a lie — there is no visible copy to replace.
+    expect(summary.replaced).toEqual([]);
+    expect(summary.added).toBe(1);
+    expect(summary.addedNames).toEqual(['Portrait key']);
+    expect(summary.deleted).toEqual([]);
+    expect(summary.changed).toEqual([revived]);
+  });
+
+  it('does not count matching tombstones as setups the file left alone', () => {
+    const gone = tombstoneOf(mine, '2024-06-01T00:00:00.000Z');
+    const summary = summariseImport([gone, other], [gone, other]);
+    expect(summary.unchanged).toBe(1); // `other` only — `gone` is invisible
+    expect(summary.changed).toEqual([]);
+    expect(visibleChanges(summary)).toBe(0);
+  });
+
+  it('still writes a re-dated tombstone, but never reports it as a visible change', () => {
+    const gone = tombstoneOf(mine, '2024-06-01T00:00:00.000Z');
+    const reDated = tombstoneOf(mine, '2025-06-01T00:00:00.000Z');
+    const summary = summariseImport([gone], [reDated]);
+    expect(summary.bookkeeping).toBe(1);
+    // Written, because the newest tombstone is what decides a later merge
+    // against a live copy dated in between.
+    expect(summary.changed).toEqual([reDated]);
+    expect(visibleChanges(summary)).toBe(0);
+    expect(summary.added).toBe(0);
+    expect(summary.deleted).toEqual([]);
+    expect(summary.replaced).toEqual([]);
+  });
+
+  it('counts a mixed file correctly in one pass', () => {
+    const doomed = setup({ name: 'Doomed', updated_at: '2024-01-01T00:00:00.000Z' });
+    const tweaked = { ...other, name: 'Rim v2', updated_at: '2025-06-01T00:00:00.000Z' };
+    const fresh = setup({ name: 'Fill' });
+    const summary = summariseImport(
+      [mine, other, doomed],
+      [mine, tweaked, tombstoneOf(doomed), fresh]
+    );
+    expect(summary.deleted.map((d) => d.name)).toEqual(['Doomed']);
+    expect(summary.replaced.map((r) => r.name)).toEqual(['Rim']);
+    expect(summary.addedNames).toEqual(['Fill']);
+    expect(summary.unchanged).toBe(1);
+    expect(summary.changed).toHaveLength(3);
+    expect(visibleChanges(summary)).toBe(3);
+  });
+
+  it('reports a real exported tombstone as a deletion end to end', () => {
+    // The whole path: device record -> export file -> merge -> summary.
+    const record = [mine, other];
+    const afterDeleting = [tombstoneOf(mine), other];
+    const merged = importSetups(exportSetups(afterDeleting), record);
+    const summary = summariseImport(record, merged);
+    expect(summary.deleted.map((d) => d.name)).toEqual(['Portrait key']);
+    expect(summary.added).toBe(0);
+    expect(summary.replaced).toEqual([]);
+  });
+});
+
+describe('import copy: deletions', () => {
+  const mine = setup({ name: 'Portrait key', updated_at: '2024-01-01T00:00:00.000Z' });
+  const other = setup({ name: 'Rim', updated_at: '2024-01-01T00:00:00.000Z' });
+  const deleteBoth = summariseImport([mine, other], [tombstoneOf(mine), tombstoneOf(other)]);
+  const deleteOneAddOne = summariseImport(
+    [mine, other],
+    [tombstoneOf(mine), other, setup({ name: 'Fill' })]
+  );
+
+  it('puts the deletion in the heading, ahead of the file name', () => {
+    const title = importPlanTitle('studio-backup.json', deleteBoth);
+    expect(title).toMatch(/^This deletes 2 saved setups/);
+    expect(title).toContain('studio-backup.json');
+    // No deletions: the heading is the ordinary question again.
+    const plain = summariseImport([], [setup({ name: 'Fill' })]);
+    expect(importPlanTitle('studio-backup.json', plain)).toBe('Import \u201Cstudio-backup.json\u201D?');
+  });
+
+  it('leads the plan with the deletion, never trails it', () => {
+    const plan = importPlanSummary(deleteOneAddOne);
+    expect(plan).toMatch(/^1 saved setup will be deleted/);
+    expect(plan).toContain('1 new setup will be added');
+    // The reassurance only belongs on an import that takes nothing away.
+    expect(plan).not.toMatch(/nothing already saved/i);
+  });
+
+  it('describes a deletion as a deletion, never as an add or a replace', () => {
+    const plan = importPlanSummary(deleteBoth);
+    expect(plan).toContain('2 saved setups will be deleted');
+    expect(plan).not.toMatch(/will be added|will be replaced/);
+  });
+
+  it('names what was removed after the fact, deletions first', () => {
+    const done = importSuccessMessage(deleteOneAddOne);
+    expect(done.title).toMatch(/Import saved \u2014 1 deleted/);
+    expect(done.title.indexOf('deleted')).toBeLessThan(done.title.indexOf('added'));
+    expect(done.detail).toContain('Deleted: Portrait key.');
+  });
+
+  it('says nothing visible changed when only a tombstone was re-dated', () => {
+    const gone = tombstoneOf(mine, '2024-06-01T00:00:00.000Z');
+    const summary = summariseImport([gone], [tombstoneOf(mine, '2025-06-01T00:00:00.000Z')]);
+    expect(importPlanSummary(summary)).toMatch(/nothing in your library would change/i);
+    const done = importSuccessMessage(summary);
+    expect(done.title).toMatch(/nothing in your library changed/i);
+    expect(done.detail).toMatch(/nothing was added, replaced or deleted/i);
+  });
+
+  it('labels the confirm button with what the tap actually does', () => {
+    expect(importConfirmLabel(deleteBoth)).toBe('Delete 2 setups');
+    expect(importConfirmLabel(deleteOneAddOne)).toBe('Delete 1 and import 1');
+    const plain = summariseImport([], [setup({ name: 'Fill' }), setup({ name: 'Key' })]);
+    expect(importConfirmLabel(plain)).toBe('Import 2 setups');
+    // Never "Import N setups" over a plan that removes them.
+    expect(importConfirmLabel(deleteBoth)).not.toMatch(/^Import/);
+  });
+
+  it('asks for an extra acknowledgement only when something is deleted', () => {
+    expect(importAckLabel(deleteBoth)).toContain('2 saved setups will be deleted');
+    expect(importAckLabel(deleteBoth)).toMatch(/bring them back/i);
+    const plain = summariseImport([], [setup({ name: 'Fill' })]);
+    expect(importAckLabel(plain)).toBe(null);
+    const replaceOnly = summariseImport([mine], [{ ...mine, updated_at: '2025-06-01T00:00:00.000Z' }]);
+    expect(importAckLabel(replaceOnly)).toBe(null);
+  });
+
+  it('says how many deletions landed when a write stops partway', () => {
+    // changed is written in order: [tombstone(mine), tombstone(other)].
+    const none = importPartialMessage(0, deleteBoth, httpError(500));
+    expect(none.detail).toMatch(/none of the 2 deletions went through/i);
+    expect(none.title).toContain('0 of 2 changes');
+
+    const one = importPartialMessage(1, deleteBoth, httpError(500));
+    expect(one.detail).toContain('1 of the 2 deletions went through');
+    expect(one.detail).toMatch(/cannot be undone/i);
+    expect(one.detail).toMatch(/import the same file again/i);
+    // Still never phrased as a success.
+    expect(one.title).toMatch(/^Import stopped/);
+  });
+
+  it('does not talk about deletions when the import had none', () => {
+    const plain = summariseImport([], [setup({ name: 'Fill' }), setup({ name: 'Key' })]);
+    expect(importPartialMessage(1, plain, httpError(500)).detail).not.toMatch(/deletion/i);
   });
 });
 
