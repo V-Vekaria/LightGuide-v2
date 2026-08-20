@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Reading, Setup } from '../contract/types';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { Reading, Setup, Target } from '../contract/types';
+import { targetFromSetup } from '../contract/types';
 
 vi.mock('../cache/idb', () => ({
   cacheSetups: vi.fn(async () => {}),
@@ -12,11 +13,21 @@ import { shouldSuppressAxis, STALE_AFTER_MS } from '../guidance/liveness';
 import {
   setups,
   allSetups,
+  activeSetupId,
+  activeTarget,
+  guidanceView,
+  liveDistanceReading,
+  liveLightReading,
   reading,
   removeSetup,
   lastGoodAt,
   lastGoodLightAt,
+  screen,
+  stableDistanceReading,
+  stableFiltered,
+  stableLightReading,
   stableReading,
+  startGuiding,
   status,
   tick,
   connect,
@@ -46,13 +57,30 @@ function makeSetup(id: string): Setup {
   };
 }
 
+/** A distance-only target, unless a caller says otherwise. */
+function makeTarget(overrides: Partial<Target> = {}): Target {
+  return {
+    distance_cm: 50,
+    distance_tol_cm: 5,
+    brightness_above_ambient: null,
+    brightness_tol: 0.08,
+    ...overrides,
+  };
+}
+
 describe('store', () => {
   beforeEach(() => {
+    // The store is module state, so a test that leaves a device connected or a
+    // target active would hand it to the next one.
+    disconnect();
     setups.value = [];
     allSetups.value = [];
     reading.value = null;
     lastGoodAt.value = null;
     lastGoodLightAt.value = null;
+    activeTarget.value = null;
+    activeSetupId.value = null;
+    screen.value = 'library';
 
     vi.mocked(readCachedSetups).mockReset();
     vi.mocked(readCachedSetups).mockResolvedValue([]);
@@ -337,6 +365,414 @@ describe('store', () => {
       expect(tick.value).toBe(afterDisconnect);
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  /**
+   * The per-axis accessors: the single decision about whether a frame is safe
+   * to show, made once and used by three screens.
+   *
+   * These replaced a `liveReading()` that gated every channel on the
+   * *distance* timestamp, which meant an ultrasonic miss — an expected,
+   * documented failure against a soft backdrop — blanked the ambient readout
+   * on CaptureLight and disabled the only route to a light reference. The
+   * property to hold onto is stated twice over here: a live axis reports, a
+   * stale axis reports nothing, and neither accessor hands back a channel it
+   * does not vouch for.
+   */
+  describe('per-axis live accessors', () => {
+    /** Connects, emits one frame at t=0, and leaves the clock at `now`. */
+    function feed(frame: Reading, now: number): InMemoryDeviceClient {
+      vi.setSystemTime(0);
+      const client = new InMemoryDeviceClient();
+      connect(client);
+      client.emit(frame);
+      vi.setSystemTime(now);
+      return client;
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      disconnect();
+      vi.useRealTimers();
+    });
+
+    it('reports each axis while that axis is fresh', () => {
+      feed({ distance_cm: 42, brightness: 0.4, ambient: 0.05, seq: 1, ts: 0 }, 100);
+
+      expect(liveDistanceReading()?.distance_cm).toBe(42);
+      expect(liveLightReading()?.brightness).toBe(0.4);
+      expect(liveLightReading()?.ambient).toBe(0.05);
+    });
+
+    it('hands back only the axis it was asked for', () => {
+      // A caller cannot reach the wrong field by accident: the channels this
+      // accessor did not vouch for are not there to be read.
+      feed({ distance_cm: 42, brightness: 0.4, ambient: 0.05, seq: 1, ts: 0 }, 100);
+
+      const distance = liveDistanceReading()!;
+      expect(distance.brightness).toBeNull();
+      expect(distance.ambient).toBeNull();
+
+      expect(liveLightReading()!.distance_cm).toBeNull();
+    });
+
+    it('keeps the light axis alive through a stale distance axis', () => {
+      // The CaptureLight failure exactly: light off, phone propped, and the
+      // ultrasonic misses against a soft backdrop for more than STALE_AFTER_MS.
+      // The photodiode is working perfectly and must go on saying so.
+      const client = feed({ distance_cm: 42, brightness: 0.4, ambient: 0.05, seq: 1, ts: 0 }, 3000);
+      client.emit({ distance_cm: null, brightness: 0.41, ambient: 0.05, seq: 30, ts: 3000 });
+
+      expect(liveDistanceReading()).toBeNull();
+      expect(liveLightReading()?.ambient).toBe(0.05);
+      expect(liveLightReading()?.brightness).toBe(0.41);
+    });
+
+    it('keeps the distance axis alive through a stale light axis', () => {
+      const client = feed({ distance_cm: 42, brightness: 0.4, ambient: 0.05, seq: 1, ts: 0 }, 3000);
+      client.emit({ distance_cm: 41, brightness: null, ambient: null, seq: 30, ts: 3000 });
+
+      expect(liveLightReading()).toBeNull();
+      expect(liveDistanceReading()?.distance_cm).toBe(41);
+    });
+
+    it('withholds both axes once the whole feed has gone stale', () => {
+      feed({ distance_cm: 42, brightness: 0.4, ambient: 0.05, seq: 1, ts: 0 }, 2001);
+
+      expect(liveDistanceReading()).toBeNull();
+      expect(liveLightReading()).toBeNull();
+    });
+
+    it('withholds both axes when the device is gone, however fresh the stamps', () => {
+      feed({ distance_cm: 42, brightness: 0.4, ambient: 0.05, seq: 1, ts: 0 }, 0);
+      disconnect();
+
+      // `reading` is never cleared — it still holds that frame — so an accessor
+      // that only checked staleness would hand back a reading from a device
+      // that is no longer there.
+      expect(reading.value).not.toBeNull();
+      expect(liveDistanceReading()).toBeNull();
+      expect(liveLightReading()).toBeNull();
+    });
+
+    it('withholds both axes before any frame has ever arrived', () => {
+      vi.setSystemTime(0);
+      connect(new InMemoryDeviceClient());
+
+      expect(liveDistanceReading()).toBeNull();
+      expect(liveLightReading()).toBeNull();
+    });
+
+    it('reads the stabilised feed through the stable accessors', () => {
+      // Same gate, different source. The strip in the app bar renders these so
+      // it cannot disagree with the guidance screen.
+      feed({ distance_cm: 42, brightness: 0.4, ambient: 0.05, seq: 1, ts: 0 }, 100);
+
+      expect(stableDistanceReading()?.distance_cm).toBe(stableReading.value?.distance_cm);
+      expect(stableLightReading()?.brightness).toBe(stableReading.value?.brightness);
+      expect(stableLightReading()!.distance_cm).toBeNull();
+    });
+  });
+
+  describe('arrival is gated on a filled smoothing window', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(0);
+    });
+
+    afterEach(() => {
+      disconnect();
+      vi.useRealTimers();
+    });
+
+    it('does not call the stand settled on the first frame after a reset', async () => {
+      const client = new InMemoryDeviceClient([]);
+      connect(client);
+      await vi.advanceTimersByTimeAsync(0);
+
+      const target = makeTarget();
+      await startGuiding(target);
+
+      // One frame, dead on target — but the window holds a single sample, so
+      // the median has rejected nothing. A wild ping that happens to land in
+      // tolerance must not buzz "arrived".
+      client.emit({ distance_cm: 50, brightness: null, ambient: null, seq: 1, ts: 0 });
+      expect(stableFiltered.value).toBe(false);
+      expect(guidanceView(target).verdict.distance_state).toBe('in_band');
+      expect(guidanceView(target).settled).toBe(false);
+
+      vi.setSystemTime(100);
+      client.emit({ distance_cm: 50, brightness: null, ambient: null, seq: 2, ts: 100 });
+      expect(guidanceView(target).settled).toBe(false);
+
+      // Third sample: now a strict majority of the window agrees, so the
+      // median really is outlier-rejecting and the arrival is real.
+      vi.setSystemTime(200);
+      client.emit({ distance_cm: 50, brightness: null, ambient: null, seq: 3, ts: 200 });
+      expect(stableFiltered.value).toBe(true);
+      expect(guidanceView(target).settled).toBe(true);
+    });
+
+    it('rejects a single wild ping instead of publishing it as an arrival', async () => {
+      const client = new InMemoryDeviceClient([]);
+      connect(client);
+      await vi.advanceTimersByTimeAsync(0);
+
+      const target = makeTarget();
+      await startGuiding(target);
+
+      // Two honest frames well outside tolerance, then one wild ping that
+      // lands dead on target. Median-of-3 outvotes it.
+      client.emit({ distance_cm: 90, brightness: null, ambient: null, seq: 1, ts: 0 });
+      vi.setSystemTime(100);
+      client.emit({ distance_cm: 91, brightness: null, ambient: null, seq: 2, ts: 100 });
+      vi.setSystemTime(200);
+      client.emit({ distance_cm: 50, brightness: null, ambient: null, seq: 3, ts: 200 });
+
+      expect(guidanceView(target).settled).toBe(false);
+    });
+  });
+
+  /**
+   * Editing or deleting the setup you are guiding to. The failure this closes:
+   * guiding "Portrait key" at 50 cm, the photographer edits it to 60 and
+   * saves; the header goes on saying 50, the device goes on guiding to 50, and
+   * they walk the stand to where the app says on-target — 10 cm wrong.
+   */
+  describe('the active target follows the setup it came from', () => {
+    async function guidingSetup(): Promise<{ client: InMemoryDeviceClient; setup: Setup }> {
+      const setup = { ...makeSetup('portrait'), distance_cm: 50 };
+      const client = new InMemoryDeviceClient([setup]);
+      connect(client);
+      await flush();
+      await startGuiding(targetFromSetup(setup), setup.id);
+      return { client, setup };
+    }
+
+    it('re-issues guidance when the guided setup is edited, and puts the device in step', async () => {
+      const { client, setup } = await guidingSetup();
+      expect(activeTarget.value?.distance_cm).toBe(50);
+
+      await persistSetup({ ...setup, distance_cm: 60, updated_at: new Date().toISOString() });
+
+      expect(activeTarget.value?.distance_cm).toBe(60);
+      // Not just the app: the board has to be guiding to 60 too, or the header
+      // is describing something that is not happening.
+      expect((await client.getActiveTarget())?.distance_cm).toBe(60);
+      expect(activeSetupId.value).toBe('portrait');
+    });
+
+    it('carries an edited tolerance through as well as an edited distance', async () => {
+      const { setup } = await guidingSetup();
+
+      await persistSetup({
+        ...setup,
+        distance_tol_cm: 2,
+        updated_at: new Date().toISOString(),
+      });
+
+      expect(activeTarget.value?.distance_tol_cm).toBe(2);
+    });
+
+    it('leaves the active target alone when some other setup is edited', async () => {
+      const other = { ...makeSetup('other'), distance_cm: 80 };
+      const setup = { ...makeSetup('portrait'), distance_cm: 50 };
+      const client = new InMemoryDeviceClient([setup, other]);
+      connect(client);
+      await flush();
+      await startGuiding(targetFromSetup(setup), setup.id);
+
+      await persistSetup({ ...other, distance_cm: 95, updated_at: new Date().toISOString() });
+
+      expect(activeTarget.value?.distance_cm).toBe(50);
+      expect((await client.getActiveTarget())?.distance_cm).toBe(50);
+    });
+
+    it('stops guidance when the guided setup is deleted, and clears the device', async () => {
+      const { client } = await guidingSetup();
+
+      await removeSetup('portrait');
+
+      // No dangling reference: the store believes it is not guiding, which is
+      // what the app bar chip and the live screen both read.
+      expect(activeTarget.value).toBeNull();
+      expect(activeSetupId.value).toBeNull();
+      expect(await client.getActiveTarget()).toBeNull();
+    });
+
+    it('leaves the live screen when the setup being guided to is deleted', async () => {
+      await guidingSetup();
+      expect(screen.value).toBe('live');
+
+      await removeSetup('portrait');
+
+      // The live screen has nothing left to render, so staying on it would be
+      // a blank dead end.
+      expect(screen.value).toBe('library');
+    });
+
+    it('stops guidance when an import deletes the guided setup', async () => {
+      const { setup } = await guidingSetup();
+
+      // Exactly what confirming an import carrying a newer tombstone does.
+      await persistSetups([{ ...setup, deleted: true, updated_at: new Date().toISOString() }]);
+
+      expect(activeTarget.value).toBeNull();
+      expect(activeSetupId.value).toBeNull();
+    });
+
+    it('retargets when an import overwrites the guided setup with a newer copy', async () => {
+      const { setup } = await guidingSetup();
+
+      await persistSetups([
+        { ...setup, distance_cm: 75, updated_at: new Date().toISOString() },
+      ]);
+
+      expect(activeTarget.value?.distance_cm).toBe(75);
+    });
+
+    it('shows nothing rather than an unconfirmed target when the device refuses the new one', async () => {
+      const { client, setup } = await guidingSetup();
+      client.setActiveTarget = async () => {
+        throw new Error('device unreachable');
+      };
+
+      // The save itself lands — only putting the device in step fails.
+      await persistSetup({ ...setup, distance_cm: 60, updated_at: new Date().toISOString() });
+
+      // The device is still guiding to 50 and the app cannot confirm 60, so it
+      // claims neither. A visible gap beats a wrong "you're on target".
+      expect(activeTarget.value).toBeNull();
+      expect(activeSetupId.value).toBeNull();
+    });
+
+    it('leaves a quick guide untouched — it has no setup to follow', async () => {
+      const client = new InMemoryDeviceClient([]);
+      connect(client);
+      await flush();
+      // No setupId: this is a quick guide.
+      await startGuiding(makeTarget({ distance_cm: 120 }));
+
+      await persistSetup(makeSetup('unrelated'));
+
+      expect(activeTarget.value?.distance_cm).toBe(120);
+      expect(activeSetupId.value).toBeNull();
+    });
+  });
+
+  /**
+   * Reconciling with the device on connect. The device owns the active target
+   * and keeps guiding across a reload — so an app that assumed "fresh page,
+   * nothing active" left the board guiding to a target with no chip, and no
+   * route to the only control that stops it.
+   */
+  describe('adopting the active target the device already holds', () => {
+    it('adopts the target the device is already guiding to and names it', async () => {
+      const setup = { ...makeSetup('portrait'), distance_cm: 50 };
+      const client = new InMemoryDeviceClient([setup]);
+      await client.setActiveTarget(targetFromSetup(setup));
+
+      connect(client);
+      await flush();
+
+      expect(activeTarget.value?.distance_cm).toBe(50);
+      // Named, so the chip reads "Guiding: Setup portrait" rather than just
+      // "Guiding" — the list is where the names are, which is why this waits
+      // for the setups to land.
+      expect(activeSetupId.value).toBe('portrait');
+    });
+
+    it('adopts an unnamed target as a quick guide', async () => {
+      const client = new InMemoryDeviceClient([makeSetup('portrait')]);
+      // Matches no saved setup.
+      await client.setActiveTarget(makeTarget({ distance_cm: 123 }));
+
+      connect(client);
+      await flush();
+
+      expect(activeTarget.value?.distance_cm).toBe(123);
+      expect(activeSetupId.value).toBeNull();
+    });
+
+    it('adopts nothing when the device is guiding to nothing', async () => {
+      connect(new InMemoryDeviceClient([makeSetup('portrait')]));
+      await flush();
+
+      expect(activeTarget.value).toBeNull();
+    });
+
+    it('never overwrites a target the user set while the round trip was in flight', async () => {
+      const client = new InMemoryDeviceClient([]);
+      await client.setActiveTarget(makeTarget({ distance_cm: 50 }));
+      // Hold the setups read open so the restore cannot run yet.
+      let release!: (list: Setup[]) => void;
+      client.listSetupsIncludingDeleted = () =>
+        new Promise<Setup[]>((resolve) => {
+          release = resolve;
+        });
+
+      connect(client);
+      // The user taps Guide before the device has answered. That is newer
+      // information than the answer to a question asked before they did.
+      await startGuiding(makeTarget({ distance_cm: 99 }));
+
+      release([]);
+      await flush();
+
+      expect(activeTarget.value?.distance_cm).toBe(99);
+    });
+
+    it('does not mark a working connection broken when the target read fails', async () => {
+      const client = new InMemoryDeviceClient([]);
+      client.getActiveTarget = async () => {
+        throw new Error('malformed target');
+      };
+
+      connect(client);
+      await flush();
+
+      expect(status.value).toBe('connected');
+      expect(activeTarget.value).toBeNull();
+    });
+
+    it('does not navigate — reloading the page must not throw you onto the live screen', async () => {
+      const client = new InMemoryDeviceClient([]);
+      await client.setActiveTarget(makeTarget());
+
+      connect(client);
+      await flush();
+
+      expect(activeTarget.value).not.toBeNull();
+      expect(screen.value).toBe('library');
+    });
+  });
+
+  it('replaces rather than pushes when retargeting from the live screen', async () => {
+    const client = new InMemoryDeviceClient([]);
+    connect(client);
+    await flush();
+
+    const push = vi.spyOn(history, 'pushState');
+    const replace = vi.spyOn(history, 'replaceState');
+    try {
+      // Arriving at the live screen is a screen change: it earns an entry.
+      await startGuiding(makeTarget({ distance_cm: 50 }));
+      expect(push).toHaveBeenCalledTimes(1);
+
+      // Retargeting is not. Four preset taps mid-shoot used to mean four Back
+      // presses that each appeared to do nothing.
+      await startGuiding(makeTarget({ distance_cm: 80 }));
+      await startGuiding(makeTarget({ distance_cm: 30 }));
+
+      expect(push).toHaveBeenCalledTimes(1);
+      expect(replace).toHaveBeenCalledTimes(2);
+    } finally {
+      push.mockRestore();
+      replace.mockRestore();
     }
   });
 });
