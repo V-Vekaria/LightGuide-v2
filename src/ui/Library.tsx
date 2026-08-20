@@ -279,10 +279,14 @@ export function Library() {
             {/* Export never touches the device: it stays available precisely
                 when the device is gone, because that is when a backup matters.
                 It writes the full record — tombstones included — so restoring
-                this file carries deletions forward instead of undoing them. */}
+                this file carries deletions forward instead of undoing them.
+                Which is why it is gated on the record and not on the visible
+                list: a user who has deleted everything has an empty list and a
+                record full of tombstones, and those deletions are exactly what
+                they would lose by not being able to export them. */}
             <button
               class="btn btn-ghost"
-              disabled={list.length === 0}
+              disabled={record.length === 0}
               onClick={() => download('lightguide-setups.json', exportSetups(record))}
             >
               Export
