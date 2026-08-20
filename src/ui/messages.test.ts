@@ -5,6 +5,8 @@ import {
   classifyDeviceError,
   connectionNotice,
   countOf,
+  deleteConfirmMessage,
+  deleteSuccessMessage,
   deviceActionReason,
   deviceErrorMessage,
   deviceErrorStatus,
@@ -450,6 +452,50 @@ describe('import copy: deletions', () => {
   it('does not talk about deletions when the import had none', () => {
     const plain = summariseImport([], [setup({ name: 'Fill' }), setup({ name: 'Key' })]);
     expect(importPartialMessage(1, plain, httpError(500)).detail).not.toMatch(/deletion/i);
+  });
+});
+
+describe('deleting a setup: what an export can and cannot do', () => {
+  const typed = setup({ name: 'Portrait key' });
+  const withLight = setup({ name: 'Rim', brightness_above_ambient: 180 });
+
+  it('never tells the user an earlier export has a copy they can restore', () => {
+    for (const message of [
+      deleteConfirmMessage(typed),
+      deleteConfirmMessage(withLight),
+      deleteSuccessMessage(typed),
+    ]) {
+      expect(message.detail).not.toMatch(/has a copy/i);
+      expect(message.detail).not.toMatch(/still has a copy/i);
+    }
+  });
+
+  it('says plainly that importing an earlier export will not undo the deletion', () => {
+    expect(deleteConfirmMessage(typed).detail).toMatch(/will not bring it back/i);
+    expect(deleteConfirmMessage(withLight).detail).toMatch(/will not bring it back/i);
+    expect(deleteSuccessMessage(typed).detail).toMatch(/will not bring it back/i);
+  });
+
+  it('asks by name, and offers setting it up again as the only way back', () => {
+    const ask = deleteConfirmMessage(typed);
+    expect(ask.title).toBe('Delete “Portrait key”?');
+    expect(ask.detail).toMatch(/setting it up again/i);
+  });
+
+  it('still spells out what recapturing a light reference costs', () => {
+    const ask = deleteConfirmMessage(withLight);
+    expect(ask.detail).toMatch(/light reference/i);
+    expect(ask.detail).toMatch(/switching the light off/i);
+    expect(ask.detail).toMatch(/ambient to settle/i);
+    // The typed-only setup has no reference to lose, so it is not warned about one.
+    expect(deleteConfirmMessage(typed).detail).not.toMatch(/light reference/i);
+  });
+
+  it('confirms the delete landed, and says why the merge cannot undo it', () => {
+    const done = deleteSuccessMessage(typed);
+    expect(done.title).toBe('Deleted “Portrait key”.');
+    expect(done.detail).toMatch(/the device confirmed it/i);
+    expect(done.detail).toMatch(/merge/i);
   });
 });
 

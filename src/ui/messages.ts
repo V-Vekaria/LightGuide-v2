@@ -133,6 +133,48 @@ export function liveReadingNotice(
   };
 }
 
+/* ---------- deleting ---------- */
+
+/**
+ * The one belief about a deletion that is easy to hold and expensive to hold
+ * wrongly: **import is a merge, not a snapshot restore.** A deletion is the
+ * newest recorded change to that setup, so it beats the older live copy in any
+ * file exported before it — re-importing Monday’s backup does not undo
+ * Tuesday’s delete.
+ *
+ * Since `feat(device): export tombstones`, having a copy in an export stopped
+ * being the same thing as being able to restore it. This copy used to promise
+ * the opposite (“Only an export you already made has a copy”,
+ * “Anything you exported earlier still has a copy”), which sent the user
+ * looking for a file that cannot help them. It is stated once here so both
+ * halves of the delete flow say the same true thing.
+ */
+const NO_UNDELETE = 'Importing an earlier export will not bring it back';
+
+/**
+ * The confirmation before a delete. Names what goes and what getting it back
+ * would actually cost — which, for a setup with a light reference, is a dark
+ * room and a second capture, not a file.
+ */
+export function deleteConfirmMessage(setup: Setup): UserMessage {
+  const detail =
+    setup.brightness_above_ambient === null
+      ? `It goes from the device straight away. ${NO_UNDELETE} — setting it up again is the only way.`
+      : `It goes from the device straight away, and its light reference with it. ${NO_UNDELETE} — capturing another reference means switching the light off, waiting for ambient to settle, and setting it again.`;
+  return { title: `Delete “${setup.name}”?`, detail };
+}
+
+/**
+ * After the device confirms a delete. Says why the export the user is about to
+ * reach for will not help, while there is still a reason to care.
+ */
+export function deleteSuccessMessage(setup: Setup): UserMessage {
+  return {
+    title: `Deleted “${setup.name}”.`,
+    detail: `The device confirmed it. ${NO_UNDELETE}: an import merges the file into what the device holds now, and the deletion is the newer change.`,
+  };
+}
+
 /* ---------- import ---------- */
 
 /**

@@ -18,6 +18,8 @@ import { LiveStrip } from './Chrome';
 import { Banner } from './Banner';
 import {
   connectionNotice,
+  deleteConfirmMessage,
+  deleteSuccessMessage,
   deviceActionReason,
   deviceErrorMessage,
   importAckLabel,
@@ -180,10 +182,7 @@ export function Library() {
     clearMessages();
     try {
       await removeSetup(setup.id);
-      setResult({
-        title: `Deleted “${setup.name}”.`,
-        detail: 'The device confirmed it. Anything you exported earlier still has a copy.',
-      });
+      setResult(deleteSuccessMessage(setup));
     } catch (caught) {
       setFailure(deviceErrorMessage(caught, `delete “${setup.name}”`));
     }
@@ -303,16 +302,7 @@ export function Library() {
         {connection && <Banner tone="warn" message={connection} />}
 
         {confirmDelete && (
-          <Banner
-            tone="warn"
-            message={{
-              title: `Delete “${confirmDelete.name}”?`,
-              detail:
-                confirmDelete.brightness_above_ambient === null
-                  ? 'It goes from the device straight away. Only an export you already made has a copy.'
-                  : 'Its light reference goes too — capturing another one means switching the light off, waiting for ambient to settle, and setting it again.',
-            }}
-          >
+          <Banner tone="warn" message={deleteConfirmMessage(confirmDelete)}>
             <div class="banner-actions">
               <button class="btn btn-ghost" onClick={() => setConfirmDelete(null)}>
                 Keep it
