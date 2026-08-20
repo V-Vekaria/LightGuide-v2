@@ -8,10 +8,14 @@ vi.mock('../cache/idb', () => ({
 
 import { readCachedSetups, cacheSetups } from '../cache/idb';
 import { InMemoryDeviceClient } from '../device/in-memory-client';
+import { shouldSuppressAxis, STALE_AFTER_MS } from '../guidance/liveness';
 import {
   setups,
   reading,
   lastGoodAt,
+  lastGoodLightAt,
+  stableReading,
+  status,
   tick,
   connect,
   disconnect,
@@ -45,6 +49,7 @@ describe('store', () => {
     setups.value = [];
     reading.value = null;
     lastGoodAt.value = null;
+    lastGoodLightAt.value = null;
 
     vi.mocked(readCachedSetups).mockReset();
     vi.mocked(readCachedSetups).mockResolvedValue([]);
@@ -165,6 +170,101 @@ describe('store', () => {
     expect(caught).toBeInstanceOf(PartialPersistError);
     expect((caught as PartialPersistError).written).toBe(1);
     expect(setups.value.map((s) => s.id)).toEqual(['first']);
+  });
+
+  it('stamps the light axis only when both brightness and ambient are usable', () => {
+    const client = new InMemoryDeviceClient();
+    connect(client);
+
+    // verdict compares brightness - ambient, so half a light reading is no
+    // light reading at all.
+    client.emit({ distance_cm: 40, brightness: 0.4, ambient: null, seq: 1, ts: 100 });
+    expect(lastGoodLightAt.value).toBeNull();
+    client.emit({ distance_cm: 40, brightness: null, ambient: 0.05, seq: 2, ts: 200 });
+    expect(lastGoodLightAt.value).toBeNull();
+
+    client.emit({ distance_cm: 40, brightness: 0.4, ambient: 0.05, seq: 3, ts: 300 });
+    expect(lastGoodLightAt.value).not.toBeNull();
+
+    disconnect();
+  });
+
+  it('greys only the distance axis when the ultrasonic drops out', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(0);
+      const client = new InMemoryDeviceClient();
+      connect(client);
+      client.emit({ distance_cm: 40, brightness: 0.4, ambient: 0.05, seq: 1, ts: 0 });
+
+      // Three seconds of soft/angled surface: no distance, but the photodiode
+      // is perfectly happy the whole time.
+      vi.setSystemTime(3000);
+      client.emit({ distance_cm: null, brightness: 0.42, ambient: 0.05, seq: 30, ts: 3000 });
+
+      const now = 3100;
+      expect(shouldSuppressAxis('connected', lastGoodAt.value, now, STALE_AFTER_MS)).toBe(true);
+      expect(shouldSuppressAxis('connected', lastGoodLightAt.value, now, STALE_AFTER_MS)).toBe(
+        false,
+      );
+      // And the light reading itself survived — it is not nulled out wholesale.
+      expect(stableReading.value?.brightness).toBe(0.42);
+      expect(stableReading.value?.distance_cm).toBeNull();
+
+      disconnect();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('greys only the light axis when the light sensor drops out', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(0);
+      const client = new InMemoryDeviceClient();
+      connect(client);
+      client.emit({ distance_cm: 40, brightness: 0.4, ambient: 0.05, seq: 1, ts: 0 });
+
+      vi.setSystemTime(3000);
+      client.emit({ distance_cm: 41, brightness: null, ambient: null, seq: 30, ts: 3000 });
+
+      const now = 3100;
+      expect(shouldSuppressAxis('connected', lastGoodAt.value, now, STALE_AFTER_MS)).toBe(false);
+      expect(shouldSuppressAxis('connected', lastGoodLightAt.value, now, STALE_AFTER_MS)).toBe(true);
+      expect(stableReading.value?.distance_cm).toBe(41);
+      expect(stableReading.value?.brightness).toBeNull();
+
+      disconnect();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('suppresses both axes when the connection is down, however fresh they were', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(0);
+      const client = new InMemoryDeviceClient();
+      connect(client);
+      client.emit({ distance_cm: 40, brightness: 0.4, ambient: 0.05, seq: 1, ts: 0 });
+      expect(lastGoodAt.value).toBe(0);
+      expect(lastGoodLightAt.value).toBe(0);
+
+      disconnect();
+      expect(status.value).toBe('disconnected');
+
+      // Both stamps are as fresh as they can be, and both axes are still off.
+      const now = 0;
+      expect(shouldSuppressAxis(status.value, lastGoodAt.value, now, STALE_AFTER_MS)).toBe(true);
+      expect(shouldSuppressAxis(status.value, lastGoodLightAt.value, now, STALE_AFTER_MS)).toBe(
+        true,
+      );
+      // Teardown drops the smoothing window too — nothing survives to be
+      // re-rendered as live on the next connect.
+      expect(stableReading.value).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('starts a heartbeat on connect() and stops it on disconnect()', async () => {

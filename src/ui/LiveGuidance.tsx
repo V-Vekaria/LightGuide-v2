@@ -1,14 +1,17 @@
 import { TargetView } from './Target';
+import type { Reading } from '../contract/types';
 import { verdict as computeVerdict } from '../guidance/verdict';
-import { isFeedStale, shouldSuppressGuidance, STALE_AFTER_MS } from '../guidance/liveness';
+import { shouldSuppressAxis, STALE_AFTER_MS } from '../guidance/liveness';
 import {
   activeSetupId,
   activeTarget,
   createSetup,
   lastGoodAt,
+  lastGoodLightAt,
   leaveGuidanceScreen,
-  reading,
   setups,
+  stableReading,
+  stableTarget,
   status,
   stopGuiding,
   tick,
@@ -23,16 +26,35 @@ export function LiveGuidance() {
   void tick.value;
 
   const target = activeTarget.value;
-  const live = reading.value;
+  // The stability-filtered reading, not the raw signal: at 10 Hz the raw feed
+  // makes the instruction and the dot flicker several times a second. See
+  // guidance/stability.ts for what it filters and what it deliberately doesn't.
+  const live = stableReading.value;
   if (!target) return null;
 
-  const stale = isFeedStale(lastGoodAt.value, Date.now(), STALE_AFTER_MS);
+  const now = Date.now();
   const disconnected = status.value !== 'connected';
-  const suppressed = shouldSuppressGuidance(status.value, stale);
+  // Staleness is judged per axis. A missed ultrasonic ping ages out the
+  // distance axis only; the light readout keeps working, and vice versa
+  // (spec §8). A dead connection still suppresses both — shouldSuppressAxis
+  // keeps the connection check, so this can only ever be more granular.
+  const distanceDown = shouldSuppressAxis(status.value, lastGoodAt.value, now, STALE_AFTER_MS);
+  const lightDown = shouldSuppressAxis(status.value, lastGoodLightAt.value, now, STALE_AFTER_MS);
+  const suppressed = distanceDown && lightDown;
 
-  // A stale reading is never rendered as live: fall back to an all-unknown verdict.
-  const blank = { distance_cm: null, brightness: null, ambient: null, seq: 0, ts: 0 };
-  const v = computeVerdict(suppressed ? blank : live ?? blank, target);
+  // A stale axis is never rendered as live: it is nulled out independently, so
+  // the verdict reports 'unknown' for that channel alone rather than blanking
+  // a perfectly good reading on the other one.
+  const gated: Reading = {
+    distance_cm: distanceDown ? null : live?.distance_cm ?? null,
+    brightness: lightDown ? null : live?.brightness ?? null,
+    ambient: lightDown ? null : live?.ambient ?? null,
+    seq: live?.seq ?? 0,
+    ts: live?.ts ?? 0,
+  };
+  // Classified against the hysteresis-widened target so the in-band boundary
+  // doesn't oscillate; the real `target` is what gets displayed below.
+  const v = computeVerdict(gated, stableTarget.value ?? target);
   // Tells TargetView whether an 'unknown' brightness channel means "nothing to verify"
   // (distance-only setup) or "sensor dropped out on a setup that guides on light" —
   // those two must render differently, and only the target can distinguish them.
@@ -46,12 +68,11 @@ export function LiveGuidance() {
 
   const named = setups.value.find((setup) => setup.id === activeSetupId.value);
 
-  // Live readouts follow the same rule as the target: suppressed means no number.
-  const shownDistance = suppressed ? null : (live?.distance_cm ?? null);
+  // Live readouts follow exactly the same per-axis rule as the target, so a
+  // number on screen always agrees with the channel the verdict was built from.
+  const shownDistance = gated.distance_cm;
   const shownLight =
-    suppressed || !live || live.brightness === null || live.ambient === null
-      ? null
-      : live.brightness - live.ambient;
+    gated.brightness === null || gated.ambient === null ? null : gated.brightness - gated.ambient;
 
   return (
     <>
@@ -99,12 +120,17 @@ export function LiveGuidance() {
           </div>
         </div>
 
-        {suppressed && (
+        {(distanceDown || lightDown) && (
           <div class="stale-banner">
-            {disconnected ? 'Device disconnected' : 'No usable reading'} — showing no guidance rather
-            than a stale one.
-            {lastGoodAt.value && (
-              <> Last good reading {Math.round((Date.now() - lastGoodAt.value) / 1000)}s ago.</>
+            {disconnected
+              ? 'Device disconnected — showing no guidance rather than a stale one.'
+              : suppressed
+                ? 'No usable reading — showing no guidance rather than a stale one.'
+                : distanceDown
+                  ? 'No distance reading — the light readout is still live.'
+                  : 'No light reading — distance guidance is still live.'}
+            {distanceDown && lastGoodAt.value && (
+              <> Last good distance {Math.round((now - lastGoodAt.value) / 1000)}s ago.</>
             )}
           </div>
         )}

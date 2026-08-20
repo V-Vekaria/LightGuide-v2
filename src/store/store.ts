@@ -2,6 +2,7 @@ import { signal } from '@preact/signals';
 import type { ConnectionStatus, DeviceClient, Reading, Setup, Target } from '../contract/types';
 import { cacheSetups, readCachedSetups } from '../cache/idb';
 import { isFeedStale, STALE_AFTER_MS } from '../guidance/liveness';
+import { createStabilityState, stabilise, type StabilityState } from '../guidance/stability';
 
 export type Screen = 'library' | 'new' | 'live' | 'quick';
 
@@ -15,8 +16,34 @@ export const editingSetupId = signal<string | null>(null);
 export const prefillDistanceCm = signal<number | null>(null);
 export const activeTarget = signal<Target | null>(null);
 export const activeSetupId = signal<string | null>(null);
-/** Wall-clock ms of the last reading with a usable distance. Drives the stale banner. */
+/**
+ * Wall-clock ms of the last reading with a usable *distance*. Drives the stale
+ * banner and the distance axis. Named without an axis suffix for history; it
+ * has always been the distance axis's timestamp and `lastGoodLightAt` is its
+ * counterpart. Staleness is per axis (spec §8: "the affected axis greys out;
+ * the other keeps working") — never test one axis against the other's stamp.
+ */
 export const lastGoodAt = signal<number | null>(null);
+/**
+ * Wall-clock ms of the last reading the light axis could actually be computed
+ * from. Both `brightness` and `ambient` are required: `verdict` compares
+ * `brightness - ambient` against the target, so a frame carrying only one of
+ * them is no more usable than a frame carrying neither.
+ */
+export const lastGoodLightAt = signal<number | null>(null);
+/**
+ * The live reading after stability filtering (see `guidance/stability.ts`) —
+ * what the guidance screen should render. Null channels stay null: this is
+ * never a fabricated value bridging a dropout. Null until the first frame.
+ */
+export const stableReading = signal<Reading | null>(null);
+/**
+ * `activeTarget` with tolerances widened while a channel is latched in-band —
+ * the hysteresis half of stability handling. Pass this to `verdict()`, but
+ * keep showing the user the real `activeTarget`: only the classification
+ * threshold moves, never the target itself.
+ */
+export const stableTarget = signal<Target | null>(null);
 /**
  * Bumped every 500ms while connected — the heartbeat. Preact signals only
  * re-render on a *write*, and nothing writes a signal when time merely
@@ -98,6 +125,24 @@ let generation = 0;
 let deviceAnswered = false;
 /** Heartbeat interval id, module-scoped so connect()/disconnect() can always find and clear it. */
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+/**
+ * Rolling window + hysteresis latches for the stability filter. Lives here,
+ * in the caller, precisely so `guidance/stability.ts` can stay pure: it is
+ * threaded through `stabilise()` on each frame and never mutated in place.
+ */
+let stability: StabilityState = createStabilityState();
+
+/**
+ * Throws away the smoothing window and the hysteresis latches. Called whenever
+ * the thing being measured changes identity — a new connection, a teardown, or
+ * a new target — so samples taken against one setup can never smooth into the
+ * verdict for another.
+ */
+export function resetStability(): void {
+  stability = createStabilityState();
+  stableReading.value = null;
+  stableTarget.value = null;
+}
 
 export function connect(client: DeviceClient): void {
   // Clear any previous heartbeat first so repeated connect() calls never stack intervals.
@@ -112,9 +157,22 @@ export function connect(client: DeviceClient): void {
 
   device = client;
   unsubscribe?.();
+  resetStability();
   unsubscribe = client.subscribeLive((r) => {
     reading.value = r;
-    if (r.distance_cm !== null) lastGoodAt.value = Date.now();
+    const at = Date.now();
+    // Per-axis staleness: each axis stamps only on a frame it could actually
+    // be read from, so a missed ultrasonic ping ages out the distance axis
+    // while the light axis keeps reporting, and vice versa.
+    if (r.distance_cm !== null) lastGoodAt.value = at;
+    if (r.brightness !== null && r.ambient !== null) lastGoodLightAt.value = at;
+    // Stability filtering happens here, once per frame — not in the component,
+    // which also re-renders on the 500ms heartbeat and would otherwise fold
+    // the same frame into the window repeatedly.
+    const step = stabilise(stability, r, activeTarget.value, at);
+    stability = step.state;
+    stableReading.value = step.reading;
+    stableTarget.value = step.target;
     status.value = client.status();
   });
   // The heartbeat: refreshes status even when no frame arrives, and — critically —
@@ -163,6 +221,7 @@ export function disconnect(): void {
   }
   unsubscribe?.();
   unsubscribe = null;
+  resetStability();
   status.value = 'disconnected';
   device = null;
 }
@@ -216,6 +275,9 @@ export async function startGuiding(target: Target, setupId?: string): Promise<vo
   await device.setActiveTarget(target);
   activeTarget.value = target;
   activeSetupId.value = setupId ?? null;
+  // New target, new band: never carry a hysteresis latch earned against a
+  // different distance into the first frames of this one.
+  resetStability();
   navigate('live');
 }
 

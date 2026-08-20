@@ -47,6 +47,18 @@ const DOT_INSET = DOT_SIZE / 2 + HALO_WIDTH;
 /** One tolerance is a quarter of the half-width, so the in-band box spans 37.5%–62.5%. */
 const BAND_INSET_PCT = 37.5;
 
+/**
+ * The in-band zone. With a light target it's a box — both axes are being
+ * judged, so both are bounded. Without one (a quick guide always has
+ * `brightness_above_ambient: null`) it becomes a full-height vertical slab:
+ * only horizontal position means anything, and a box would invite a
+ * photographer reading the dot from 2 m away to take its vertical position as
+ * a judgement about the light. There is no light judgement to make.
+ */
+function bandInset(guidingOnLight: boolean): string {
+  return guidingOnLight ? `${BAND_INSET_PCT}%` : `0 ${BAND_INSET_PCT}%`;
+}
+
 function axisPosition(fraction: number): string {
   const pct = 50 + fraction * 50;
   return `clamp(${DOT_INSET}px, ${pct}%, calc(100% - ${DOT_INSET}px))`;
@@ -77,7 +89,11 @@ export function TargetView({ verdict, distanceTolCm, brightnessTol, guidingOnLig
 
   return (
     <div class="target">
-      <div class="target-axis target-axis-top">BRIGHTER</div>
+      {/* Vertical axis labels only when there is a vertical judgement to read.
+          On a distance-only setup the dot never leaves the centre line, and a
+          BRIGHTER/DIMMER scale beside a dot that cannot move on it is a
+          readout of nothing. */}
+      {guidingOnLight && <div class="target-axis target-axis-top">BRIGHTER</div>}
 
       <div
         class="target-plot"
@@ -88,7 +104,7 @@ export function TargetView({ verdict, distanceTolCm, brightnessTol, guidingOnLig
         <div class="target-frame" />
         <div
           class="target-band"
-          style={{ inset: `${BAND_INSET_PCT}%` }}
+          style={{ inset: bandInset(guidingOnLight) }}
         />
         <div class="target-cross-v" />
         <div class="target-cross-h" />
@@ -122,7 +138,7 @@ export function TargetView({ verdict, distanceTolCm, brightnessTol, guidingOnLig
         <span>CLOSER</span>
         <span>FURTHER</span>
       </div>
-      <div class="target-axis target-axis-bottom">DIMMER</div>
+      {guidingOnLight && <div class="target-axis target-axis-bottom">DIMMER</div>}
     </div>
   );
 }

@@ -27,3 +27,25 @@ export function isFeedStale(lastGoodAt: number | null, now: number, staleAfterMs
 export function shouldSuppressGuidance(connectionStatus: ConnectionStatus, feedStale: boolean): boolean {
   return connectionStatus !== 'connected' || feedStale;
 }
+
+/**
+ * The same rule as `shouldSuppressGuidance`, but for a single axis, given that
+ * axis's own last-good timestamp. Spec §8: on a sensor dropout "the affected
+ * axis greys out; the other keeps working" — so distance and light each carry
+ * their own `lastGoodAt` (see `store.ts`) and each is judged on it alone. An
+ * ultrasonic miss on a soft or angled surface must not take a perfectly good
+ * brightness reading down with it.
+ *
+ * The connection check is deliberately still in here rather than being
+ * hoisted out: when the whole link is down, every axis is suppressed no
+ * matter how recently it last read well. Per-axis staleness only ever makes
+ * suppression *more* granular, never weaker.
+ */
+export function shouldSuppressAxis(
+  connectionStatus: ConnectionStatus,
+  lastGoodAxisAt: number | null,
+  now: number,
+  staleAfterMs: number,
+): boolean {
+  return shouldSuppressGuidance(connectionStatus, isFeedStale(lastGoodAxisAt, now, staleAfterMs));
+}
