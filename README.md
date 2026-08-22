@@ -101,10 +101,28 @@ anything, and nothing tells you a deletion can be undone — because it can't.
 
 ## Firmware
 
-`src/contract/types.ts` carries a **Firmware requirements** block written for whoever
-implements the board: the expected frame cadence, why `seq`/`ts` must be unique per frame,
-the exact HTTP semantics, and why `ambient` must be a maintained estimate rather than a raw
-reading. Read that first, then run the conformance suite against the board.
+Lives in **[`device/`](device/)**, in this repo. App and firmware are versioned together
+because they ship as one product: the board serves the app's built bundle from flash, so a
+mismatched pair is not a working product.
+
+**Hardware bring-up is complete** on an Arduino Nano ESP32 — display, ultrasonic distance,
+LDR, buzzer and switch all verified, with measurements in `device/reports/`. The remaining
+milestones are persistence, SoftAP + HTTP, the live WebSocket, and conformance on real
+hardware.
+
+Start with **[`device/AGENTS.md`](device/AGENTS.md)** (scope and milestone list) and
+**[`device/STATUS.md`](device/STATUS.md)** (what to do next).
+
+Two authoritative sources for what the board must implement, in this order:
+
+1. **`.superpowers/sdd/device-contract-report.md` §1** — every route, status code and
+   validation rule, with the reasoning
+2. `src/contract/types.ts` — the **Firmware requirements** block: frame cadence, why
+   `seq`/`ts` must be unique per frame, and why `ambient` must be a maintained estimate
+   rather than a raw reading
+
+`device/docs/01-API-CONTRACT.md` deliberately *points* at those rather than restating them —
+it was a copy once, drifted, and reported settled decisions as open.
 
 ## Lineage
 
