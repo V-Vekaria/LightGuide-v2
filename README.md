@@ -8,7 +8,8 @@ distance and light level and guides you to it: *"Move 10.6 cm closer."*
 
 > **Status:** the app is complete and runs today against a mock device that replays real
 > recorded sensor traces. **The ESP32 hardware has not been built yet.** See
-> [Firmware](#firmware) for what the board must implement.
+> [Firmware](#firmware) for what the board must implement, and
+> [`docs/STATUS.md`](docs/STATUS.md) for what is unfinished and what will bite you.
 
 ---
 
