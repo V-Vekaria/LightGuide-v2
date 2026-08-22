@@ -1,0 +1,575 @@
+:root {
+  /* Instrument palette: cool neutrals, one green for "in band", one amber for
+     "adjust". Low saturation so the two state colours are the only things that
+     ever shout. */
+  --bg: #f6f7f8;
+  --surface: #ffffff;
+  --surface-2: #fafbfb;
+  --ink: #12161a;
+  --ink-2: #3d474f;
+  /* The greys carry nearly every label in the app, much of it small and read
+     at arm's length in a dim room, so each one clears 4.5:1 against the
+     lightest surface it is actually used on (--bg #f6f7f8, not white). The
+     ladder faint < muted < ink-2 < ink still reads as four distinct steps.
+     Measured on #f6f7f8: faint 4.83:1 (was 2.91:1), muted 6.25:1 (was 4.38). */
+  --muted: #545d65;
+  --faint: #666e75;
+  /* Hairlines that only divide. Never a control's only boundary — see
+     --line-strong, which is what an input or a ghost button is outlined in. */
+  --line: #e3e6e9;
+  --line-2: #eef0f2;
+  /* 3.4:1 on white, 3.17:1 on --bg: the 1.4.11 floor for the edge of a
+     control whose fill is the same colour as the page behind it. */
+  --line-strong: #858c94;
+
+  /* Both state colours carry text (tile notes at 12px, the readouts, the
+     instruction), so both clear 4.5:1 rather than the 3:1 a pure graphic
+     would need. Green also has to clear it against --ok-bg, which is the
+     tinted active row it sits on. */
+  --ok: #177c43;
+  --ok-bg: #f2f8f4;
+  --warn: #b4571a;
+  /* The out-of-band dot and the bulb icon are graphics, not text: this is the
+     3:1 boundary against the 10% amber wash the dot sits on (3.84:1). */
+  --warn-dot: #b86505;
+  --warn-bg: #fdf6ee;
+  --bad: #c0392b;
+  --accent: #2563a8;
+  /* One focus ring for the whole app. Dark enough to read on white, on the
+     tinted active row and on both banner backgrounds (7.9:1 or better); the
+     2px offset floats it clear of dark buttons it would otherwise vanish
+     against. */
+  --focus: #0b4c92;
+
+  /* Every control is at least this on its shortest axis. A photographer taps
+     this app one-handed, at arm's length, with a light stand in the other. */
+  --tap: 44px;
+
+  /* No webfont: the ESP32 serves this bundle over its own Wi-Fi with no
+     internet, so a Google Fonts link would silently fail on the real device. */
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", "SF Mono", Menlo, monospace;
+
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { min-height: 100vh; display: flex; flex-direction: column; }
+
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- focus ---------- */
+
+/* One ring, every control, no exceptions. :where() keeps the specificity at
+   zero so a component can still restyle its own focus without !important —
+   nothing currently needs to, which is the point. The offset matters as much
+   as the colour: drawn tight against a dark .btn the ring disappears into it,
+   whereas 2px out it lands on the surface behind the button instead. */
+:where(a[href], button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- motion ---------- */
+
+/* The dot's position transition, the plot's tint fade and the stage's opacity
+   fade are all movement tied to a live sensor feed — exactly the kind that
+   provokes symptoms in someone with a vestibular disorder. Honour the OS
+   setting. The !important is doing real work: the dot's transition is an
+   inline style (Target.tsx), and only an important declaration outranks one. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- app bar ---------- */
+
+.app-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 0 20px; height: 56px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 5;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.brand-sub { font-size: 12px; color: var(--faint); }
+@media (max-width: 640px) { .brand-sub { display: none; } }
+
+.conn { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-2); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.status-connected { background: var(--ok); }
+.status-connecting { background: var(--warn-dot); }
+.status-disconnected { background: var(--bad); }
+
+/* The setups table used a green dot for the guiding row and a pale grey one
+   for the rest — a distinction made purely of colour, and green/grey is a
+   pairing a deuteranope reads as grey/grey. Filled vs hollow says the same
+   thing by shape. (The row's Guide button also reads "Guiding", so the state
+   survives even if the dot is missed entirely.) */
+.dot-active { background: var(--ok); }
+.dot-idle { background: transparent; border: 2px solid var(--line-strong); }
+
+/* ---------- live strip ---------- */
+
+.live-strip {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px; background: var(--line); border-bottom: 1px solid var(--line);
+}
+@media (max-width: 720px) { .live-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.tile { background: var(--surface); padding: 14px 20px; min-width: 0; }
+.tile-label {
+  font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tile-value {
+  display: flex; align-items: baseline; gap: 5px; margin-top: 5px;
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 26px; font-weight: 500; letter-spacing: -0.02em;
+}
+.tile-unit { font-family: var(--sans); font-size: 12px; color: var(--muted); font-weight: 400; }
+.tile-note { font-size: 12px; margin-top: 3px; color: var(--faint); }
+.tile-note.is-ok { color: var(--ok); }
+.tile-note.is-warn { color: var(--warn); }
+
+/* "+2.3 from target" reads identically in band and out of it — only the green
+   or amber said which, and those two hues are the single worst pair for the
+   ~8% of men with a colour-vision deficiency. The mark restores the
+   distinction as a shape. aria-hidden because the text beside it, and the
+   verdict on screen, already say it for anyone listening. */
+.note-mark { font-weight: 700; margin-right: 5px; }
+.note-mark-after { font-weight: 700; margin-left: 6px; }
+
+/* ---------- layout ---------- */
+
+/* index.html opts into viewport-fit=cover, so on a notched iPhone the page
+   extends under the home indicator and the rounded corners. Every container
+   that ends in controls has to pay that back, or "Stop guiding" and the block
+   buttons sit under the indicator where a tap is swallowed as a system gesture.
+   env() resolves to 0px everywhere else, and a browser without env() drops the
+   declaration and keeps the plain 20px above it. */
+.wrap {
+  width: 100%; max-width: 1180px; margin: 0 auto; padding: 20px; flex: 1; min-height: 0;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+.wrap-tight {
+  width: 100%; max-width: 520px; margin: 0 auto; padding: 20px; flex: 1;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+/* Now an <h1> — the explicit size and margin are what keep it looking exactly
+   as it did as a <span>, which is the whole trick to adding heading structure
+   to a design that never had any. */
+.section-title { font-size: 13px; font-weight: 600; margin: 0; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.footnote { font-size: 12px; color: var(--faint); margin-top: 12px; line-height: 1.6; }
+
+/* ---------- setups table ---------- */
+
+/* The header labels went from 10px to 11px, so the columns they sit in each
+   gained a few px — "TOLERANCE" at 11px with this tracking needs 74px and had
+   76px. The actions column is the big one: it now holds a 44px button, a rule
+   and 28px of deliberate dead space (see .trow-actions). */
+.thead, .trow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px 84px 96px 184px;
+  align-items: center; gap: 8px; padding: 11px 16px;
+}
+.thead {
+  background: var(--surface-2); border-bottom: 1px solid var(--line);
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint);
+}
+/* Vertical padding drops because the name is now a 44px button rather than a
+   16px line of text; the row still ends up taller than it was (56px vs 40px),
+   which is the cost of a thumb-sized target and is meant to be paid. */
+.trow { border-bottom: 1px solid var(--line-2); padding-top: 6px; padding-bottom: 6px; }
+.trow:last-child { border-bottom: 0; }
+.trow.is-active { background: var(--ok-bg); }
+.tname { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tname-text { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trow.is-active .tname-text { font-weight: 600; }
+.tcell { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink-2); }
+.tcell-dim { color: var(--muted); }
+
+/* Guide and Delete were two identical 12.5px text buttons about 10px apart, at
+   the thumb-side edge of the row, tapped one-handed with a light stand in the
+   other hand. Delete is destructive and an export the user may never have made
+   is the only backup. Three things now separate them: Guide is a bordered
+   button and Delete is bare text (different shape), a rule sits between them
+   (a visible boundary), and there is ~28px of clear space (their 44px hit
+   areas cannot overlap — Delete's own box is ~45px wide, so it expands by at
+   most 2px, leaving 26px of genuine dead zone between the two targets). */
+.trow-actions { display: flex; align-items: center; justify-content: flex-end; }
+.row-guide {
+  font: inherit; font-size: 13px; font-weight: 500;
+  min-height: var(--tap); padding: 0 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2);
+  border-radius: 6px; cursor: pointer; white-space: nowrap;
+}
+.row-guide:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.row-guide:disabled { opacity: 0.45; cursor: not-allowed; }
+.row-sep { width: 1px; height: 22px; background: var(--line); margin: 0 14px; flex: none; }
+
+@media (max-width: 720px) {
+  .thead { display: none; }
+  .trow { grid-template-columns: minmax(0, 1fr) auto; grid-row-gap: 4px; padding: 8px 14px; }
+  .trow .tcell { grid-column: 1; font-size: 12px; }
+  .trow-actions { grid-column: 2; grid-row: 1 / span 4; align-items: center; }
+}
+
+.empty { padding: 28px 18px; text-align: center; color: var(--muted); font-size: 13.5px; line-height: 1.65; }
+
+/* ---------- guidance ---------- */
+
+.guide-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap; margin-bottom: 8px;
+}
+/* An <h1> now: this screen's heading is the setup being guided. */
+.guide-name { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+.guide-target { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.guide-readouts { display: flex; gap: 24px; }
+.readout-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.readout-value {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 21px; font-weight: 500; margin-top: 2px;
+}
+/* 21px unbolded is below WCAG's "large text" threshold, so this needs the full
+   4.5:1 — which the darkened --ok now gives. The tick is the non-colour half
+   of the same signal, and it trails the number so the digits never shift
+   sideways as the state flips. */
+.readout-value.is-in-band { color: var(--ok); }
+
+.guide-stage { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px 0; min-height: 0; }
+
+.guide-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; padding-top: 18px; border-top: 1px solid var(--line);
+}
+.instruction { font-size: 23px; font-weight: 600; letter-spacing: -0.015em; }
+.instruction.is-ok { color: var(--ok); }
+.instruction.is-warn { color: var(--warn); }
+.instruction-sub { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+
+/* ---------- retarget in place ---------- */
+
+/* Grows and shrinks rather than forcing the readouts onto a second row: on a
+   landscape phone that wrap alone costs 60px of the height the plot needs. */
+.guide-head-main { flex: 1 1 240px; min-width: 0; }
+
+/* The target line is the control. Changing your mind mid-shoot used to mean
+   stopping guidance and walking the whole Quick guide flow again. */
+.guide-target-btn {
+  display: inline-flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  background: none; border: 0; padding: 3px 0; margin: 0;
+  min-height: var(--tap);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.guide-target-btn .guide-target { margin-top: 0; }
+.guide-target-btn:hover .guide-target { color: var(--ink-2); }
+.guide-target-btn:hover .guide-target-edit { border-color: var(--accent); background: var(--surface); }
+.guide-target-edit {
+  font-size: 12px; color: var(--accent); white-space: nowrap;
+  border: 1px solid var(--line-strong); border-radius: 999px; padding: 3px 10px;
+}
+
+.target-edit { margin-top: 7px; max-width: 460px; }
+.target-edit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.target-edit-input { width: 108px; }
+.target-edit-unit { font-size: 12px; color: var(--muted); margin-left: -3px; }
+.target-edit-presets { margin-top: 9px; }
+.target-edit-error { margin-top: 9px; font-size: 12.5px; color: var(--bad); line-height: 1.5; }
+
+.cue-toggle.is-off { color: var(--faint); }
+
+/* ---------- controls ---------- */
+
+/* min-height rather than fatter padding: the text stays where it was and the
+   box grows around it, so a 38px button becomes a 44px one without the layout
+   moving. inline-flex is what re-centres the label inside the taller box. */
+.btn {
+  font: inherit; font-size: 13px; font-weight: 500; padding: 9px 16px;
+  min-height: var(--tap);
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  border-radius: 6px; cursor: pointer; white-space: nowrap;
+}
+.btn:hover:not(:disabled) { background: #000; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+/* --line-strong, not --line: a white ghost button on the near-white page had a
+   1.25:1 edge, which is no edge at all — nothing distinguished the control
+   from the background it sat on. */
+.btn-ghost { background: var(--surface); border-color: var(--line-strong); color: var(--ink-2); }
+.btn-ghost:hover:not(:disabled) { background: var(--surface-2); }
+.btn-info { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-info:hover:not(:disabled) { background: #1b4a7d; }
+.btn-block { width: 100%; display: flex; }
+
+/* Was `padding: 4px 0` — about 25px tall and, with no horizontal padding, only
+   as wide as its own text. Given a real min-height instead of an invisible
+   expanded hit area on purpose: the expanded-area trick would have reached ~9px
+   up into the distance input this button sits directly beneath, quietly
+   stealing taps aimed at the bottom of the field. Taking real layout space is
+   honest, and every one of these sits in a flex row or on its own line, so
+   nothing reflows badly. */
+.link-btn {
+  background: none; border: 0; padding: 4px 8px; font: inherit; font-size: 12.5px;
+  min-height: var(--tap);
+  display: inline-flex; align-items: center;
+  color: var(--accent); cursor: pointer;
+}
+.link-btn:hover:not(:disabled) { text-decoration: underline; }
+.link-btn:disabled { color: var(--faint); cursor: not-allowed; text-decoration: none; }
+.link-danger { color: var(--bad); }
+
+.field { margin-bottom: 18px; }
+/* A real <label> now, so tapping it focuses its field — display:block is what
+   keeps a <label> laying out exactly as the <div> it replaced. Still used as a
+   plain <div> on the two capture readouts, which label a value, not an input. */
+.field-label {
+  display: block; font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 6px;
+}
+.input {
+  width: 100%; padding: 10px 12px; font: inherit; font-size: 15px;
+  min-height: var(--tap);
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 6px; color: var(--ink);
+}
+/* The ring itself comes from the global :focus-visible rule — browsers treat a
+   text field as focus-visible however it was focused, so this fires on tap and
+   on Tab alike. All that is left here is the border tint. */
+.input:focus { border-color: var(--accent); }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+.stale-banner {
+  background: var(--warn-bg); border: 1px solid #f0d9bd; color: #8a4513;
+  padding: 10px 13px; border-radius: 7px; font-size: 12.5px; line-height: 1.55; margin-bottom: 14px;
+}
+.notice { background: var(--surface-2); border: 1px solid var(--line); color: var(--muted);
+  padding: 9px 12px; border-radius: 7px; font-size: 12px; line-height: 1.5; }
+
+.capture-stage { text-align: center; padding: 28px 0; }
+.capture-step { font-size: 12px; color: var(--faint); }
+/* An <h2> under the screen's <h1>. */
+.capture-title { font-size: 17px; font-weight: 600; margin: 12px 0 8px; }
+.capture-copy { font-size: 13px; color: var(--muted); line-height: 1.6; max-width: 34ch; margin: 0 auto; }
+.capture-readout { margin-top: 22px; padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.capture-value { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 500; margin-top: 4px; }
+
+.preset-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.preset {
+  font: inherit; font-size: 13px; padding: 0 16px; border: 1px solid var(--line-strong);
+  min-height: var(--tap);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface); border-radius: 6px; color: var(--ink-2); cursor: pointer;
+}
+.preset:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.preset:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.foot-bar {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 14px 20px; border-top: 1px solid var(--line); background: var(--surface);
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+}
+@media (max-width: 640px) { .foot-bar .btn { flex: 1; } }
+
+/* ---------- two-axis target ---------- */
+
+/* The plot is square, so its width is also its height. Sizing it from the
+   viewport width alone made it taller than a landscape phone's whole viewport,
+   which pushed the instruction and the buttons — the two things a photographer
+   actually acts on — below the fold. So the height term: `--plot-chrome` is
+   how much vertical space everything else on the guidance screen needs (app
+   bar, header, axis labels, instruction, actions, padding, safe area), and the
+   plot gets what is left. The 100px floor keeps it a readable instrument on a
+   very short viewport instead of letting it collapse to a smear. */
+/* --plot-chrome went up by 36px against the original 320: the target line is
+   now a 44px button (+22), the action buttons are 44px not 38 (+6), and the
+   axis captions and readout labels each gained a point of type (+8). Getting
+   this wrong pushes the instruction below the fold on a landscape phone, which
+   is the one thing the whole sizing scheme exists to prevent. */
+.target {
+  --plot-vh: 100vh;
+  --plot-chrome: 356px;
+  --plot-min: 100px;
+  --plot-size: min(380px, 78vw, max(var(--plot-min), calc(var(--plot-vh) - var(--plot-chrome))));
+  text-align: center;
+}
+/* dvh where it exists: on mobile Safari a 100vh box is taller than what is
+   actually on screen while the URL bar is expanded, which is the exact
+   overflow this rule is here to prevent. */
+@supports (height: 100dvh) {
+  .target { --plot-vh: 100dvh; }
+}
+.target-axis { font-size: 11px; letter-spacing: 0.1em; color: var(--faint); }
+.target-axis-sides {
+  display: flex; justify-content: space-between;
+  width: var(--plot-size); margin: 6px auto 0;
+}
+.target-axis-bottom { margin-top: 4px; }
+
+.target-plot {
+  position: relative; width: var(--plot-size); aspect-ratio: 1 / 1;
+  margin: 6px auto; border-radius: 12px; overflow: hidden;
+  background: var(--surface); transition: background 0.3s;
+}
+.target-frame {
+  position: absolute; inset: 0; border: 1px solid var(--line); border-radius: 12px;
+}
+/* The plot said "settled" with a green wash and "adjust" with an amber one,
+   and nothing else — the two states of the app's primary instrument, told
+   apart by the exact hue pair that red-green colour blindness collapses.
+   The band's edge now carries the same state as a line style: dashed while
+   you are still moving the stand, solid and thicker the moment the dot is
+   inside it. Readable at 2m, and readable in greyscale. */
+.target-band {
+  position: absolute; border: 2px dashed var(--ok); border-radius: 8px;
+  background: rgba(23, 124, 67, 0.08);
+}
+.target-plot.is-in-band .target-band { border-style: solid; border-width: 3px; }
+.target-cross-v { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line-2); }
+.target-cross-h { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--line-2); }
+.target-empty {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--faint); font-size: 13px;
+}
+
+/* ---------- short viewport (a phone turned sideways) ---------- */
+
+/* A landscape phone has roughly 375px of height to hold a screen designed for
+   812. Shrinking the plot alone is not enough — at that height the padding
+   around it costs more than the plot itself. So the chrome compacts too, and
+   `--plot-chrome` drops to match what the compacted chrome actually measures,
+   which is what keeps the instruction and the actions on screen. */
+@media (max-height: 560px) {
+  .wrap {
+    padding-top: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .guide-head { margin-bottom: 4px; }
+  .guide-stage { padding: 2px 0; }
+  .guide-foot { padding-top: 10px; }
+  .instruction { font-size: 19px; }
+  .target-plot { margin: 3px auto; }
+  .target { --plot-chrome: 294px; }
+}
+
+/* Shorter still: a small phone sideways. The BRIGHTER/DIMMER captions go —
+   they are a legend for an axis the dot itself still shows, and at this height
+   the instruction line is worth more than the legend. */
+/* A 320px-tall viewport cannot hold this screen at any target size — it
+   already overflowed by 28px before the controls grew to 44px, and the plot is
+   pinned at its floor here so --plot-chrome has nothing left to give. Rather
+   than buy the space back by shrinking the targets (which is the one thing
+   that must not happen), the surrounding type and padding compact further:
+   that returns the overflow to roughly where it was, and what is left simply
+   scrolls. Nothing becomes unreachable. */
+@media (max-height: 400px) {
+  .target-axis-top, .target-axis-bottom { display: none; }
+  .target { --plot-chrome: 256px; --plot-min: 72px; }
+  .wrap {
+    padding-top: 6px;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+  .guide-name { font-size: 15px; }
+  .guide-foot { padding-top: 6px; }
+  .instruction { font-size: 17px; }
+}
+
+/* ---------- app bar navigation ---------- */
+
+.brand {
+  display: flex; align-items: baseline; gap: 10px; min-width: 0;
+  background: none; border: 0; padding: 6px 8px; margin-left: -8px;
+  min-height: var(--tap);
+  font: inherit; color: inherit; cursor: pointer; border-radius: 6px;
+}
+.brand:hover { background: var(--surface-2); }
+
+.app-bar-right { display: flex; align-items: center; gap: 14px; min-width: 0; }
+
+.guiding-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border: 1px solid var(--ok); border-radius: 999px;
+  min-height: var(--tap);
+  background: var(--ok-bg); color: var(--ink-2);
+  font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.guiding-chip:hover { background: #e8f3ec; }
+.guiding-chip-go { color: var(--ok); font-weight: 600; }
+@media (max-width: 640px) { .guiding-chip-go { display: none; } }
+
+/* The setup name is the control that opens the editor, so it gets a full-height
+   target. align-items:center re-centres the name inside the taller box. */
+.tname-btn {
+  background: none; border: 0; padding: 0; margin: 0; font: inherit;
+  min-height: var(--tap); display: flex; align-items: center;
+  color: inherit; cursor: pointer; text-align: left; min-width: 0;
+}
+.tname-btn:hover .tname-text { color: var(--accent); text-decoration: underline; }
+
+/* ---------- failure states, confirmations and results ---------- */
+
+/* Everything that used to be an alert() lives here. Inline and dismissible:
+   a system modal titled with the device's IP address, over the whole screen,
+   is not something to hand a photographer mid-shoot. */
+.banner {
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2);
+  border-radius: 7px; padding: 11px 13px; margin-bottom: 14px;
+  font-size: 12.5px; line-height: 1.55;
+}
+.banner-title { font-weight: 600; }
+.banner-detail { margin-top: 3px; opacity: 0.9; }
+.banner-warn { background: var(--warn-bg); border-color: #f0d9bd; color: #8a4513; }
+.banner-ok { background: var(--ok-bg); border-color: #cfe4d6; color: #17603a; }
+.banner-info { background: var(--surface-2); color: var(--ink-2); }
+.banner-subhead { margin-top: 9px; }
+.banner-list { margin: 5px 0 0; padding-left: 20px; }
+.banner-list li { margin-top: 2px; }
+.banner-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.banner-dismiss {
+  display: flex; align-items: center; justify-content: center;
+  width: fit-content; margin: 11px 0 0 auto;
+  font: inherit; font-size: 12px; padding: 6px 14px;
+  min-height: var(--tap);
+  background: var(--surface); border: 1px solid currentColor; border-radius: 6px;
+  color: inherit; opacity: 0.8; cursor: pointer;
+}
+.banner-dismiss:hover { opacity: 1; }
+
+/* The extra acknowledgement an import that deletes has to pass through.
+   Checkbox and label are separate elements so the label can be a real
+   <label for>; both carry the full tap height rather than leaving a 13px box
+   floating in a 44px row. */
+.banner-ack { display: flex; align-items: flex-start; gap: 12px; margin-top: 12px; }
+.banner-ack input[type="checkbox"] {
+  width: 22px; height: 22px; margin: 11px 0; flex-shrink: 0;
+  accent-color: var(--bad); cursor: pointer;
+}
+.banner-ack label {
+  min-height: var(--tap); display: flex; align-items: center;
+  cursor: pointer; line-height: 1.45;
+}
