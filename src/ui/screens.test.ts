@@ -95,6 +95,7 @@ describe('screenTitle', () => {
   it('names the other screens ahead of the app', () => {
     expect(screenTitle('quick')).toBe('Quick guide · LightGuide');
     expect(screenTitle('live')).toBe('Guiding · LightGuide');
+    expect(screenTitle('device')).toBe('Device · LightGuide');
   });
 
   it('tells the two halves of the setup form apart', () => {
@@ -104,9 +105,12 @@ describe('screenTitle', () => {
   });
 
   it('names every screen the store can navigate to', () => {
-    for (const screen of ['home', 'quick', 'live', 'new'] as const) {
+    for (const screen of ['home', 'quick', 'live', 'new', 'device'] as const) {
       expect(screenTitle(screen)).toMatch(/LightGuide$/);
     }
-    expect(Object.keys(SCREEN_NAMES).sort()).toEqual(['home', 'live', 'quick']);
+    // The guard: a screen added to the store without a name lands here rather
+    // than in a task switcher showing two identical rows. `device` was the
+    // first one it actually caught.
+    expect(Object.keys(SCREEN_NAMES).sort()).toEqual(['device', 'home', 'live', 'quick']);
   });
 });

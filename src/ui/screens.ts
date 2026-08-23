@@ -2,7 +2,7 @@ import type { ConnectionStatus } from '../contract/types';
 import type { Screen } from '../store/store';
 
 /**
- * What the app calls its four screens, and what the home screen resolves to.
+ * What the app calls its five screens, and what the home screen resolves to.
  *
  * Both are pure, and both live here rather than inside a component, because
  * they answer questions the app used to answer nowhere: *what is this page
@@ -27,6 +27,7 @@ export const SCREEN_NAMES: Record<Exclude<Screen, 'new'>, string> = {
   home: 'Home',
   quick: 'Quick guide',
   live: 'Guiding',
+  device: 'Device',
 };
 
 const APP_NAME = 'LightGuide';

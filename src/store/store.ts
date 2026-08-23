@@ -9,18 +9,24 @@ import type {
 } from '../contract/types';
 import { targetFromSetup } from '../contract/types';
 import { cacheSetups, readCachedSetups } from '../cache/idb';
+import { frameRate } from '../device/diagnostics';
 import { shouldSuppressAxis, STALE_AFTER_MS } from '../guidance/liveness';
 import { verdict as computeVerdict } from '../guidance/verdict';
 import { createStabilityState, stabilise, type StabilityState } from '../guidance/stability';
 
 /**
- * The four screens. `home` is the one the app opens on and the one every
+ * The five screens. `home` is the one the app opens on and the one every
  * "get me out of here" control returns to — it holds the saved setups *and*
  * whatever introduction the visitor still needs (see `ui/screens.ts`), which
  * is why it is not called `library` any more: the list is one thing on it,
  * not the whole of it.
+ *
+ * `device` is where the connection lives: which board is answering, what it is
+ * running, and what the link is doing. It is reached from the app bar's
+ * connection indicator, and like every other screen it is entered through
+ * `navigate()` so that Back leaves it again.
  */
-export type Screen = 'home' | 'new' | 'live' | 'quick';
+export type Screen = 'home' | 'new' | 'live' | 'quick' | 'device';
 
 /**
  * The setups every screen renders: active only, never a tombstone. Derived
@@ -82,6 +88,19 @@ export const lastGoodAt = signal<number | null>(null);
  * them is no more usable than a frame carrying neither.
  */
 export const lastGoodLightAt = signal<number | null>(null);
+/**
+ * Wall-clock ms of the last frame that arrived at all, whatever was in it.
+ *
+ * Deliberately not the same thing as `lastGoodAt`/`lastGoodLightAt`, and the
+ * difference is the most useful diagnostic in the app: frames arriving with
+ * every channel null means the link is fine and the sensors are not, while no
+ * frames at all means the link is gone. On screen both are dashes. This is
+ * what tells them apart, and it is why the contract asks firmware to send a
+ * frame even when every channel failed.
+ *
+ * Never used to render a reading — it says a frame existed, not what was in it.
+ */
+export const lastFrameAt = signal<number | null>(null);
 /**
  * The live reading after stability filtering (see `guidance/stability.ts`) —
  * what the guidance screen should render. Null channels stay null: this is
@@ -183,6 +202,68 @@ export function stableDistanceReading(): Reading | null {
 /** As `liveLightReading`, over the stability-filtered feed. */
 export function stableLightReading(): Reading | null {
   return axisView(stableReading.value, 'light');
+}
+
+/**
+ * Arrival times of the most recent frames, newest last. Diagnostics only.
+ *
+ * Bounded by count, not by age, so it cannot grow without limit on a feed that
+ * never stops: at the contract's 10 Hz this holds the last six seconds, which
+ * comfortably covers the three-second window the rate is measured over.
+ */
+const FRAME_TIME_CAPACITY = 60;
+const FRAME_RATE_WINDOW_MS = 3000;
+let frameTimes: number[] = [];
+
+/**
+ * How fast frames are arriving right now, in Hz — or null when too few have
+ * arrived to measure. See `device/diagnostics.ts` for the arithmetic.
+ *
+ * Reads `tick.value` so a view showing it re-renders on the 500 ms heartbeat
+ * and watches the rate fall away when the feed stops, rather than freezing at
+ * the last value like a stopped clock.
+ */
+export function liveFrameRate(now: number = Date.now()): number | null {
+  void tick.value;
+  return frameRate(frameTimes, now, FRAME_RATE_WINDOW_MS);
+}
+
+/**
+ * Forgets the link statistics. Called wherever the feed's identity changes —
+ * a new connection or a teardown — so a rate measured against one device can
+ * never be shown as another's.
+ */
+function resetLinkStats(): void {
+  frameTimes = [];
+  lastFrameAt.value = null;
+}
+
+/**
+ * Forgets everything the feed has told us — the per-axis last-good stamps as
+ * well as the link statistics.
+ *
+ * Called when the app changes *which device it is talking to*, which is not
+ * the same event as the link going down, and the distinction is deliberate:
+ *
+ *  - A different device means the old stamps describe hardware that is no
+ *    longer on the other end. Found on the bench: after pointing the app at a
+ *    second board, the device screen reported an axis as "53 ms ago" for a
+ *    board that had never sent a frame. The age was real and belonged to the
+ *    device before it — a true fact about the wrong device, which is the kind
+ *    of wrong that gets believed.
+ *  - `disconnect()` deliberately does *not* do this. The stamps still describe
+ *    the device that went quiet, nothing renders from them while the link is
+ *    down (suppression comes from the connection status), and `store.test.ts`
+ *    asserts exactly that by leaving them at their freshest and checking both
+ *    axes stay off regardless.
+ *
+ * Exported because the caller that knows the device has changed is
+ * `device/connection.ts`, not this module.
+ */
+export function forgetFeedHistory(): void {
+  resetLinkStats();
+  lastGoodAt.value = null;
+  lastGoodLightAt.value = null;
 }
 
 /** Everything the guidance screen renders, derived once so nothing can disagree. */
@@ -348,9 +429,16 @@ export function connect(client: DeviceClient): void {
   device = client;
   unsubscribe?.();
   resetStability();
+  forgetFeedHistory();
   unsubscribe = client.subscribeLive((r) => {
     reading.value = r;
     const at = Date.now();
+    // Link statistics, stamped before anything is read out of the frame: a
+    // frame with every channel null still proves the link is alive, and that
+    // is exactly the frame these two are for.
+    lastFrameAt.value = at;
+    frameTimes.push(at);
+    if (frameTimes.length > FRAME_TIME_CAPACITY) frameTimes.shift();
     // Per-axis staleness: each axis stamps only on a frame it could actually
     // be read from, so a missed ultrasonic ping ages out the distance axis
     // while the light axis keeps reporting, and vice versa.
@@ -492,6 +580,7 @@ export function disconnect(): void {
   unsubscribe?.();
   unsubscribe = null;
   resetStability();
+  resetLinkStats();
   status.value = 'disconnected';
   device = null;
 }
