@@ -11,7 +11,14 @@ Last updated: 20 August 2026.
 ## Where it stands
 
 The companion app is complete and verified against a mock device: **254 tests**,
-`tsc --noEmit` clean, ~26 KB gzipped against a 50 KB budget.
+`tsc --noEmit` clean, ~28 KB gzipped.
+
+**On the bundle budget — corrected 20 August 2026.** Earlier docs quoted a 50 KB
+ceiling "because it ships from ESP32 flash". That was set before the board was known and
+is wrong. The M0 probe measured **16 MB flash, 8 MB PSRAM, and a 9.375 MB `ffat`
+partition** — roughly 600x the bundle. Storage is not the constraint. What *is* real is
+transfer speed and RAM when serving over SoftAP: budget around **1 MB of assets per page**,
+cached, and hero imagery is entirely affordable.
 
 **The ESP32 hardware does not exist yet.** Nothing here has ever run against a real board.
 That is the single biggest caveat on everything below.

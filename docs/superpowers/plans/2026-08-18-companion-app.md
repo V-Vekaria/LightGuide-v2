@@ -8,6 +8,14 @@
 
 **Tech Stack:** Vite 7 · Preact · TypeScript · @preact/signals · Vitest · idb-keyval · `ws` (mock server only)
 
+## Correction (20 August 2026)
+
+This plan is a historical record and is left as written, but one of its constraints was
+wrong. The **30-50 KB bundle ceiling** below was set before the board was known, assuming
+~4 MB of flash. The M0 board probe measured **16 MB flash, 8 MB PSRAM and a 9.375 MB
+filesystem partition** - about 600x the bundle. Storage was never the constraint; serving
+throughput over SoftAP is. See `docs/STATUS.md`.
+
 ## Global Constraints
 
 - Node 24, npm 11 (already installed).

@@ -72,7 +72,12 @@ makes today's work useful before hardware exists.
 ```
 
 **Preact over React:** the bundle is served from ESP32 flash alongside firmware. Preact is
-~4 KB gzipped against React's ~45 KB, same component API. Target bundle 30–50 KB gzipped.
+~4 KB gzipped against React's ~45 KB, same component API.
+
+**Bundle budget — corrected 20 August 2026.** This section originally set a 30–50 KB
+ceiling, assuming ~4 MB of flash. The board probe measured **16 MB flash, 8 MB PSRAM and a
+9.375 MB filesystem partition**. Storage is not a meaningful constraint; serving throughput
+over SoftAP is. Keep a page under roughly **1 MB of assets** and cache them.
 
 **SoftAP, not station mode.** The ESP32 broadcasts its own network; the phone joins it
 directly at a fixed address. No router, no internet, and no captive portal asking the user
