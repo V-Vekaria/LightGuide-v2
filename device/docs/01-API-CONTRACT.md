@@ -2,11 +2,14 @@
 
 > ## ⚠️ This file is NOT the contract. It is a pointer.
 >
-> **The authoritative firmware-facing spec is:**
-> **`../../.superpowers/sdd/device-contract-report.md` §1**
+> **The authoritative firmware-facing spec is, in two parts:**
+> **`../../.superpowers/sdd/device-contract-report.md` §1** — the setup library, the
+> active target and the live feed.
+> **`../../.superpowers/sdd/device-connection-report.md` §1** — `GET /api/info`: identity,
+> firmware version, protocol version and per-sensor health.
 >
-> Read it before writing any endpoint. It states every route, status code and validation
-> rule, with the reasoning for each.
+> Read both before writing any endpoint. Between them they state every route, status code
+> and validation rule, with the reasoning for each.
 
 **Why a pointer and not a copy:** on 20 August 2026 this file *was* a copy, written from
 `progress.md`. The app had moved on, `progress.md` had been superseded, and the copy was
@@ -21,6 +24,7 @@ and defers everything else.
 
 | Route | Notes |
 |---|---|
+| `GET /api/info` | identity + firmware + **protocol** + sensor health; must answer even when everything else is broken |
 | `GET /api/setups` | active only, tombstones omitted |
 | `GET /api/setups?include_deleted=1` | everything; **any other value → `400`** |
 | `PUT /api/setups/:id` | **store `updated_at` verbatim**; `deleted: true` is a legal body |

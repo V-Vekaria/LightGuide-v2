@@ -31,8 +31,8 @@ implement, replaying traces recorded from the predecessor project — so the liv
 exercised against genuine sensor noise rather than invented data.
 
 ```bash
-npm test          # 254 tests
-npm run build     # ~26 KB gzipped
+npm test          # 408 tests
+npm run build     # ~33 KB gzipped
 ```
 
 **Exercising sensor dropout:** the recorded traces contain *zero* dropouts — `missed=1` on

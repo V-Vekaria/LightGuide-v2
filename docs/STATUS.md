@@ -10,8 +10,8 @@ Last updated: 20 August 2026.
 
 ## Where it stands
 
-The companion app is complete and verified against a mock device: **254 tests**,
-`tsc --noEmit` clean, ~28 KB gzipped.
+The companion app is complete and verified against a mock device: **408 tests**,
+`tsc --noEmit` clean, ~33 KB gzipped.
 
 **On the bundle budget — corrected 20 August 2026.** Earlier docs quoted a 50 KB
 ceiling "because it ships from ESP32 flash". That was set before the board was known and
