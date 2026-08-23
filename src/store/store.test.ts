@@ -12,6 +12,7 @@ import { InMemoryDeviceClient } from '../device/in-memory-client';
 import { shouldSuppressAxis, STALE_AFTER_MS } from '../guidance/liveness';
 import {
   setups,
+  setupsChecked,
   allSetups,
   activeSetupId,
   activeTarget,
@@ -80,7 +81,8 @@ describe('store', () => {
     lastGoodLightAt.value = null;
     activeTarget.value = null;
     activeSetupId.value = null;
-    screen.value = 'library';
+    screen.value = 'home';
+    setupsChecked.value = false;
 
     vi.mocked(readCachedSetups).mockReset();
     vi.mocked(readCachedSetups).mockResolvedValue([]);
@@ -146,6 +148,86 @@ describe('store', () => {
     // Let the slow device settle so nothing is left dangling.
     resolveDevice([]);
     await flush();
+  });
+
+  /**
+   * `setupsChecked` is the only thing that can tell "there is nothing saved"
+   * apart from "we have not asked yet", and the home screen shows a first-run
+   * introduction on the first of those. Get it wrong and every established
+   * user gets flashed an introduction to a product they already own, every
+   * time they open the app.
+   */
+  describe('knowing whether the setups have been checked', () => {
+    it('has not checked anything before a device is connected', () => {
+      expect(setupsChecked.value).toBe(false);
+    });
+
+    it('marks the setups checked once the device answers', async () => {
+      const client = new InMemoryDeviceClient([]);
+      connect(client);
+      expect(setupsChecked.value).toBe(false);
+
+      await flush();
+      expect(setupsChecked.value).toBe(true);
+    });
+
+    it('marks them checked when the device refuses to answer at all', async () => {
+      // A device that cannot be reached is exactly the case a first-time user
+      // is in before joining its Wi-Fi, and it is the case where the
+      // introduction is most needed — so a failure has to settle this just as
+      // firmly as a success.
+      const client = new InMemoryDeviceClient([]);
+      client.listSetupsIncludingDeleted = () => Promise.reject(new Error('unreachable'));
+
+      connect(client);
+      await flush();
+
+      expect(setupsChecked.value).toBe(true);
+      expect(status.value).toBe('disconnected');
+    });
+
+    it('stays unchecked while the device has still not answered', async () => {
+      let resolveDevice!: (list: Setup[]) => void;
+      const client = new InMemoryDeviceClient([]);
+      client.listSetupsIncludingDeleted = () =>
+        new Promise<Setup[]>((resolve) => {
+          resolveDevice = resolve;
+        });
+
+      connect(client);
+      await flush();
+      expect(setupsChecked.value).toBe(false);
+
+      resolveDevice([]);
+      await flush();
+      expect(setupsChecked.value).toBe(true);
+    });
+
+    it('goes back to unchecked on a fresh connect', async () => {
+      const client = new InMemoryDeviceClient([]);
+      connect(client);
+      await flush();
+      expect(setupsChecked.value).toBe(true);
+
+      // A new connection is a new question about a device that may be a
+      // different one entirely.
+      connect(new InMemoryDeviceClient([]));
+      expect(setupsChecked.value).toBe(false);
+      await flush();
+    });
+
+    it('does not unlearn what the device already said when it drops out', async () => {
+      const client = new InMemoryDeviceClient([makeSetup('kept')]);
+      connect(client);
+      await flush();
+      expect(setupsChecked.value).toBe(true);
+
+      // Losing the device does not make the setups it listed unknown, and the
+      // list is still on screen — so the home must not fall back to "looking".
+      disconnect();
+      expect(setupsChecked.value).toBe(true);
+      expect(setups.value).toHaveLength(1);
+    });
   });
 
   it('propagates a device failure from persistSetup without updating state optimistically', async () => {
@@ -612,7 +694,7 @@ describe('store', () => {
 
       // The live screen has nothing left to render, so staying on it would be
       // a blank dead end.
-      expect(screen.value).toBe('library');
+      expect(screen.value).toBe('home');
     });
 
     it('stops guidance when an import deletes the guided setup', async () => {
@@ -747,7 +829,7 @@ describe('store', () => {
       await flush();
 
       expect(activeTarget.value).not.toBeNull();
-      expect(screen.value).toBe('library');
+      expect(screen.value).toBe('home');
     });
   });
 

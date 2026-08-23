@@ -13,7 +13,14 @@ import { shouldSuppressAxis, STALE_AFTER_MS } from '../guidance/liveness';
 import { verdict as computeVerdict } from '../guidance/verdict';
 import { createStabilityState, stabilise, type StabilityState } from '../guidance/stability';
 
-export type Screen = 'library' | 'new' | 'live' | 'quick';
+/**
+ * The four screens. `home` is the one the app opens on and the one every
+ * "get me out of here" control returns to — it holds the saved setups *and*
+ * whatever introduction the visitor still needs (see `ui/screens.ts`), which
+ * is why it is not called `library` any more: the list is one thing on it,
+ * not the whole of it.
+ */
+export type Screen = 'home' | 'new' | 'live' | 'quick';
 
 /**
  * The setups every screen renders: active only, never a tombstone. Derived
@@ -35,9 +42,25 @@ export const setups = signal<Setup[]>([]);
  * which is exactly when a backup matters.
  */
 export const allSetups = signal<Setup[]>([]);
+/**
+ * True once the device has been asked for its setups and has answered —
+ * whether it answered with a list, an empty list, or a failure.
+ *
+ * It exists so the home screen can tell "there is nothing saved" apart from
+ * "we have not looked yet". Without it, the home resolves from an empty
+ * `setups` during the moments before the first response and shows a returning
+ * photographer the first-run introduction on every launch, for as long as the
+ * round trip takes. `setups` alone cannot express the difference: an empty
+ * list is the same empty list either way.
+ *
+ * Reset by `connect()`, never by `disconnect()` — losing the device does not
+ * unlearn what it already told us, and the setups it told us about are still
+ * on screen.
+ */
+export const setupsChecked = signal(false);
 export const reading = signal<Reading | null>(null);
 export const status = signal<ConnectionStatus>('disconnected');
-export const screen = signal<Screen>('library');
+export const screen = signal<Screen>('home');
 /** Setup being edited on the 'new' screen, or null when creating a fresh one. */
 export const editingSetupId = signal<string | null>(null);
 /** Distance to prefill the 'new' screen with — set when saving a quick guide. */
@@ -319,6 +342,8 @@ export function connect(client: DeviceClient): void {
   generation += 1;
   const myGeneration = generation;
   deviceAnswered = false;
+  // A new connection is a new question, and it has not been answered yet.
+  setupsChecked.value = false;
 
   device = client;
   unsubscribe?.();
@@ -373,6 +398,13 @@ export function connect(client: DeviceClient): void {
     .then(() => restoreActiveTarget(myGeneration))
     .catch(() => {
       if (myGeneration === generation) status.value = 'disconnected';
+    })
+    // Either way the question has now been asked and answered, and the home
+    // screen can stop hedging: a device that refused to answer is exactly the
+    // case where a first-time visitor most needs the introduction, so a
+    // failure marks this just as firmly as a success does.
+    .then(() => {
+      if (myGeneration === generation) setupsChecked.value = true;
     });
 }
 
@@ -531,7 +563,7 @@ async function releaseGuidance(): Promise<void> {
   activeTarget.value = null;
   activeSetupId.value = null;
   resetStability();
-  if (screen.value === 'live') navigate('library', { replace: true });
+  if (screen.value === 'live') navigate('home', { replace: true });
   try {
     await clearDeviceTarget();
   } catch {
@@ -620,7 +652,7 @@ export async function stopGuiding(): Promise<void> {
   }
   activeTarget.value = null;
   activeSetupId.value = null;
-  navigate('library');
+  navigate('home');
 }
 
 /**
@@ -629,5 +661,5 @@ export async function stopGuiding(): Promise<void> {
  * "browse the library while the stand is still being placed" possible.
  */
 export function leaveGuidanceScreen(): void {
-  navigate('library');
+  navigate('home');
 }

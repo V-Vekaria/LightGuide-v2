@@ -5,17 +5,18 @@ import {
   PartialPersistError,
   activeSetupId,
   allSetups,
-  createSetup,
   editSetup,
-  navigate,
   persistSetups,
   removeSetup,
   setups,
+  setupsChecked,
   startGuiding,
   status,
 } from '../store/store';
 import { LiveStrip } from './Chrome';
 import { Banner } from './Banner';
+import { HomeIntro, HomeReference } from './HomeIntro';
+import { resolveHomeState, showsConnectionBanner, showsLiveStrip } from './screens';
 import {
   connectionNotice,
   deleteConfirmMessage,
@@ -74,25 +75,48 @@ function Row({
   // plus the row's name gives "Guide, Portrait key" without inventing any
   // copy: both halves are already on screen.
   const nameId = `setup-${setup.id}-name`;
+  const editId = `setup-${setup.id}-edit`;
   const guideId = `setup-${setup.id}-guide`;
   const deleteId = `setup-${setup.id}-delete`;
 
   return (
     <div class={`trow${active ? ' is-active' : ''}`}>
+      {/* The name used to *be* the edit control: a button whose only affordance
+          was a hover underline, which is no affordance at all on the phone this
+          app is mostly used from. It is plain text now, and editing has a
+          labelled button of its own in the row's actions. The tap height the
+          button used to contribute moves onto .tname so the row does not
+          shrink back below 44px. */}
       <div class="tname">
         <span class={`status-dot ${active ? 'dot-active' : 'dot-idle'}`} aria-hidden="true" />
-        <button class="tname-btn" onClick={() => editSetup(setup.id)} title="Edit this setup">
-          <span class="tname-text" id={nameId}>
-            {setup.name}
-          </span>
-        </button>
+        <span class="tname-text" id={nameId}>
+          {setup.name}
+        </span>
       </div>
-      <div class="tcell">{setup.distance_cm.toFixed(1)}</div>
-      <div class="tcell tcell-dim">±{setup.distance_tol_cm}</div>
-      <div class="tcell tcell-dim">
+      {/* The column headings are hidden on a phone, which left three bare
+          numbers under the name with nothing to say which was which. The
+          labels come back inline at that width (see theme.css). */}
+      <div class="tcell" data-label="Distance">
+        {setup.distance_cm.toFixed(1)}
+      </div>
+      <div class="tcell tcell-dim" data-label="Tolerance">
+        ±{setup.distance_tol_cm}
+      </div>
+      <div class="tcell tcell-dim" data-label="Light">
         {setup.brightness_above_ambient === null ? '—' : setup.brightness_above_ambient.toFixed(3)}
       </div>
       <div class="trow-actions">
+        {/* Editing needs no device — it opens a form, and the form's own Save
+            is what the device gates. Leaving it live is also the only thing
+            there is to do with a setup while the device is off. */}
+        <button
+          id={editId}
+          class="link-btn"
+          aria-labelledby={`${editId} ${nameId}`}
+          onClick={() => editSetup(setup.id)}
+        >
+          Edit
+        </button>
         {/* Guiding and deleting both go through the device. Offering them while
             it is gone only produces a failure the user cannot act on — so the
             state of the connection is shown on the control itself. */}
@@ -108,7 +132,10 @@ function Row({
         </button>
         {/* Guide is a bordered button, Delete is bare text, and this rule holds
             28px of empty space between the two hit areas. They used to be
-            identical text buttons ~10px apart at the thumb edge of the row. */}
+            identical text buttons ~10px apart at the thumb edge of the row.
+            Edit joins on the far side of Guide rather than beside Delete: a
+            mis-tap between Edit and Guide costs a screen, and the whole point
+            of the rule is that a mis-tap on this side of it costs a setup. */}
         <span class="row-sep" aria-hidden="true" />
         <button
           id={deleteId}
@@ -125,7 +152,20 @@ function Row({
   );
 }
 
-export function Library() {
+/**
+ * The screen the app opens on, and the one every "get me out of here" control
+ * returns to.
+ *
+ * It is one screen, not a landing page in front of the setups list, and that
+ * is the central decision here. A returning photographer opens this app
+ * mid-shoot to tap a saved setup and start guiding; a separate landing screen
+ * would put a click in front of that, every time, forever, to serve a need
+ * they have exactly once. So the list stays where it was and the *top* of the
+ * page changes instead — see `resolveHomeState` in `screens.ts` for what
+ * decides which version they get, and why it is decided from live state
+ * rather than from a flag recording whether the intro has been dismissed.
+ */
+export function Home() {
   const list = setups.value;
   /**
    * The full record, tombstones included — what backup works on. Rows are
@@ -136,6 +176,12 @@ export function Library() {
   const connected = status.value === 'connected';
   const connection = connectionNotice(status.value);
   const reason = deviceActionReason(status.value);
+
+  const home = resolveHomeState({
+    status: status.value,
+    setupCount: list.length,
+    setupsChecked: setupsChecked.value,
+  });
 
   const [failure, setFailure] = useState<UserMessage | null>(null);
   const [result, setResult] = useState<UserMessage | null>(null);
@@ -248,10 +294,18 @@ export function Library() {
 
   return (
     <>
-      <LiveStrip />
+      {/* Four tiles reading "—", "—", "—" and "0" are the first thing a
+          newcomer used to meet. They are withheld while there is genuinely
+          nothing to read and in no other state — this never hides a live
+          instrument, only an empty one. */}
+      {showsLiveStrip(home) && <LiveStrip />}
       <main class="wrap">
-        <div class="row">
-          <h1 class="section-title">Saved setups</h1>
+        <HomeIntro state={home} status={status.value} />
+
+        <div class="row row-setups">
+          {/* Demoted from <h1>: the page has a real heading of its own now, and
+              this names a section within it. Same class, so it looks unchanged. */}
+          <h2 class="section-title">Saved setups</h2>
           <div class="actions">
             {/* Was a <label> wrapping the hidden input. A <label> is not
                 focusable, which made import — one of the two primary actions on
@@ -290,16 +344,23 @@ export function Library() {
             >
               Export
             </button>
-            <button class="btn btn-ghost" onClick={() => navigate('quick')}>
-              Quick guide
-            </button>
-            <button class="btn" onClick={() => createSetup()}>
-              New setup
-            </button>
+            {/* "Quick guide" and "New setup" used to sit here, in a wrapping
+                row of four equal-looking ghost buttons where the two that
+                actually start a placement were indistinguishable from the two
+                that manage a backup file. They have moved up into the band
+                above, where they are the page's primary actions and are
+                labelled with what they do rather than with what they are
+                called. Import and Export stay exactly as they were, next to
+                the list they act on. */}
           </div>
         </div>
 
-        {connection && <Banner tone="warn" message={connection} />}
+        {/* Suppressed on first run only: not being connected is what first run
+            *means* — the phone has not joined the device's network yet — so
+            the warning would be reporting the expected state as a fault, and
+            the panel above already explains it properly. Every other state
+            keeps this banner untouched. */}
+        {connection && showsConnectionBanner(home) && <Banner tone="warn" message={connection} />}
 
         {confirmDelete && (
           <Banner tone="warn" message={deleteConfirmMessage(confirmDelete)}>
@@ -419,10 +480,11 @@ export function Library() {
           </div>
 
           {list.length === 0 ? (
-            <div class="empty">
-              No setups yet. <strong>Quick guide</strong> walks you to a distance right now without
-              saving anything; <strong>New setup</strong> keeps one for later.
-            </div>
+            /* The old copy named two buttons — "Quick guide" and "New setup" —
+               to somebody who had never seen either and had no idea what the
+               app was. Both are now explained and offered above this table, so
+               the empty row only has to say that the table is empty. */
+            <div class="empty">Nothing saved yet. Setups you keep will be listed here.</div>
           ) : (
             list.map((setup) => (
               <Row
@@ -440,6 +502,10 @@ export function Library() {
             ))
           )}
         </div>
+
+        {/* Not on first run: the welcome panel above already says all of this,
+            at more length and in the order a newcomer needs it. */}
+        {home !== 'welcome' && home !== 'looking' && <HomeReference status={status.value} />}
 
         <div class="footnote">
           Light is stored above ambient, not raw — a reference captured at night still holds at noon.

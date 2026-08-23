@@ -27,7 +27,7 @@ const DISTANCE_PRESETS = [30, 50, 80, 120];
  * Both used to live inside `Guidance`, scoped to the screen being mounted.
  * That made two individually-correct features cancel each other out. The app
  * bar chip promises, in as many words, that guidance continues after you leave
- * the live screen — so the photographer taps "Setups" to check a name, walks
+ * the live screen — so the photographer taps "Home" to check a name, walks
  * to the stand with both hands on it, and arrives on target with no buzz and
  * no chime, which is the exact case the cue exists for. The phone has slept
  * too, so walking back means waking it one-handed.
@@ -329,8 +329,10 @@ function Guidance({ target }: { target: Target }) {
                 Save as setup
               </button>
             )}
+            {/* Named for where it goes, which is the screen the app opens on
+                — the saved setups are one section of it, not the whole of it. */}
             <button class="btn btn-ghost" onClick={leaveGuidanceScreen}>
-              Setups
+              Home
             </button>
             <button class="btn" onClick={() => void stopGuiding()}>
               Stop guiding

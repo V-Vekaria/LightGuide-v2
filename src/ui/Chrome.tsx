@@ -17,7 +17,7 @@ export function AppBar() {
 
   return (
     <header class="app-bar">
-      <button class="brand" onClick={() => navigate('library')} title="Back to setups">
+      <button class="brand" onClick={() => navigate('home')} title="Home">
         <span class="brand-name">LightGuide</span>
         <span class="brand-sub">Studio lighting placement</span>
       </button>

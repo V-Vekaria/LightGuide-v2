@@ -11,10 +11,11 @@ import {
   type Screen,
 } from './store/store';
 import { AppBar } from './ui/Chrome';
-import { Library } from './ui/Library';
+import { Home } from './ui/Home';
 import { GuidanceSession, LiveGuidance } from './ui/LiveGuidance';
 import { NewSetup } from './ui/NewSetup';
 import { QuickGuide } from './ui/QuickGuide';
+import { screenTitle } from './ui/screens';
 
 function Screen() {
   switch (screen.value) {
@@ -25,11 +26,31 @@ function Screen() {
     case 'quick':
       return <QuickGuide />;
     default:
-      return <Library />;
+      return <Home />;
   }
 }
 
+/**
+ * Puts the current screen's name in the document title.
+ *
+ * With no router and no tab bar there was nowhere a screen's name was written
+ * down at all — the title said "LightGuide" on all four. This is the string
+ * the phone's task switcher shows under the app and the one the browser's
+ * back-history menu lists each entry by, and since every screen change pushes
+ * a history entry (see `navigate`), naming them makes that menu navigable
+ * instead of four identical rows.
+ */
+function useScreenTitle(): void {
+  const current = screen.value;
+  const editing = editingSetupId.value !== null;
+  useEffect(() => {
+    document.title = screenTitle(current, editing);
+  }, [current, editing]);
+}
+
 export function App() {
+  useScreenTitle();
+
   useEffect(() => {
     // Same origin: the ESP32 serves this bundle, and Vite proxies /api and /live in dev.
     const client = new HttpDeviceClient('');
@@ -41,7 +62,7 @@ export function App() {
 
     const onPop = (event: PopStateEvent) => {
       const next = (event.state as { lgScreen?: Screen } | null)?.lgScreen;
-      applyHistoryScreen(next ?? 'library');
+      applyHistoryScreen(next ?? 'home');
     };
     window.addEventListener('popstate', onPop);
 

@@ -184,15 +184,98 @@ body {
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .footnote { font-size: 12px; color: var(--faint); margin-top: 12px; line-height: 1.6; }
 
+/* ---------- home ---------- */
+
+/* The home screen's own heading — the app had none. Every screen's section
+   heading was an <h1> because there was no page title above it to be a level
+   under; "Saved setups" is an <h2> now and this is the <h1>. */
+.home-h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin: 2px 0 10px; }
+.home-h2 { font-size: 13px; font-weight: 600; margin: 22px 0 10px; }
+.home-lede { font-size: 14.5px; line-height: 1.65; color: var(--ink-2); margin: 0 0 12px; max-width: 62ch; }
+.home-hint { max-width: 62ch; }
+
+/* Connection said in words, not only in the colour of a dot. Used in the
+   first-run panel and again in the device card at the foot of the page. */
+.status-line {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--ink-2); margin: 14px 0 0;
+}
+
+/* The two ways to start. Same pair everywhere they appear, so the loud one is
+   always the same button in the same place. */
+.start-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+/* The compact form, for somebody who already has setups: one line of
+   orientation and the two actions, above their list. */
+.start-band {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+  padding: 16px 18px; margin-bottom: 22px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+}
+.start-band .start-actions { margin-top: 0; }
+.start-copy { font-size: 13.5px; line-height: 1.6; color: var(--ink-2); margin: 0; flex: 1 1 260px; max-width: 54ch; }
+
+/* First run, and the reference panel at the foot of the page. */
+.welcome, .ready, .looking { margin-bottom: 24px; }
+
+.steps { list-style: none; margin: 0; padding: 0; }
+.step { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+.steps-tight .step { margin-bottom: 11px; }
+.steps .step:last-child { margin-bottom: 0; }
+/* A numeral in a ring rather than a list marker: the ring survives the flex
+   layout the two-line steps need, and the number stays aligned with the first
+   line of its own text instead of drifting with it. */
+.step-n {
+  flex: none; width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line-strong); background: var(--surface);
+  font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+}
+.step-title { font-size: 13.5px; font-weight: 600; margin-bottom: 2px; }
+.step-copy { font-size: 13px; line-height: 1.6; color: var(--muted); max-width: 62ch; }
+
+/* The two ways to work, explained before either is named on a button. */
+.ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.way { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.way-title { font-size: 13.5px; font-weight: 600; margin-bottom: 5px; }
+.way-copy { font-size: 13px; line-height: 1.6; color: var(--muted); }
+
+/* What fills the page under a short list: how the product works, and what the
+   device is doing. Both are reference, so both stay quiet. */
+.info-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px; margin-top: 22px;
+}
+.info-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+.info-title { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); margin: 0 0 12px; }
+.info-copy { font-size: 12.5px; line-height: 1.6; color: var(--muted); margin: 10px 0 0; }
+.info-card .status-line { margin-top: 0; }
+
+@media (max-width: 720px) {
+  .ways, .info-grid { grid-template-columns: minmax(0, 1fr); }
+  .home-h1 { font-size: 20px; }
+  .start-band { padding: 14px 16px; }
+  /* Full width and stacked. Side by side, "Guide me to a distance" and "Save a
+     setup" come to within a pixel or two of the whole 375px row, so they wrap
+     unpredictably depending on the label; forcing the stack makes the two
+     primary controls the same size and in the same place every time, which is
+     what a thumb reaching across a phone at arm's length needs. */
+  .start-actions { width: 100%; flex-direction: column; align-items: stretch; }
+}
+
 /* ---------- setups table ---------- */
 
 /* The header labels went from 10px to 11px, so the columns they sit in each
    gained a few px — "TOLERANCE" at 11px with this tracking needs 74px and had
    76px. The actions column is the big one: it now holds a 44px button, a rule
    and 28px of deliberate dead space (see .trow-actions). */
+/* The actions column went 184px → 268px to take the Edit button. It is the
+   widest column and the name column absorbs the change: at the 1180px cap the
+   name still has ~530px, which is far more than a setup name needs. */
 .thead, .trow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px 84px 96px 184px;
+  grid-template-columns: minmax(0, 1fr) 92px 84px 96px 268px;
   align-items: center; gap: 8px; padding: 11px 16px;
 }
 .thead {
@@ -205,7 +288,12 @@ body {
 .trow { border-bottom: 1px solid var(--line-2); padding-top: 6px; padding-bottom: 6px; }
 .trow:last-child { border-bottom: 0; }
 .trow.is-active { background: var(--ok-bg); }
-.tname { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* The name used to be a button whose only affordance was a hover underline —
+   invisible on the phone this app is mostly used from, where there is no
+   hover at all. Editing has a labelled button in the row's actions now, and
+   the name is plain text again; the tap height that button contributed moves
+   onto the cell so the row does not shrink back under 44px. */
+.tname { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: var(--tap); }
 .tname-text { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trow.is-active .tname-text { font-weight: 600; }
 .tcell { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink-2); }
@@ -233,9 +321,30 @@ body {
 
 @media (max-width: 720px) {
   .thead { display: none; }
-  .trow { grid-template-columns: minmax(0, 1fr) auto; grid-row-gap: 4px; padding: 8px 14px; }
-  .trow .tcell { grid-column: 1; font-size: 12px; }
-  .trow-actions { grid-column: 2; grid-row: 1 / span 4; align-items: center; }
+  /* Three controls will not fit beside the data in a phone-width row, so the
+     actions take a line of their own underneath it. That also puts them at a
+     consistent place in every row instead of floating vertically centred
+     against a stack of a different height.
+     The three numbers share one line rather than stacking: they are short, and
+     stacking them made a four-setup library 1840px tall on a phone. */
+  .trow {
+    grid-template-columns: repeat(3, auto);
+    justify-content: start;
+    grid-row-gap: 2px; padding: 10px 14px 12px;
+  }
+  .trow .tname, .trow-actions { grid-column: 1 / -1; }
+  .trow .tcell { font-size: 12px; }
+  /* The column headings are hidden at this width, which left three unlabelled
+     numbers stacked under the name — "77.0", "±5", "0.566" — with nothing to
+     say which was which. The heading comes back inline, from the same word the
+     hidden <thead> uses. */
+  .trow .tcell::before {
+    content: attr(data-label) " ";
+    font-family: var(--sans); color: var(--faint);
+    letter-spacing: 0.06em; text-transform: uppercase; font-size: 10px;
+    margin-right: 5px;
+  }
+  .trow-actions { justify-content: flex-start; margin-top: 2px; margin-left: -8px; }
 }
 
 .empty { padding: 28px 18px; text-align: center; color: var(--muted); font-size: 13.5px; line-height: 1.65; }
@@ -325,6 +434,11 @@ body {
 .btn-info { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-info:hover:not(:disabled) { background: #1b4a7d; }
 .btn-block { width: 100%; display: flex; }
+/* The home screen's primary pair, on the state where they are the only thing
+   to do. Must sit after .btn: everything here overrides a property .btn
+   already sets at the same specificity, so declaring it earlier in the file
+   silently does nothing at all. */
+.btn-lg { font-size: 14.5px; padding: 12px 22px; min-height: 50px; }
 
 /* Was `padding: 4px 0` — about 25px tall and, with no horizontal padding, only
    as wide as its own text. Given a real min-height instead of an invisible
@@ -333,10 +447,16 @@ body {
    stealing taps aimed at the bottom of the field. Taking real layout space is
    honest, and every one of these sits in a flex row or on its own line, so
    nothing reflows badly. */
+/* min-width joins min-height for the same reason it was added: "at least 44px
+   on its shortest axis" is the rule, and a short label breaks it the other
+   way round. "Edit" measured 37px wide — the first link-btn in the app whose
+   text is short enough to fall under. Centring is what keeps a label that is
+   narrower than the box from sitting off to one side of it; a label wider
+   than 44px fills the box and is unaffected. */
 .link-btn {
   background: none; border: 0; padding: 4px 8px; font: inherit; font-size: 12.5px;
-  min-height: var(--tap);
-  display: inline-flex; align-items: center;
+  min-height: var(--tap); min-width: var(--tap);
+  display: inline-flex; align-items: center; justify-content: center;
   color: var(--accent); cursor: pointer;
 }
 .link-btn:hover:not(:disabled) { text-decoration: underline; }
@@ -522,14 +642,6 @@ body {
 .guiding-chip-go { color: var(--ok); font-weight: 600; }
 @media (max-width: 640px) { .guiding-chip-go { display: none; } }
 
-/* The setup name is the control that opens the editor, so it gets a full-height
-   target. align-items:center re-centres the name inside the taller box. */
-.tname-btn {
-  background: none; border: 0; padding: 0; margin: 0; font: inherit;
-  min-height: var(--tap); display: flex; align-items: center;
-  color: inherit; cursor: pointer; text-align: left; min-width: 0;
-}
-.tname-btn:hover .tname-text { color: var(--accent); text-decoration: underline; }
 
 /* ---------- failure states, confirmations and results ---------- */
 

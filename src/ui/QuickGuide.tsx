@@ -42,14 +42,18 @@ export function QuickGuide() {
     <main class="wrap-tight">
       <div class="row">
         <h1 class="section-title">Quick guide</h1>
-        <button class="link-btn" onClick={() => navigate('library')}>
+        <button class="link-btn" onClick={() => navigate('home')}>
           Cancel
         </button>
       </div>
 
       <p class="hint" style={{ marginTop: 0, marginBottom: 22, fontSize: 13.5 }}>
+        {/* Points at "Save a setup" on the home screen — which is where you
+            would go to do this — rather than at "New setup", which is the
+            heading of the screen that button opens and is not a control
+            anybody can find from here. */}
         Where do you want the light? We'll walk you to it. Nothing is saved — use{' '}
-        <strong>New setup</strong> if you want to keep it.
+        <strong>Save a setup</strong> on the home screen if you want to keep it.
       </p>
 
       {connection && <Banner tone="warn" message={connection} />}

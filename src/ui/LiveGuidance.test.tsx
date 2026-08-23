@@ -313,7 +313,7 @@ describe('GuidanceSession', () => {
 
       // "Setups" — leaves the live screen without stopping guidance.
       await act(async () => {
-        screen.value = 'library';
+        screen.value = 'home';
       });
       expect(container.querySelector('.guide-head')).toBeNull();
 
@@ -328,7 +328,7 @@ describe('GuidanceSession', () => {
       expect(requestWakeLock).toHaveBeenCalledTimes(1);
 
       await act(async () => {
-        screen.value = 'library';
+        screen.value = 'home';
       });
       // Walking back to a slept phone needs a free hand, and both are on the
       // stand. The lock is scoped to the session, not to the screen.
@@ -349,7 +349,7 @@ describe('GuidanceSession', () => {
       expect(vibrate).toHaveBeenCalledTimes(1);
 
       await act(async () => {
-        screen.value = 'library';
+        screen.value = 'home';
       });
       await act(async () => {
         screen.value = 'live';

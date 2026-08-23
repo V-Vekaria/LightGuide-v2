@@ -100,7 +100,7 @@ export function NewSetup() {
 
   function leave() {
     if (!dirty) {
-      navigate('library');
+      navigate('home');
       return;
     }
     setConfirmLeave(true);
@@ -140,7 +140,7 @@ export function NewSetup() {
             });
 
       await persistSetup(setup);
-      navigate('library');
+      navigate('home');
     } catch (caught) {
       // Save is confirmed by the device. If it failed, say so — and say what
       // to do about it, with the form still filled in behind the message.
@@ -182,7 +182,7 @@ export function NewSetup() {
             <button class="btn btn-ghost" onClick={() => setConfirmLeave(false)}>
               Keep editing
             </button>
-            <button class="btn" onClick={() => navigate('library')}>
+            <button class="btn" onClick={() => navigate('home')}>
               Leave without saving
             </button>
           </div>
