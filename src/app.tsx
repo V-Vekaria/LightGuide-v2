@@ -1,16 +1,15 @@
 import { useEffect } from 'preact/hooks';
-import { HttpDeviceClient } from './device/http-client';
+import { startConnection } from './device/connection';
 import {
   applyHistoryScreen,
   editingSetupId,
   clearDeviceTarget,
-  connect,
-  disconnect,
   navigate,
   screen,
   type Screen,
 } from './store/store';
 import { AppBar } from './ui/Chrome';
+import { DeviceScreen } from './ui/Device';
 import { Home } from './ui/Home';
 import { GuidanceSession, LiveGuidance } from './ui/LiveGuidance';
 import { NewSetup } from './ui/NewSetup';
@@ -25,6 +24,8 @@ function Screen() {
       return <LiveGuidance />;
     case 'quick':
       return <QuickGuide />;
+    case 'device':
+      return <DeviceScreen />;
     default:
       return <Home />;
   }
@@ -52,9 +53,11 @@ export function App() {
   useScreenTitle();
 
   useEffect(() => {
-    // Same origin: the ESP32 serves this bundle, and Vite proxies /api and /live in dev.
-    const client = new HttpDeviceClient('');
-    connect(client);
+    // Opens the device the app should start on and keeps its identity current.
+    // Same origin by default — the ESP32 serves this bundle, and Vite proxies
+    // /api and /live in dev — unless an address has been chosen and reached
+    // before, which is the laptop-on-the-LAN case. See device/connection.ts.
+    const stopConnection = startConnection();
 
     // Seed a history entry for the opening screen so the first Back press has
     // somewhere to go instead of leaving the app.
@@ -74,11 +77,10 @@ export function App() {
     return () => {
       window.removeEventListener('popstate', onPop);
       window.removeEventListener('pagehide', onTeardown);
-      // disconnect() first: it clears the store's heartbeat interval and
-      // unsubscribes the live listener. Calling only client.close() would
-      // leave that interval running forever after unmount.
-      disconnect();
-      client.close();
+      // Stops the re-identify effect, then tears the connection down —
+      // disconnect() before close(), so the store's heartbeat interval and
+      // live subscription go with it rather than running on after unmount.
+      stopConnection();
     };
   }, []);
 

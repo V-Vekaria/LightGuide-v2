@@ -512,3 +512,195 @@ describe('counting words', () => {
     expect(nameList([])).toBe('');
   });
 });
+
+/* ---------- finding and identifying a device ---------- */
+
+import type { DeviceInfo } from '../contract/types';
+import { PROTOCOL_MAX_SUPPORTED, PROTOCOL_MIN_SUPPORTED } from '../contract/types';
+import type { ConnectionFault } from '../device/connection';
+import {
+  addressFormatMessage,
+  axisHealthLabel,
+  connectedMessage,
+  connectionFaultMessage,
+  deviceLabel,
+  sensorStateMessage,
+} from './messages';
+
+function deviceInfo(overrides: Partial<DeviceInfo> = {}): DeviceInfo {
+  return {
+    protocol: 1,
+    device_id: 'lg-a1b2c3d4e5f6',
+    name: 'LightGuide E5F6',
+    model: 'LightGuide ESP32-S3',
+    firmware: '0.4.2',
+    uptime_s: 60,
+    free_storage_bytes: 9012345,
+    sensors: { distance: { state: 'ok' }, light: { state: 'ok' } },
+    ...overrides,
+  };
+}
+
+/** Every fault the app can be in, for the guards that must hold across all of them. */
+const everyFault: ConnectionFault[] = [
+  { kind: 'unreachable' },
+  { kind: 'refused', status: 404 },
+  { kind: 'refused', status: 503 },
+  { kind: 'not-a-device' },
+  {
+    kind: 'protocol',
+    info: deviceInfo({ protocol: PROTOCOL_MAX_SUPPORTED + 1 }),
+    fit: 'device-too-new',
+  },
+  {
+    kind: 'protocol',
+    info: deviceInfo({ protocol: PROTOCOL_MIN_SUPPORTED - 1 }),
+    fit: 'device-too-old',
+  },
+];
+
+describe('connection fault copy', () => {
+  it('never mentions the internet — the phone is on the device access point', () => {
+    // The one rule that cannot bend: while the app is in use there is no
+    // internet in the path at all, so "check your connection" sends somebody
+    // to fix the thing that is supposed to be broken.
+    for (const fault of everyFault) {
+      for (const host of [null, '192.168.4.1']) {
+        const message = connectionFaultMessage(fault, host);
+        expect(`${message.title} ${message.detail}`).not.toMatch(/internet|online|offline|web/i);
+      }
+    }
+  });
+
+  it('always names something to do next', () => {
+    for (const fault of everyFault) {
+      const message = connectionFaultMessage(fault, '192.168.4.1');
+      expect(message.detail.length).toBeGreaterThan(30);
+      expect(message.title).not.toBe('');
+    }
+  });
+
+  it('shows no developer strings — no exception text, no route names', () => {
+    for (const fault of everyFault) {
+      const message = connectionFaultMessage(fault, null);
+      expect(message.title).not.toMatch(/fetch|TypeError|undefined|null|\/api\//i);
+    }
+  });
+
+  it('quotes the address when there is one and does not invent one when there is not', () => {
+    expect(connectionFaultMessage({ kind: 'unreachable' }, '192.168.4.9').title).toContain(
+      'Nothing answered at 192.168.4.9',
+    );
+    // Same-origin: the page came from the device, so there is no address to
+    // quote and the recovery is about power and Wi-Fi instead.
+    const sameOrigin = connectionFaultMessage({ kind: 'unreachable' }, null);
+    expect(sameOrigin.title).toBe("The device isn't answering.");
+    expect(sameOrigin.detail).toContain('still has power');
+  });
+
+  it('reads a 404 as "not this route", not as a dead address', () => {
+    // Something is serving there. Either it is not a LightGuide, or it is one
+    // running software from before devices could identify themselves.
+    const message = connectionFaultMessage({ kind: 'refused', status: 404 }, '192.168.4.9');
+    expect(message.title).toContain('not as a LightGuide');
+    expect(message.detail).toContain('too old to identify itself');
+  });
+
+  it('names the direction of a version mismatch and who has to act', () => {
+    // Both mismatches have the same symptom and opposite fixes. This is the
+    // sentence that stops somebody updating the half that was already right.
+    const tooNew = connectionFaultMessage(
+      {
+        kind: 'protocol',
+        info: deviceInfo({ protocol: PROTOCOL_MAX_SUPPORTED + 1 }),
+        fit: 'device-too-new',
+      },
+      null,
+    );
+    expect(tooNew.title).toContain('is newer than this copy of the app');
+    expect(tooNew.title).toContain('LightGuide E5F6');
+    expect(tooNew.detail).toContain('Reload this page');
+
+    const tooOld = connectionFaultMessage(
+      {
+        kind: 'protocol',
+        info: deviceInfo({ protocol: PROTOCOL_MIN_SUPPORTED - 1, firmware: '0.1.0' }),
+        fit: 'device-too-old',
+      },
+      null,
+    );
+    expect(tooOld.title).toContain('older than this copy of the app');
+    expect(tooOld.detail).toContain('device needs its software updated');
+    // The firmware version goes in the message because it is the number
+    // somebody reads down a phone to whoever can update it.
+    expect(tooOld.detail).toContain('0.1.0');
+  });
+
+  it('says why guiding stopped, so the absence is not read as a fault', () => {
+    for (const fit of ['device-too-new', 'device-too-old'] as const) {
+      const message = connectionFaultMessage({ kind: 'protocol', info: deviceInfo(), fit }, null);
+      expect(message.detail).toContain('Guiding is switched off');
+    }
+  });
+
+  it('quotes a device name and falls back to a neutral one', () => {
+    expect(deviceLabel('LightGuide E5F6')).toBe('“LightGuide E5F6”');
+    expect(deviceLabel('  ')).toBe('The device');
+    expect(deviceLabel(null)).toBe('The device');
+  });
+});
+
+describe('address copy', () => {
+  it('explains the format instead of reporting a parse failure', () => {
+    const message = addressFormatMessage();
+    expect(message.detail).toContain('192.168.4.1');
+    expect(`${message.title} ${message.detail}`).not.toMatch(/invalid|URL|parse/i);
+  });
+
+  it('says what will happen next time, which differs by route', () => {
+    expect(connectedMessage('LightGuide E5F6', null).detail).toContain('served by the device');
+    expect(connectedMessage('LightGuide E5F6', '192.168.4.1').detail).toContain('192.168.4.1');
+  });
+});
+
+describe('sensor copy', () => {
+  it('says a working sensor with nothing in range is not a fault', () => {
+    // The misunderstanding this exists to prevent: a dash on the guide screen
+    // sending a photographer looking for a hardware problem that is not there.
+    for (const axis of ['distance', 'light'] as const) {
+      const message = sensorStateMessage(axis, 'ok');
+      expect(message.label).toBe('Working');
+      expect(message.detail).toContain('not a fault');
+    }
+  });
+
+  it('says a faulty sensor will not come back by waiting', () => {
+    const message = sensorStateMessage('distance', 'fault');
+    expect(message.label).toBe('Not responding');
+    expect(message.detail).toContain('Switch it off and on');
+    expect(message.detail).toContain('needs looking at');
+  });
+
+  it('keeps "not checked yet" apart from "not working"', () => {
+    const message = sensorStateMessage('light', 'unknown');
+    expect(message.label).toBe('Not checked yet');
+    expect(message.detail).not.toMatch(/fault|broken|not responding/i);
+  });
+
+  it('never mentions the internet', () => {
+    for (const axis of ['distance', 'light'] as const) {
+      for (const state of ['ok', 'fault', 'unknown'] as const) {
+        const message = sensorStateMessage(axis, state);
+        expect(`${message.label} ${message.detail}`).not.toMatch(/internet|online|offline/i);
+      }
+    }
+  });
+});
+
+describe('axis health labels', () => {
+  it('gives each state a distinct word', () => {
+    const labels = (['live', 'stale', 'never', 'offline'] as const).map(axisHealthLabel);
+    expect(new Set(labels).size).toBe(4);
+    expect(labels[0]).toBe('Live');
+  });
+});

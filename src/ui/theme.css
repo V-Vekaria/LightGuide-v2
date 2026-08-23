@@ -685,3 +685,95 @@ body {
   min-height: var(--tap); display: flex; align-items: center;
   cursor: pointer; line-height: 1.45;
 }
+
+/* ---------- device screen ---------- */
+
+/* The app bar's connection indicator was a <div>: the only place in the app
+   that reported the connection, and the only place a photographer could do
+   nothing about it. As a button it needs a real edge and a real tap target,
+   without becoming louder than the brand beside it — so it stays borderless
+   until hovered or focused, and takes its height from --tap like every other
+   control. */
+.conn-btn {
+  background: none; border: 0; padding: 6px 10px; margin-right: -10px;
+  min-height: var(--tap);
+  font: inherit; font-size: 12px; color: var(--ink-2);
+  cursor: pointer; border-radius: 6px;
+}
+.conn-btn:hover { background: var(--surface-2); }
+/* The screen you are already on. A background rather than a colour change:
+   the dot beside it is already carrying a colour that means something else
+   entirely, and two colours in one 12px control is one too many. */
+.conn-btn[aria-current="page"] { background: var(--surface-2); }
+/* A device name is user-visible text of unknown length. It gets an ellipsis
+   rather than a wrap, because the app bar is a fixed 56px and a two-line name
+   would push the dot off centre. */
+.conn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 22ch; }
+.conn-go { color: var(--faint); font-size: 15px; line-height: 1; }
+@media (max-width: 640px) {
+  .conn-label { max-width: 12ch; }
+  .conn-go { display: none; }
+}
+
+.device-card { margin-bottom: 14px; }
+/* The device's own name, and the largest thing on the screen. This is the
+   line that proves a board is answering. */
+.device-name {
+  font-size: 20px; font-weight: 600; letter-spacing: -0.01em;
+  margin: 0 0 12px; color: var(--ink);
+}
+.device-checked { margin-bottom: 12px; }
+.device-where { margin-top: 0; }
+
+/* A definition list, not a table: each row is one label and one value, and
+   a screen reader announces the pairing without any of a table's navigation
+   overhead. */
+.spec { margin: 0; padding: 0; }
+.spec-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  padding: 7px 0; border-bottom: 1px solid var(--line-2);
+}
+.spec-row:last-child { border-bottom: 0; }
+.spec-label { font-size: 12.5px; color: var(--muted); margin: 0; }
+/* Serials, versions and rates all read as identifiers, and all of them get
+   compared against something printed on a device or read down a phone. Mono
+   with tabular figures is what makes that possible. */
+.spec-value {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 12.5px; color: var(--ink); margin: 0;
+  text-align: right; overflow-wrap: anywhere;
+}
+
+.health-row { padding: 10px 0; border-bottom: 1px solid var(--line-2); }
+.health-row:last-child { border-bottom: 0; }
+.health-row:first-of-type { padding-top: 0; }
+.health-head { display: flex; align-items: center; gap: 9px; }
+.health-name { font-size: 13.5px; font-weight: 600; }
+/* The state in words as well as in the dot's colour. Neither carries it
+   alone: green/amber/red is a distinction a deuteranope does not get. */
+.health-state { font-size: 12px; color: var(--muted); margin-left: auto; }
+.health-copy { font-size: 12.5px; line-height: 1.6; color: var(--muted); margin: 5px 0 0 17px; }
+
+.link-rows { margin-top: 12px; border-top: 1px solid var(--line-2); }
+.link-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 0; border-bottom: 1px solid var(--line-2);
+}
+.link-row:last-child { border-bottom: 0; }
+.link-name { font-size: 12.5px; }
+.link-state { font-size: 12px; color: var(--muted); margin-left: auto; }
+/* Fixed width so the two axes' numbers line up under each other and a value
+   changing at 10 Hz does not shove the label beside it back and forth. */
+.link-value {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 12.5px; color: var(--ink); min-width: 9ch; text-align: right;
+}
+
+.address-form { margin-top: 14px; }
+.address-row { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+.address-input { flex: 1 1 220px; font-family: var(--mono); font-size: 14px; }
+
+/* The "or type an address" route out of the first-run panel. Quieter than the
+   three steps above it — it is the exception, not a fourth step. */
+.home-aside { font-size: 13px; line-height: 1.6; color: var(--muted); margin: 14px 0 0; max-width: 62ch; }
+.home-aside-link { margin-left: -8px; }

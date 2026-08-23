@@ -121,6 +121,22 @@ function Welcome({ status }: { status: ConnectionStatus }) {
 
       <StatusLine status={status} absent="No device yet" />
 
+      {/* The other way in, and the only place a newcomer is told it exists.
+          Everything above assumes the phone can join the device's own Wi-Fi,
+          which is true of the product as sold and untrue of a laptop — and of
+          a phone already on a studio network with the device on it too. This
+          is deliberately below the three steps rather than beside them: it is
+          the exception, and making it look like a fourth step would give
+          everybody a decision they do not have to make. */}
+      <p class="home-aside">
+        On a laptop, or on a phone that is on the same network as the device rather than joined
+        to the device's own Wi-Fi? You can point the app straight at the device's address
+        instead.
+      </p>
+      <button class="link-btn home-aside-link" onClick={() => navigate('device')}>
+        Enter the device's address
+      </button>
+
       <h2 class="home-h2" id="two-ways">
         Then there are two ways to work
       </h2>

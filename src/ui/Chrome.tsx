@@ -1,3 +1,4 @@
+import { deviceInfo } from '../device/connection';
 import {
   activeSetupId,
   activeTarget,
@@ -14,6 +15,18 @@ export function AppBar() {
   const guiding = activeTarget.value !== null;
   const elsewhere = screen.value !== 'live';
   const named = setups.value.find((setup) => setup.id === activeSetupId.value);
+  const onDeviceScreen = screen.value === 'device';
+
+  // The indicator names the device once it has said who it is. That is the
+  // whole demonstration in three words: a real board's own name, in the app
+  // bar, next to a dot that is only green because it is answering.
+  const identified = deviceInfo.value;
+  const connectionLabel =
+    status.value === 'connected'
+      ? (identified?.name ?? 'Device connected')
+      : status.value === 'connecting'
+        ? 'Connecting…'
+        : 'Device disconnected';
 
   return (
     <header class="app-bar">
@@ -32,16 +45,30 @@ export function AppBar() {
             <span class="guiding-chip-go">Return</span>
           </button>
         )}
-        <div class="conn">
+        {/* Was inert text: the one place in the app that reported the
+            connection, and the one place a photographer could do nothing about
+            it. It is a real control now, and it goes through navigate() like
+            every other screen change so Back leaves the device screen again.
+            aria-current marks it while you are on that screen, which is what
+            keeps pressing it repeatedly from being a silent no-op to a screen
+            reader. */}
+        <button
+          class="conn conn-btn"
+          title="Device details"
+          onClick={() => navigate('device')}
+          aria-current={onDeviceScreen ? 'page' : undefined}
+        >
           <span class={`status-dot status-${status.value}`} aria-hidden="true" />
-          <span>
-            {status.value === 'connected'
-              ? 'Device connected'
-              : status.value === 'connecting'
-                ? 'Connecting…'
-                : 'Device disconnected'}
+          {/* The chevron is the only part that is not read out: it says
+              "this goes somewhere" to the eye, and the button's own role
+              already says it to a screen reader. Everything visible that
+              carries meaning is in the accessible name, which is what keeps
+              "tap the LightGuide E5F6 button" a workable instruction. */}
+          <span class="conn-label">{connectionLabel}</span>
+          <span class="conn-go" aria-hidden="true">
+            ›
           </span>
-        </div>
+        </button>
       </div>
     </header>
   );
