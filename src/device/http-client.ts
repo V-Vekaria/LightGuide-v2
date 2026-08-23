@@ -1,7 +1,33 @@
-import type { ConnectionStatus, DeviceClient, Reading, Setup, Target } from '../contract/types';
+import type {
+  ConnectionStatus,
+  DeviceClient,
+  DeviceInfo,
+  Reading,
+  SensorHealth,
+  SensorState,
+  Setup,
+  Target,
+} from '../contract/types';
 
 const RECONNECT_MIN_MS = 500;
 const RECONNECT_MAX_MS = 8000;
+
+/**
+ * How long `getInfo()` waits before giving up.
+ *
+ * It has a deadline and the other calls do not, because it is the one call
+ * made against an address nobody has verified yet — a typed IP, or the
+ * same-origin guess on a phone that has silently wandered off the device's
+ * access point. A TCP connection to an address with nothing listening is not
+ * refused, it is dropped, and the browser will sit on it for a minute or more.
+ * A photographer waiting to find out whether they typed the address right does
+ * not get to wait a minute.
+ *
+ * Four seconds is chosen against the transport, not the network: this device
+ * serves over its own SoftAP, where a first request behind Wi-Fi association
+ * and ARP is comfortably inside a second.
+ */
+const INFO_TIMEOUT_MS = 4000;
 
 function isFiniteOrNull(value: unknown): value is number | null {
   return value === null || (typeof value === 'number' && Number.isFinite(value));
@@ -42,6 +68,77 @@ function isValidTarget(value: unknown): value is Target {
   );
 }
 
+function nonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '';
+}
+
+/** A finite number, or null for anything else — used for the display-only extras. */
+function optionalNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function optionalString(value: unknown): string | null {
+  return nonEmptyString(value) ? value : null;
+}
+
+/**
+ * Shape strict, vocabulary tolerant.
+ *
+ * `state` must be present and a string — a sensor object without one is a
+ * device that has not implemented this part of the contract, and pretending
+ * otherwise would report a board with no health reporting as a healthy board.
+ * But an unrecognised *value* becomes `unknown` rather than failing the whole
+ * payload: a future firmware that adds a state (`degraded`, say) within the
+ * same protocol version should degrade to "cannot tell" on an older app, not
+ * take the device screen down with it.
+ */
+function parseSensorHealth(value: unknown): SensorHealth | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const raw = (value as Record<string, unknown>).state;
+  if (typeof raw !== 'string') return null;
+  const state: SensorState = raw === 'ok' || raw === 'fault' ? raw : 'unknown';
+  return { state };
+}
+
+/**
+ * Guards `GET /api/info`. Rejects rather than filling gaps: this payload is
+ * how the app decides whether it is talking to a LightGuide at all, so a
+ * partial answer coerced into a whole one would let any JSON-serving box on
+ * the network present itself as a device with a blank name.
+ *
+ * The three display-only extras (`model`, `uptime_s`, `free_storage_bytes`)
+ * are the exception. They are absent on purpose in some firmwares, and a
+ * wrong-typed one is a cosmetic fault; it becomes `null` and the screen says
+ * the device did not report it, rather than refusing the whole device.
+ */
+export function parseDeviceInfo(value: unknown): DeviceInfo | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const raw = value as Record<string, unknown>;
+
+  const protocol = raw.protocol;
+  if (typeof protocol !== 'number' || !Number.isInteger(protocol) || protocol < 1) return null;
+  if (!nonEmptyString(raw.device_id)) return null;
+  if (!nonEmptyString(raw.name)) return null;
+  if (!nonEmptyString(raw.firmware)) return null;
+
+  const sensors = raw.sensors;
+  if (typeof sensors !== 'object' || sensors === null) return null;
+  const distance = parseSensorHealth((sensors as Record<string, unknown>).distance);
+  const light = parseSensorHealth((sensors as Record<string, unknown>).light);
+  if (distance === null || light === null) return null;
+
+  return {
+    protocol,
+    device_id: raw.device_id,
+    name: raw.name,
+    model: optionalString(raw.model),
+    firmware: raw.firmware,
+    uptime_s: optionalNumber(raw.uptime_s),
+    free_storage_bytes: optionalNumber(raw.free_storage_bytes),
+    sensors: { distance, light },
+  };
+}
+
 /** Talks to the ESP32 — and to the mock server, which implements the same surface. */
 export class HttpDeviceClient implements DeviceClient {
   private listeners = new Set<(r: Reading) => void>();
@@ -61,6 +158,39 @@ export class HttpDeviceClient implements DeviceClient {
     if (!res.ok) throw new Error(`${init?.method ?? 'GET'} ${path} failed: ${res.status}`);
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;
+  }
+
+  /**
+   * Identity, firmware, protocol and sensor health.
+   *
+   * Its own fetch rather than `json()` because it is the only call that needs
+   * a deadline (see INFO_TIMEOUT_MS) — and because the timeout has to surface
+   * as something a caller can tell apart from a refusal. A device that never
+   * answers and a device that answers "no" are different situations for the
+   * person holding the phone.
+   */
+  async getInfo(): Promise<DeviceInfo> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), INFO_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/api/info`, { signal: controller.signal });
+    } catch (error) {
+      // An aborted fetch rejects with an AbortError, which is neither a
+      // TypeError nor an HTTP status — so it would classify as 'unknown' and
+      // be reported to the user as "something went wrong" when what actually
+      // happened is the plainest failure there is: nothing was there.
+      if (controller.signal.aborted) {
+        throw new Error(`GET /api/info timed out after ${INFO_TIMEOUT_MS}ms`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!res.ok) throw new Error(`GET /api/info failed: ${res.status}`);
+    const info = parseDeviceInfo(await res.json().catch(() => null));
+    if (info === null) throw new Error('GET /api/info returned a malformed device description');
+    return info;
   }
 
   listSetups(): Promise<Setup[]> {

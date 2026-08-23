@@ -1,13 +1,51 @@
-import type { ConnectionStatus, DeviceClient, Reading, Setup, Target } from '../contract/types';
+import type {
+  ConnectionStatus,
+  DeviceClient,
+  DeviceInfo,
+  Reading,
+  Setup,
+  Target,
+} from '../contract/types';
+import { PROTOCOL_MIN_SUPPORTED } from '../contract/types';
+
+/**
+ * What this client answers `getInfo()` with.
+ *
+ * It says `in-memory` in both the id and the name on purpose. This client
+ * backs tests and offline UI work, and the device screen exists precisely so
+ * that a sceptic can tell a real board from a simulation — a fake that
+ * introduced itself as "LightGuide 9D40" would defeat the screen it is used to
+ * develop.
+ *
+ * `protocol` tracks the app's own minimum rather than being a literal, so this
+ * client cannot silently become the thing that fails a compatibility check
+ * when the supported range moves.
+ */
+const DEFAULT_INFO: DeviceInfo = {
+  protocol: PROTOCOL_MIN_SUPPORTED,
+  device_id: 'in-memory',
+  name: 'In-memory device',
+  model: 'Simulated',
+  firmware: '0.0.0-in-memory',
+  uptime_s: 0,
+  free_storage_bytes: null,
+  sensors: { distance: { state: 'ok' }, light: { state: 'ok' } },
+};
 
 /** Backs tests and offline UI work. No network. */
 export class InMemoryDeviceClient implements DeviceClient {
   private setups: Setup[];
   private target: Target | null = null;
   private listeners = new Set<(r: Reading) => void>();
+  private info: DeviceInfo;
 
-  constructor(seed: Setup[] = []) {
+  constructor(seed: Setup[] = [], info: Partial<DeviceInfo> = {}) {
     this.setups = [...seed];
+    this.info = { ...DEFAULT_INFO, ...info };
+  }
+
+  async getInfo(): Promise<DeviceInfo> {
+    return this.info;
   }
 
   async listSetups(): Promise<Setup[]> {

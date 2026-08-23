@@ -101,6 +101,34 @@ describe('HttpDeviceClient live delivery over a real WebSocket', () => {
 });
 
 describe('device HTTP surface', () => {
+  it('answers /api/info with the live feed switched off and nothing saved', async () => {
+    // It is the app's fallback for "the device is there, and here is what is
+    // wrong with it". A route that needed the sensors or the store to be
+    // working could not do that job.
+    const device = await createMockDevice({ port: 0, storePath: null, live: false });
+    started.push(device);
+    const res = await fetch(`${device.url}/api/info`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('application/json');
+    const body = await res.json();
+    expect(body.protocol).toBe(1);
+    expect(body.device_id).toBe(device.deviceId);
+    expect(body.sensors).toEqual({ distance: { state: 'ok' }, light: { state: 'ok' } });
+  });
+
+  it('sends no wording on /api/info — the app writes every sentence', async () => {
+    // The division of responsibility this whole contract rests on: the device
+    // measures and reports state, the app writes the copy. A string from the
+    // board reaches a customer's screen in a developer's voice and cannot be
+    // changed without reflashing.
+    const device = await startDevice();
+    const body = await (await fetch(`${device.url}/api/info`)).json();
+    for (const forbidden of ['message', 'error', 'detail', 'hint', 'status_text']) {
+      expect(body[forbidden]).toBeUndefined();
+    }
+    expect(body.sensors.distance.message).toBeUndefined();
+  });
+
   it('refuses an unrecognised include_deleted value instead of silently hiding tombstones', async () => {
     const device = await startDevice();
     const res = await fetch(`${device.url}/api/setups?include_deleted=true`);

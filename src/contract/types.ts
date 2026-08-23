@@ -57,10 +57,100 @@
  * zero today — and the error is invisible, because both numbers look
  * perfectly plausible. Send `null` when there is no usable estimate.
  *
+ * ### `GET /api/info` — who is answering, and can we talk to it
+ *
+ * `200` with a JSON object. This is the only route the app calls *before* it
+ * trusts anything else the device says, and the only one that answers the
+ * question a photographer standing in front of two identical boxes actually
+ * has: which one is this.
+ *
+ * ```json
+ * {
+ *   "protocol": 1,
+ *   "device_id": "lg-3c71bf2a9d40",
+ *   "name": "LightGuide 9D40",
+ *   "model": "LightGuide ESP32-S3",
+ *   "firmware": "0.4.2",
+ *   "uptime_s": 5310,
+ *   "free_storage_bytes": 9012345,
+ *   "sensors": { "distance": { "state": "ok" }, "light": { "state": "ok" } }
+ * }
+ * ```
+ *
+ * **`protocol` and `firmware` are two different numbers and must never be
+ * conflated.** `firmware` is a build of the board's software and changes
+ * whenever anything on the board changes; the app only ever *displays* it and
+ * must never make a decision from it. `protocol` is the version of *this
+ * contract* and changes only when a board stops being able to talk to an app
+ * that understood the previous one. The app compares it against
+ * `PROTOCOL_MIN_SUPPORTED`..`PROTOCOL_MAX_SUPPORTED` and refuses to guide a
+ * device outside that range, because the app can be cached (it is served from
+ * the board and a PWA is coming) and a months-old cached app can therefore
+ * meet firmware newer than itself.
+ *
+ * The rule that keeps `protocol` cheap: **adding a route, or adding a field to
+ * an existing payload, is additive and does not bump it.** A client that has
+ * never heard of a new field ignores it. Bump `protocol` only when an existing
+ * field changes meaning, changes units, changes type, or disappears — because
+ * only then does an older app get a *wrong* answer rather than a partial one.
+ *
+ * Field by field:
+ *
+ *  - `protocol` — integer ≥ 1. Not a string, not semver: the app compares it
+ *    numerically and a range check on a dotted string is where this kind of
+ *    thing goes wrong.
+ *  - `device_id` — non-empty string, **stable for the life of the board**.
+ *    Derive it from the MAC (e.g. `lg-` + the six-byte station MAC in lower
+ *    hex) so two boards can never collide and one board never changes its
+ *    mind. It must survive reboots and reflashes; a per-request or per-boot
+ *    id makes it impossible to tell "the same device reconnected" from "a
+ *    different device answered".
+ *  - `name` — non-empty, human-readable, and *distinct between two boards out
+ *    of the box*. Default it from the id (e.g. `LightGuide 9D40` from the last
+ *    four hex digits). There is deliberately no rename endpoint yet; adding
+ *    one later is additive.
+ *  - `model` — string or `null`. Display only.
+ *  - `firmware` — non-empty string. Display only. Never parsed.
+ *  - `uptime_s` — whole seconds since boot, or `null` if not tracked. Worth
+ *    sending: it is what distinguishes "the board rebooted" from "the Wi-Fi
+ *    dropped", and a reboot is also when `seq` legitimately restarts.
+ *  - `free_storage_bytes` — bytes free on the filesystem partition, or `null`.
+ *  - `sensors` — an object with **both** `distance` and `light` keys, each
+ *    `{"state": "ok" | "fault" | "unknown"}`. Unrecognised keys are ignored by
+ *    the app, so a third sensor may be added without a protocol bump.
+ *
+ * **What the sensor states mean, and why this route needs them.** Without
+ * them, an ultrasonic that has stopped answering and a stand parked ten metres
+ * away are the same thing on screen: a dash. They call for completely
+ * different actions from the person holding the stand, so the device has to
+ * say which it is.
+ *
+ *  - `ok` — the sensor answered recently. It says nothing about whether the
+ *    *stand* is in range; a working sensor reporting no echo is still `ok`.
+ *  - `fault` — the sensor is not responding at all: no echo pulse whatsoever
+ *    within the timeout, an ADC that reads a hard rail, a bus that does not
+ *    ACK. This is a hardware or wiring problem, and it is the one state that
+ *    means "the reading will not come back by waiting".
+ *  - `unknown` — the device genuinely cannot tell yet, e.g. in the first
+ *    moments after boot before any sample has been taken. Not a synonym for
+ *    `fault`; the app words them differently.
+ *
+ * **Send no wording.** There is no `message`, `error` or `detail` string on
+ * this payload, deliberately, and there must never be one. The division of
+ * responsibility is the same as everywhere else in this contract — the device
+ * measures and reports state, the app writes the sentence the photographer
+ * reads. A string from the board ends up on a customer's screen in a
+ * developer's voice, and cannot be changed without reflashing.
+ *
+ * This route must answer **even when both sensors are faulty and nothing else
+ * on the device works**. It is what the app falls back on to say "the device
+ * is there, and here is what is wrong with it" rather than "no device".
+ *
  * ### HTTP surface
  *
- * Five routes, and no others are used:
+ * Six routes, and no others are used:
  *
+ *  - `GET /api/info` → `200`, as above.
  *  - `GET /api/setups` → `200` with a JSON array of active setups.
  *    **Tombstones must not appear here.** This is the list every screen shows.
  *  - `GET /api/setups?include_deleted=1` → `200` with *every* record,
@@ -106,6 +196,77 @@
  * device means a device that has never been written to.
  */
 export type ChannelState = 'in_band' | 'under' | 'over' | 'unknown';
+
+/**
+ * The version of *this contract* that the app can talk. Not a firmware
+ * version, and never compared against one.
+ *
+ * Two numbers rather than one because the two directions of mismatch are
+ * different problems with different fixes, and the app has to be able to tell
+ * a customer which one they have:
+ *
+ *  - device below `PROTOCOL_MIN_SUPPORTED` — the board is older than this app.
+ *    The board needs updating.
+ *  - device above `PROTOCOL_MAX_SUPPORTED` — the board is newer than this app,
+ *    which happens when a cached copy of the app meets updated firmware. The
+ *    *app* needs reloading.
+ *
+ * Widen the range rather than moving it whenever the app can still handle the
+ * older shape; that is what keeps a board already in the field working after
+ * an app update.
+ */
+export const PROTOCOL_MIN_SUPPORTED = 1;
+export const PROTOCOL_MAX_SUPPORTED = 1;
+
+/**
+ * Per-sensor health, as the device reports it.
+ *
+ *  - `ok` — the sensor answered recently. It says nothing about whether the
+ *    stand is in range: a working sensor with nothing in front of it is `ok`
+ *    and sends `null` readings, and that distinction is the entire reason this
+ *    field exists.
+ *  - `fault` — not responding at all. A dash on screen will not come back by
+ *    waiting; something needs looking at.
+ *  - `unknown` — the device cannot tell yet (the first moments after boot).
+ */
+export type SensorState = 'ok' | 'fault' | 'unknown';
+
+/**
+ * An object rather than a bare `SensorState` string so a later firmware can
+ * add a field here — a fault count, a last-good timestamp — without it being a
+ * breaking change to the payload's shape.
+ */
+export interface SensorHealth {
+  state: SensorState;
+}
+
+/**
+ * Who the app is talking to, what it is running, and whether it is well.
+ *
+ * Everything here is device-reported fact. There is deliberately no message,
+ * error or hint string: wording belongs to the app (see `ui/messages.ts`), so
+ * that the sentence a customer reads can change without reflashing a board.
+ */
+export interface DeviceInfo {
+  /** Version of this contract. Integer. See PROTOCOL_MIN_SUPPORTED. */
+  protocol: number;
+  /** Stable for the life of the board — MAC-derived, never per-boot. */
+  device_id: string;
+  /** Human-readable, and distinct between two boards out of the box. */
+  name: string;
+  /** Display only. Null when the board does not say. */
+  model: string | null;
+  /** The board's software build. Display only — never a compatibility input. */
+  firmware: string;
+  /** Whole seconds since boot, or null. A reset here also explains a `seq` restart. */
+  uptime_s: number | null;
+  /** Bytes free on the device's filesystem partition, or null. */
+  free_storage_bytes: number | null;
+  sensors: {
+    distance: SensorHealth;
+    light: SensorHealth;
+  };
+}
 
 export interface Setup {
   id: string;
@@ -159,6 +320,22 @@ export interface Verdict {
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
 export interface DeviceClient {
+  /**
+   * Who this is, what it is running, and whether its sensors are answering.
+   *
+   * The first call the app makes and the only one whose answer it acts on
+   * before trusting the rest: a device whose `protocol` is outside
+   * `PROTOCOL_MIN_SUPPORTED`..`PROTOCOL_MAX_SUPPORTED` is not guided at all,
+   * because an app that misreads a contract it does not know produces
+   * confidently wrong numbers rather than a visible failure.
+   *
+   * Rejects rather than resolves when the payload is not a well-formed
+   * `DeviceInfo` — for the same reason `getActiveTarget()` does. "Something
+   * answered but we could not understand it" and "a LightGuide answered" must
+   * never collapse into one another, or the app ends up showing a device
+   * screen full of blanks for a web server that is not a device at all.
+   */
+  getInfo(): Promise<DeviceInfo>;
   /**
    * The setups a screen may show: tombstones (`deleted: true`) are never
    * included.

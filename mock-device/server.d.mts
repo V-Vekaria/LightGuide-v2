@@ -30,12 +30,27 @@ export interface MockDeviceOptions {
   dropoutPct?: number;
   /** false stops the 10 Hz replay timer. */
   live?: boolean;
+  /**
+   * The contract version to advertise on `/api/info`. Set it outside the
+   * app's supported range to exercise the mismatch path.
+   */
+  protocol?: number;
+  /** false makes `/api/info` 404 — what firmware older than the route looks like. */
+  serveInfo?: boolean;
+  deviceId?: string;
+  name?: string;
+  firmware?: string;
+  /** Per-sensor health to report. */
+  sensors?: { distance?: 'ok' | 'fault' | 'unknown'; light?: 'ok' | 'fault' | 'unknown' };
 }
 
 export interface MockDevice {
   port: number;
   /** Base URL to hand to HttpDeviceClient. */
   url: string;
+  /** What this instance answers `/api/info` with — the same values, for assertions. */
+  deviceId: string;
+  name: string;
   traceRows: number;
   skippedRows: number;
   close(): Promise<void>;

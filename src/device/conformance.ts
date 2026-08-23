@@ -33,6 +33,89 @@ export function describeDeviceClient(
   }
 
   describe(`DeviceClient conformance: ${name}`, () => {
+    /* ---------- identity, version and health ---------- */
+
+    it('says who it is, in fields a person could tell two devices apart by', async () => {
+      const client = await make();
+      const info = await client.getInfo();
+
+      // Non-empty, because both of these end up on screen. A blank name is a
+      // device screen that identifies nothing, which is the one job it has.
+      expect(info.device_id.trim()).not.toBe('');
+      expect(info.name.trim()).not.toBe('');
+      expect(info.firmware.trim()).not.toBe('');
+      client.close();
+    });
+
+    it('reports the same device id every time — an id that changes identifies nothing', async () => {
+      // A board that generated an id per request, or per boot, would make "the
+      // same device came back" indistinguishable from "a different device
+      // answered". This is the assertion a firmware that seeds from a random
+      // number instead of the MAC fails.
+      const client = await make();
+      const first = await client.getInfo();
+      const second = await client.getInfo();
+      expect(second.device_id).toBe(first.device_id);
+      expect(second.name).toBe(first.name);
+      client.close();
+    });
+
+    it('reports a protocol version the app can compare numerically', async () => {
+      const client = await make();
+      const info = await client.getInfo();
+      expect(Number.isInteger(info.protocol)).toBe(true);
+      expect(info.protocol).toBeGreaterThanOrEqual(1);
+      client.close();
+    });
+
+    it('keeps the protocol version and the firmware version separate', async () => {
+      // The app refuses to guide a device whose protocol it does not support,
+      // and displays the firmware without ever parsing it. A device that put a
+      // build string in `protocol`, or a contract number in `firmware`, breaks
+      // that in a way nothing else here would catch.
+      const client = await make();
+      const info = await client.getInfo();
+      expect(typeof info.protocol).toBe('number');
+      expect(typeof info.firmware).toBe('string');
+      client.close();
+    });
+
+    it('reports a health state for both sensors', async () => {
+      // Without this, "the ultrasonic has stopped answering" and "the stand is
+      // simply out of range" are the same dash on screen, and they need
+      // opposite things from the person holding the stand.
+      const client = await make();
+      const info = await client.getInfo();
+      for (const axis of ['distance', 'light'] as const) {
+        expect(['ok', 'fault', 'unknown']).toContain(info.sensors[axis].state);
+      }
+      client.close();
+    });
+
+    it('answers getInfo on a device with nothing saved and nothing guiding', async () => {
+      // It is the app's fallback for "the device is there, and here is what is
+      // wrong with it", so it must not depend on any other part of the device
+      // being in a working or populated state.
+      const client = await make();
+      const info = await client.getInfo();
+      expect(info.protocol).toBeGreaterThanOrEqual(1);
+      expect(await client.listSetups()).toEqual([]);
+      client.close();
+    });
+
+    it('reports uptime and free storage as numbers or null, never as a guess', async () => {
+      const client = await make();
+      const info = await client.getInfo();
+      for (const value of [info.uptime_s, info.free_storage_bytes]) {
+        expect(value === null || (typeof value === 'number' && Number.isFinite(value))).toBe(true);
+      }
+      if (info.uptime_s !== null) expect(info.uptime_s).toBeGreaterThanOrEqual(0);
+      if (info.free_storage_bytes !== null) expect(info.free_storage_bytes).toBeGreaterThanOrEqual(0);
+      client.close();
+    });
+
+    /* ---------- the setup library ---------- */
+
     it('starts with no setups', async () => {
       const client = await make();
       expect(await client.listSetups()).toEqual([]);

@@ -23,6 +23,35 @@ const ADC_MAX = 4095;      // 12-bit, matches v1 calibration
 const AMBIENT = 0.06;      // simulated ambient level, 0..1
 const FRAME_INTERVAL_MS = 100;
 
+// --- identity ---------------------------------------------------------------
+
+/**
+ * What GET /api/info answers with.
+ *
+ * The version of the *contract*, not of any firmware. The app refuses to guide
+ * a device outside the range it supports, so this is the number to change when
+ * testing that refusal — `createMockDevice({ protocol: 99 })`.
+ */
+const PROTOCOL_VERSION = 1;
+/**
+ * A fixed, MAC-shaped id, and a name derived from its last four hex digits —
+ * the same rule the firmware is asked to follow, so the app is developed
+ * against the shape a board will actually send. Fixed rather than random
+ * because a real device's id survives reboots.
+ */
+const DEFAULT_DEVICE_ID = 'lg-a1b2c3d4e5f6';
+const DEFAULT_NAME = 'LightGuide E5F6';
+/**
+ * `model` and `firmware` say plainly that this is not a board. Nothing in the
+ * payload may claim to be hardware that isn't: the device screen exists so
+ * somebody watching a demo can tell a real board from a simulation, and a mock
+ * that introduced itself as firmware would defeat it.
+ */
+const DEFAULT_MODEL = 'Mock device (mock-device/server.mjs)';
+const DEFAULT_FIRMWARE = '0.0.0-mock';
+/** The Nano ESP32's ffat partition, 9.375 MB — see device/docs/00-BOARD.md. */
+const FILESYSTEM_BYTES = 9_830_400;
+
 // --- trace parsing ----------------------------------------------------------
 
 /**
@@ -148,6 +177,15 @@ function readBody(req) {
  * @param {string} [options.tracesDir]
  * @param {number} [options.dropoutPct]
  * @param {boolean} [options.live] false stops the 10 Hz feed timer.
+ * @param {number} [options.protocol] contract version to advertise — set it
+ *   outside the app's supported range to exercise the mismatch path.
+ * @param {boolean} [options.serveInfo] false makes `/api/info` 404, which is
+ *   what firmware older than the route looks like from the app's side.
+ * @param {string} [options.deviceId]
+ * @param {string} [options.name]
+ * @param {string} [options.firmware]
+ * @param {{distance?: string, light?: string}} [options.sensors] per-sensor
+ *   health to report: 'ok' | 'fault' | 'unknown'.
  */
 export async function createMockDevice(options = {}) {
   const {
@@ -156,7 +194,19 @@ export async function createMockDevice(options = {}) {
     tracesDir = DEFAULT_TRACES,
     dropoutPct = 0,
     live = true,
+    protocol = PROTOCOL_VERSION,
+    serveInfo = true,
+    deviceId = DEFAULT_DEVICE_ID,
+    name = DEFAULT_NAME,
+    firmware = DEFAULT_FIRMWARE,
+    sensors = {},
   } = options;
+
+  const startedAt = Date.now();
+  const sensorHealth = {
+    distance: { state: sensors.distance ?? 'ok' },
+    light: { state: sensors.light ?? 'ok' },
+  };
 
   const { rows: trace, skipped } = loadTraces(tracesDir);
   let setups = loadSetups(storePath);
@@ -177,6 +227,26 @@ export async function createMockDevice(options = {}) {
     };
     const noContent = () => { res.writeHead(204); res.end(); };
 
+    if (url.pathname === '/api/info' && req.method === 'GET' && serveInfo) {
+      // Answers unconditionally — before the setups have loaded, with both
+      // sensors faulty, with the live feed switched off. It is the route the
+      // app falls back on to say "the device is there, and here is what is
+      // wrong with it", so it must never depend on anything else working.
+      //
+      // No message, error or hint string here, deliberately: the device
+      // reports state and the app writes the sentence. See the contract.
+      const stored = JSON.stringify(setups);
+      return json(200, {
+        protocol,
+        device_id: deviceId,
+        name,
+        model: DEFAULT_MODEL,
+        firmware,
+        uptime_s: Math.floor((Date.now() - startedAt) / 1000),
+        free_storage_bytes: Math.max(0, FILESYSTEM_BYTES - Buffer.byteLength(stored)),
+        sensors: sensorHealth,
+      });
+    }
     if (url.pathname === '/api/setups' && req.method === 'GET') {
       const flag = url.searchParams.get('include_deleted');
       // Strict: any value other than the documented "1" is refused rather
@@ -313,6 +383,8 @@ export async function createMockDevice(options = {}) {
   return {
     port: actualPort,
     url: `http://127.0.0.1:${actualPort}`,
+    deviceId,
+    name,
     traceRows: trace.length,
     skippedRows: skipped,
     async close() {
@@ -339,6 +411,9 @@ if (isMain) {
   try {
     const device = await createMockDevice({ dropoutPct, port });
     console.log(`mock device: ${device.traceRows} rows loaded from real v1 traces`);
+    // Printed because the app now shows this on its device screen: if the two
+    // ever disagree, the app is talking to something else.
+    console.log(`mock device: identifies as "${device.name}" (${device.deviceId})`);
     if (device.skippedRows > 0) {
       console.log(`mock device: skipped ${device.skippedRows} malformed row(s)`);
     }
