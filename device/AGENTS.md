@@ -59,12 +59,28 @@ call. Do not re-open settled v2 design decisions.
 - Resolving the open contract items in `docs/03-OPEN-DECISIONS.md`
 - Running the v2 conformance suite against real hardware
 
+### The framing that settles most scope questions
+
+**v2 is v1 upgraded, not a different product.** Same job — the device tells you where to
+put the light — on a new board, with a phone app added on top.
+
+So **v1's device behaviour is the baseline, not scope creep.** The buzzer, the button
+capture, the on-screen verdict and the RGB LED are v1 features carried forward. They do not
+need justifying against the app's architecture; they are the product, and the app is what is
+new. What v2 changes is where the *target* comes from: v1 had only the button hold, v2 has
+that and the phone.
+
+This was written down on 23 August after the question kept being re-raised as if open.
+
 ### Out of scope
 - Any change to `../LightGuide-Edge` — it is submitted coursework, frozen
 - New app features, UI work, or redesign in `../src` — same repo now, still not our remit
 - Cloud tier, accounts, station-mode Wi-Fi (all deferred in the v2 spec)
-- Porting v1's ML classifier to this board — v2 is a measurement-and-guidance tool,
-  not a classifier. Do not reintroduce it.
+- **The ML classifier.** v1 ran a decision tree on-board because it had to decide for itself
+  what "optimal" meant. Here the app sends the target and the tolerance, so the board
+  compares rather than infers — which is what lets a tolerance change without a reflash. The
+  five words on screen are v1's; the mechanism behind them is not. Carrying v1's *feedback*
+  forward is no argument for carrying its *inference* forward.
 
 ---
 

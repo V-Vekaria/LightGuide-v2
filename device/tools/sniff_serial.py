@@ -40,7 +40,14 @@ def main() -> int:
         deadline = time.monotonic() + args.seconds
         seen = False
         while time.monotonic() < deadline:
-            chunk = port.read(512)
+            try:
+                chunk = port.read(512)
+            except serial.SerialException:
+                # The board reset and took the port with it - that is a result,
+                # not a crash. Whatever printed before it went is the evidence.
+                print()
+                print("-- port vanished: the board reset --")
+                break
             if chunk:
                 seen = True
                 sys.stdout.write(chunk.decode("utf-8", "replace"))

@@ -57,43 +57,23 @@ diagnose dropped or stale frames, and the app has already had two stale-frame bu
 
 App-side. Recorded so it is not lost; nothing for firmware to do.
 
-## 🟡 D6 — Device-side I/O the contract has no place for
+## ✅ D6 — Device-side I/O — **RESOLVED, and it was never really open**
 
-Unchanged and still genuinely open — see below. This is the **only decision this project
-actually owns.**
+Buzzer (`D9`), switch (`D7`) and the on-board RGB are all implemented and match v1.
 
-A **buzzer** (`D9`) and a **switch** (`D7`) were wired on 20 August 2026.
-**Neither is in the v2 contract**, and the same reasoning covers both.
+**Settled 23 August by the user restating the framing: v2 is v1 upgraded, not a new
+product.** That dissolves the question. These are v1 features being carried forward, so
+they never needed to be justified against the app's architecture — the app is the addition,
+not the baseline.
 
-The v2 spec settles that **"the device measures; the app computes"** — so guidance copy and
-tolerances change without reflashing a board. Device-side audio puts part of the guidance
-logic back on the device, which is what that split was meant to prevent: to beep at the
-right moment, firmware needs the target and the tolerance, i.e. a copy of the app's verdict.
+The concern that produced this item was that device-side feedback duplicates the app's
+verdict logic. It does compute locally, but it computes against **the target and tolerance
+the app sent**, so the policy still lives in one place: change a tolerance in the app and
+the board's screen, buzzer and LED all follow with no reflash. Nothing derived on the device
+is ever sent back, so the app remains the only thing that words a verdict for a customer.
 
-Against that: audio is the one feedback channel that works when the photographer is **not
-looking at the phone** — which is most of the time while positioning a stand. That is a real
-argument, not a nicety.
-
-v1 had a working buzzer on `D9`, so the hardware is proven, and it is re-confirmed here:
-**passive, driven by LEDC at 3000 Hz** (`reports/M0c_peripherals_acceptance.md`).
-Nothing is blocked today.
-
-One factor for the decision: **it is quiet.** A piezo single-ended off a 3.3 V GPIO manages
-only 3.3 V p-p. Differential drive would add ~6 dB for one wire, a transistor and 5 V more
-again — but if audio has to compete with a room, the phone's speaker starts well ahead.
-
-The **switch** raises the same question from the other direction: v1 used a button to trigger
-captures (`firmware/02b_button_logger`), but in v2 capture is driven from the app. A physical
-button either does nothing, or it needs a device→app event path that the contract does not
-currently have — the WebSocket only carries `Reading` frames *outward*.
-
-**Decide before M4 freezes the WebSocket frame:**
-- Buzzer: does the device beep on its own — accepting that duplication — or does audio belong
-  to the phone, where the verdict logic already lives?
-- Switch: does it earn a device→app event channel, or is it bench-only hardware?
-
-*(An earlier draft of this item also covered a gyro. There is no gyro — the part was an
-HC-SR04, which is squarely in scope as the distance channel.)*
+What v2 adds is *where the target comes from*: v1 had only the button hold, v2 has that and
+the phone.
 
 ---
 
