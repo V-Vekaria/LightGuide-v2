@@ -7,17 +7,27 @@ Update it at the end of every session. Keep it short — detail belongs in `docs
 
 ## Right now
 
-**Phase:** ✅ Bring-up complete (M0 + M1). Hardware is done; firmware starts now.
-**Next action:** **M2 — LittleFS store.** Contract-independent, so it can start immediately.
+**Phase:** ✅ **The device works.** It serves the app from its own flash, guides from a
+target set either on the phone or by holding the button, and gives v1's feedback on the
+OLED, the RGB LED and the buzzer. Setups persist across power cycles.
 
-**⚠️ Read before touching the HTTP surface:**
-`../.superpowers/sdd/device-contract-report.md` §1 is the **authoritative**
-firmware spec. A second session is still building the app. Our own contract doc went stale
-once already and wrongly reported two settled decisions as open — so re-read the source,
-do not trust a local copy.
+**Next action:** run the **conformance suite against the real board** (M5's formal check).
+It has never run against this firmware and is the thing most likely to catch a contract
+detail that is subtly wrong.
 
-**Only real open decision we own:** **D6** — does the device make sound / does the switch
-earn a device→app event path? Due before M4 freezes the WebSocket frame.
+**Also open:** the switch's short press is unbound. v1 used it to label a data-logging run;
+that is the natural binding and the one the data-collection step will want.
+
+### Hard-won lessons from bring-up — all of them cost real time
+
+1. **Device state must be visible ON THE DEVICE.** Safe mode announced itself only on
+   serial, so a switch stuck LOW presented as "the Wi-Fi has stopped working". Capture
+   confirmed only with a chirp, so a refused capture looked identical to a working one.
+   Both are on the OLED now, and the idle screen shows the live switch state.
+2. **A boot loop looks like a dead board** — no USB at all. `device/tools/watch_serial.py`
+   reopens the port across resets, which is the only way to see a crash in `setup()`.
+3. **Start Wi-Fi before the HTTP server.** AsyncTCP binds through lwIP, which does not
+   exist until `WiFi.mode()` has run.
 
 ## Milestones
 
@@ -27,10 +37,10 @@ earn a device→app event path? Due before M4 freezes the WebSocket frame.
 | 0b | Display bring-up | ✅ **PASS** — SSD1306 128×64 @ `0x3C` |
 | 0c | Peripherals (HC-SR04 / buzzer / switch) | ✅ **PASS** 20 Aug |
 | 1 | Sensor check | ✅ **PASS** 20 Aug — LDR 99.8% of scale, ADC/Wi-Fi clean |
-| 2 | LittleFS store | ⬜ **next** |
-| 3 | SoftAP + HTTP | 🔒 gated on the **app contract freezing** (not D1/D2 — resolved) |
-| 4 | Live WebSocket | ⬜ not started |
-| 5 | Integration | ⬜ not started |
+| 2 | LittleFS store | ✅ setups survive a power cycle |
+| 3 | SoftAP + HTTP | ✅ app served from flash, all routes answered |
+| 4 | Live WebSocket | ✅ 10 Hz frames, app renders them |
+| 5 | Integration | 🟨 firmware done — **conformance not yet run** |
 
 ## Hardware
 

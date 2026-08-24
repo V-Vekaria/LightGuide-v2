@@ -33,6 +33,17 @@ static const char *AP_PASS = "lightguide";     // >= 8 chars or softAP() fails
 static Adafruit_SSD1306 display(128, 64, &Wire, -1);
 static bool haveDisplay = false;
 
+/* A capture has to be visible ON THE DEVICE. It used to confirm with a chirp
+ * and a serial line only, which is invisible to anyone not sitting at a laptop
+ * - so a refused capture and a working one looked identical. */
+static char     toastText[24] = "";
+static uint32_t toastUntil = 0;
+static void toast(const char *s) {
+  strncpy(toastText, s, sizeof toastText - 1);
+  toastText[sizeof toastText - 1] = 0;
+  toastUntil = millis() + 2500;
+}
+
 static uint32_t lastLiveMs = 0;
 static uint32_t lastDrawMs = 0;
 
@@ -97,6 +108,17 @@ static void draw() {
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
 
+  if (toastUntil && (int32_t)(millis() - toastUntil) < 0) {
+    display.setTextSize(1);
+    display.setCursor(2, 8);
+    display.print(F("BUTTON HELD"));
+    display.setTextSize(1);
+    display.setCursor(2, 30);
+    display.print(toastText);
+    display.display();
+    return;
+  }
+
   // ---- not guiding: the live numbers ARE the content ----------------------
   if (!tgt.present) {
     printCentred("NO TARGET SET", 1, 0);
@@ -113,10 +135,19 @@ static void draw() {
     display.print(F(" cm"));
 
     display.setTextSize(2);
-    display.setCursor(0, 46);
+    display.setCursor(0, 44);
     display.print(F("l "));
     if (r.brightness < 0) display.print(F("--"));
     else                  display.print(r.brightness, 2);
+
+    /* Live switch state. Whether D7 actually moves when the button is pressed
+     * is otherwise invisible, and "the button does nothing" has three very
+     * different causes: not wired, wired to the wrong pin, or wired to a pair
+     * of contacts that are shorted inside the part. This says which. */
+    display.setTextSize(1);
+    display.setCursor(78, 56);
+    display.print(F("btn "));
+    display.print(digitalRead(PIN_SWITCH) == LOW ? F("DOWN") : F("up"));
 
     display.display();
     return;
@@ -228,7 +259,8 @@ static void serviceButton() {
   const Reading r = sensorsRead();
   if (r.distance_cm < 0) {
     // Nothing in range: capturing would store a target that cannot be reached.
-    buzzerChirp(700, 400);
+    buzzerChirp(BUZZER_HZ, 400);
+    toast("no distance - aim it");
     Serial.println(F("capture refused: no distance reading"));
     return;
   }
@@ -245,7 +277,11 @@ static void serviceButton() {
   Serial.print(F(" -> "));
   Serial.println(saved ? id.c_str() : "NOT SAVED (library full)");
 
-  buzzerChirp(saved ? 3000 : 700, saved ? 200 : 500);
+  char msg[24];
+  if (saved) snprintf(msg, sizeof msg, "saved %d cm", (int)(r.distance_cm + 0.5f));
+  else       snprintf(msg, sizeof msg, "FULL - not saved");
+  toast(msg);
+  buzzerChirp(BUZZER_HZ, saved ? 200 : 500);
 }
 
 // ------------------------------------------------------------------- LED ---
