@@ -198,3 +198,10 @@ Append one line per session. Newest last. Never rewrite history here.
   **pointer** to the authoritative spec rather than a copy — duplicated specs drift, which is
   exactly what happened. Only **D3** (is `GET /api/ambient` wanted?) and **D6** (buzzer/switch
   scope) remain, and D6 is the only one this project owns.
+- **2026-08-24** — **M5 PASSES: 21/21 conformance against real firmware**, over real HTTP and
+  a real WebSocket. `reports/M5_conformance_acceptance.md`.
+  The first run failed 8 of 21 and **none of it was firmware** — setups accumulated across
+  tests because the board cannot hand out a fresh instance the way the mock does. One
+  failure even presented as a 5 s timeout rather than a wrong assertion, which was tempting
+  to chase as a routing bug. Fixed by wiping over the USB console before every test.
+  **All five milestones are now complete.**

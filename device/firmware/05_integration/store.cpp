@@ -185,6 +185,13 @@ bool storeCreateCaptured(float distance_cm, float brightness, String &idOut) {
   return save();
 }
 
+bool storeWipe() {
+  doc.clear();
+  setups();
+  newestKnownMs = 0;
+  return save();
+}
+
 size_t storeFreeBytes() {
   return LittleFS.totalBytes() - LittleFS.usedBytes();
 }

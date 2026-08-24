@@ -47,6 +47,81 @@ static void toast(const char *s) {
 static uint32_t lastLiveMs = 0;
 static uint32_t lastDrawMs = 0;
 
+// ------------------------------------------------------------ serial cmd ---
+/*
+ * A tiny console, for testing only. The conformance suite asserts on an empty
+ * device, and the contract has no remote wipe on purpose - so the reset it
+ * needs arrives over the USB cable instead, where physical access is the
+ * permission.
+ */
+static void serviceSerialCommand() {
+  static char buf[16];
+  static uint8_t n = 0;
+
+  while (Serial.available()) {
+    const char ch = (char)Serial.read();
+    if (ch == 13) continue;              // CR: ignore, line ends on LF
+    if (ch != 10) {                      // LF ends the line
+      if (n < sizeof buf - 1) buf[n++] = ch;
+      continue;
+    }
+    buf[n] = 0;
+    n = 0;
+
+    if (!strcmp(buf, "wipe")) {
+      const bool ok = storeWipe();
+      Serial.println(ok ? F("wiped: the setup library is empty")
+                        : F("wipe FAILED"));
+    } else if (!strcmp(buf, "info")) {
+      Serial.print(F("device_id ")); Serial.print(deviceId());
+      Serial.print(F("  name "));    Serial.print(deviceName());
+      Serial.print(F("  fw "));      Serial.print(FIRMWARE_VERSION);
+      Serial.print(F("  proto "));   Serial.println(PROTOCOL_VERSION);
+      Serial.print(F("ip "));        Serial.print(WiFi.softAPIP().toString());
+      Serial.print(F("  free "));    Serial.print(storeFreeBytes());
+      Serial.println(F(" bytes"));
+    } else if (buf[0]) {
+      Serial.println(F("commands: wipe | info"));
+    }
+  }
+}
+// -------------------------------------------------------------- verdicts ---
+/*
+ * ONE verdict, computed once, used by the screen, the LED and the buzzer.
+ *
+ * They previously each derived their own from the same numbers. That worked but
+ * was a latent bug: three copies of a rule drift apart the moment one is edited,
+ * and a screen disagreeing with the buzzer is worse than either being wrong.
+ *
+ * Hysteresis is v1's (decision.h): a channel enters the band at the tolerance
+ * the app set and only leaves it at a wider one, so a stand parked exactly on
+ * the boundary settles instead of chattering.
+ */
+static Judgement judge(float live, float ref, float tol, Judgement prev) {
+  if (live < 0.0f) return J_NO_READ;
+  const float diff = live - ref;
+  const float band = (prev == J_CORRECT) ? tol * HYSTERESIS_RATIO : tol;
+  if (fabsf(diff) <= band) return J_CORRECT;
+  return (diff > 0.0f) ? J_ABOVE : J_BELOW;
+}
+
+static Judgement vDist  = J_NO_READ;
+static Judgement vLight = J_NO_READ;
+
+static void updateVerdicts() {
+  const Reading r = sensorsRead();
+  const ActiveTarget tgt = apiActiveTarget();
+
+  if (!tgt.present) { vDist = vLight = J_NO_READ; return; }
+
+  vDist = judge(r.distance_cm, tgt.distance_cm, tgt.distance_tol_cm, vDist);
+
+  const float above = (r.brightness >= 0 && r.ambient >= 0) ? r.brightness - r.ambient : -1.0f;
+  vLight = tgt.has_brightness
+             ? judge(above, tgt.brightness_above_ambient, tgt.brightness_tol, vLight)
+             : J_NO_READ;
+}
+
 // --------------------------------------------------------------- display ---
 /*
  * The v1 screen, rebuilt on v2's data.
@@ -172,13 +247,11 @@ static void draw() {
   // The headline, in v1's vocabulary. Distance is judged first: no amount of
   // correct lighting helps from the wrong place.
   const char *word = "OPTIMAL";
-  if (!dOk)                                 word = "NO ECHO";
-  else if (dDelta < -tgt.distance_tol_cm)   word = "TOO CLOSE";
-  else if (dDelta >  tgt.distance_tol_cm)   word = "TOO FAR";
-  else if (tgt.has_brightness && above >= 0) {
-    if      (lDelta < -tgt.brightness_tol)  word = "UNDERLIT";
-    else if (lDelta >  tgt.brightness_tol)  word = "OVERLIT";
-  }
+  if      (vDist  == J_NO_READ) word = "NO ECHO";
+  else if (vDist  == J_BELOW)   word = "TOO CLOSE";
+  else if (vDist  == J_ABOVE)   word = "TOO FAR";
+  else if (vLight == J_BELOW)   word = "UNDERLIT";
+  else if (vLight == J_ABOVE)   word = "OVERLIT";
   printCentred(word, 2, HEADLINE_Y);
 
   display.drawFastHLine(0, 30, 128, SSD1306_WHITE);
@@ -303,27 +376,16 @@ static void setLed(bool r, bool g, bool b) {
 /* The same judgement the screen shows, spoken. Distance first: no amount of
  * correct lighting helps from the wrong place. */
 static void serviceFeedback() {
-  const Reading r = sensorsRead();
-  const ActiveTarget tgt = apiActiveTarget();
+  if (vDist == J_NO_READ) { buzzerSet(BUZZ_SILENT); setLed(false, false, false); return; }
 
-  if (!tgt.present || r.distance_cm < 0) {
-    buzzerSet(BUZZ_SILENT);
-    setLed(false, false, false);
-    return;
-  }
+  // Distance first: no amount of correct lighting helps from the wrong place.
+  if (vDist == J_BELOW) { buzzerSet(BUZZ_TOO_CLOSE); setLed(true, false, false); return; }
+  if (vDist == J_ABOVE) { buzzerSet(BUZZ_TOO_FAR);   setLed(true, false, false); return; }
 
-  const float dDelta = r.distance_cm - tgt.distance_cm;
-  if (dDelta < -tgt.distance_tol_cm) { buzzerSet(BUZZ_TOO_CLOSE); setLed(true, false, false); return; }
-  if (dDelta >  tgt.distance_tol_cm) { buzzerSet(BUZZ_TOO_FAR);   setLed(true, false, false); return; }
-
-  const float above = (r.brightness >= 0 && r.ambient >= 0) ? r.brightness - r.ambient : -1.0f;
   // An unreadable light silences only the light layer - the distance guidance
   // above it has already been given.
-  if (!tgt.has_brightness || above < 0) { buzzerSet(BUZZ_ARRIVED); setLed(false, true, false); return; }
-
-  const float lDelta = above - tgt.brightness_above_ambient;
-  if (lDelta < -tgt.brightness_tol) { buzzerSet(BUZZ_UNDERLIT); setLed(false, false, true); return; }
-  if (lDelta >  tgt.brightness_tol) { buzzerSet(BUZZ_OVERLIT);  setLed(false, false, true); return; }
+  if (vLight == J_BELOW) { buzzerSet(BUZZ_UNDERLIT); setLed(false, false, true); return; }
+  if (vLight == J_ABOVE) { buzzerSet(BUZZ_OVERLIT);  setLed(false, false, true); return; }
 
   buzzerSet(BUZZ_ARRIVED);
   setLed(false, true, false);
@@ -425,7 +487,9 @@ void setup() {
 
 void loop() {
   sensorsService();                       // never blocks; ISR-driven distance
+  serviceSerialCommand();
   serviceButton();
+  updateVerdicts();
   serviceFeedback();
   buzzerService();
 

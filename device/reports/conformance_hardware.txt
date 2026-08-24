@@ -1,0 +1,45 @@
+﻿LightGuide hardware conformance
+started: 2026-08-24 22:08:51
+
+connecting to 'LightGuide 3B04'...
+on the board's network as 192.168.4.2
+device: lg-206ef1313b04  fw 0.1.0  proto 1
+
+running conformance...
+
+
+ RUN  v2.1.9 C:/Users/vishn/OneDrive/Desktop/Edge Setup/LightGuide-v2
+
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > says who it is, in fields a person could tell two devices apart by 4777ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > reports the same device id every time — an id that changes identifies nothing 3566ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > reports a protocol version the app can compare numerically 3576ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > keeps the protocol version and the firmware version separate 3692ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > reports a health state for both sensors 3649ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > answers getInfo on a device with nothing saved and nothing guiding 3542ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > reports uptime and free storage as numbers or null, never as a guess 3843ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > starts with no setups 3609ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > round-trips a saved setup 3817ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > preserves every field of a saved setup, units and nulls included 3812ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > updates in place rather than duplicating 3643ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > stores updated_at verbatim — the device never re-stamps a save 3684ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > hides deleted setups from the list 4068ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > keeps a deleted setup as a tombstone, readable for backup 3917ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > accepts a tombstone write, so an import can carry a deletion forward 3720ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > lets an active setup and a tombstone coexist without leaking the tombstone 3858ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > reports no active target on a device that has just started 3806ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > sets an active target and reads the same one back 3708ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > keeps a null brightness target null — a distance-only guide 3760ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > clears the active target explicitly, and the device says so 3974ms
+ ✓ src/device/conformance.hardware.test.ts > DeviceClient conformance: real firmware at http://192.168.4.1 > subscribeLive returns a callable unsubscribe function 3543ms
+
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+   Start at  22:09:06
+   Duration  80.78s (transform 187ms, setup 0ms, collect 171ms, tests 79.57s, environment 0ms, prepare 319ms)
+
+
+vitest exit code: 0
+
+restoring 'CommunityFibre10Gb_7EF45'...
+back on: SSID                   : CommunityFibre10Gb_7EF45
+finished: 2026-08-24 22:10:38

@@ -49,12 +49,25 @@ static const int FAULT_AFTER_MISSES = 20;
 // Mirrors DEFAULT_DISTANCE_TOL_CM / DEFAULT_BRIGHTNESS_TOL in
 // src/contract/types.ts, so a setup captured on the device gets the same
 // tolerances the app would have given it.
-static const float DEFAULT_DISTANCE_TOL_CM = 5.0f;
+static const float DEFAULT_DISTANCE_TOL_CM = 3.0f;   // v1 used 30 mm
 static const float DEFAULT_BRIGHTNESS_TOL  = 0.08f;
 
 // v1 used a two-second hold to capture a reference: long enough that it cannot
 // happen by accident, since it is the destructive gesture.
 static const uint32_t BUTTON_HOLD_MS = 2000;
+
+/* HYSTERESIS. v1 entered "correct" within +-30 mm but only left it beyond
+ * +-40 mm, and the 10 mm gap was the point: with a single threshold, a stand
+ * parked on the boundary flips the verdict several times a second - the screen
+ * flickers, the LED strobes and the buzzer chatters. The exit band is derived
+ * from whatever tolerance the app sent, so the app still owns the policy.
+ * 4/3 reproduces v1's 30:40 ratio. */
+static const float HYSTERESIS_RATIO = 4.0f / 3.0f;
+
+/* Declared here, not in the .ino, because the Arduino preprocessor hoists
+ * generated function prototypes to the top of the sketch - above any type
+ * defined in it. A type used in a signature has to come from a header. */
+enum Judgement { J_NO_READ, J_CORRECT, J_ABOVE, J_BELOW };
 
 // ---- storage --------------------------------------------------------------
 static const char *SETUPS_PATH = "/setups.json";

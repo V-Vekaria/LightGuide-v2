@@ -7,27 +7,15 @@ Update it at the end of every session. Keep it short — detail belongs in `docs
 
 ## Right now
 
-**Phase:** ✅ **The device works.** It serves the app from its own flash, guides from a
-target set either on the phone or by holding the button, and gives v1's feedback on the
-OLED, the RGB LED and the buzzer. Setups persist across power cycles.
+**Phase:** ✅ **M5 complete. The firmware conforms to the contract on real hardware** —
+21/21, over real HTTP and a real WebSocket. `reports/M5_conformance_acceptance.md`.
 
-**Next action:** run the **conformance suite against the real board** (M5's formal check).
-It has never run against this firmware and is the thing most likely to catch a contract
-detail that is subtly wrong.
+**Next action:** nothing is blocking. The remaining item is the switch's **short press**,
+still unbound; v1 used it to label a data-logging run, which is what the data-collection
+step wants.
 
-**Also open:** the switch's short press is unbound. v1 used it to label a data-logging run;
-that is the natural binding and the one the data-collection step will want.
-
-### Hard-won lessons from bring-up — all of them cost real time
-
-1. **Device state must be visible ON THE DEVICE.** Safe mode announced itself only on
-   serial, so a switch stuck LOW presented as "the Wi-Fi has stopped working". Capture
-   confirmed only with a chirp, so a refused capture looked identical to a working one.
-   Both are on the OLED now, and the idle screen shows the live switch state.
-2. **A boot loop looks like a dead board** — no USB at all. `device/tools/watch_serial.py`
-   reopens the port across resets, which is the only way to see a crash in `setup()`.
-3. **Start Wi-Fi before the HTTP server.** AsyncTCP binds through lwIP, which does not
-   exist until `WiFi.mode()` has run.
+**To re-run conformance:** `device/tools/run_hardware_conformance.ps1` — unattended, joins
+the board's network, tests, and restores the home network in a `finally` block.
 
 ## Milestones
 
@@ -40,7 +28,7 @@ that is the natural binding and the one the data-collection step will want.
 | 2 | LittleFS store | ✅ setups survive a power cycle |
 | 3 | SoftAP + HTTP | ✅ app served from flash, all routes answered |
 | 4 | Live WebSocket | ✅ 10 Hz frames, app renders them |
-| 5 | Integration | 🟨 firmware done — **conformance not yet run** |
+| 5 | Integration | ✅ **PASS** 24 Aug — 21/21 on hardware |
 
 ## Hardware
 
