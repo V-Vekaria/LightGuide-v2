@@ -63,3 +63,123 @@ See `../../docs/TEST_PLAN.md` and `../../docs/POSITIONING_RESEARCH.md` before im
 ## Non-goals for Phase 0
 
 Do not add BLE, ESP32 firmware, ToF, spectral sensors, cloud accounts, AI subject analysis or production UI unless required to answer the positioning question.
+
+---
+
+# Implementation
+
+The proof-of-concept app for the sequence above lives in `android/`, with the
+printable markers in `markers/`. Nothing outside this folder is touched.
+
+## What the app does
+
+Single screen, deliberately plain. It is a measuring instrument, not product UI.
+
+- tracks two ARCore **augmented images** of known printed width;
+- reports the stand marker's X/Y/Z and pitch/yaw/roll;
+- expresses that pose relative to the reference marker, not the AR world origin;
+- saves the current pose as a target, and reloads it on next launch;
+- computes current-vs-target deltas;
+- shows LEFT/RIGHT, UP/DOWN, FORWARD/BACK, ROTATE, TILT, ROLL corrections;
+- flags in/out of configurable position and orientation tolerances;
+- logs timestamped readings and exports CSV + JSON.
+
+## Frames and sign conventions
+
+ARCore gives an augmented image a pose with `+X` along the image's right edge,
+`+Y` along its outward normal and `+Z` down the image. Every marker pose is
+remapped once into a **studio frame**: `+X` right, `+Y` up, `+Z` out of the
+marker face. Angles are intrinsic Y-X-Z, reported as pitch up positive, yaw
+right positive, roll clockwise positive (seen from behind, looking along `+Z`).
+
+The reference marker defines the origin. While it is visible its world pose is
+re-latched every frame, so a measurement taken with both markers in view is
+unaffected by world-tracking drift; when it leaves view the last known pose is
+reused and `reference_age_ms` records how stale it was for every logged row.
+
+**Answering the coordinate-frame requirement above:** the app will not save a
+target while the frame is `AR_WORLD`. An AR world origin is wherever the
+session happened to start, so a pose saved against it would look correct and
+then be meaningless in the next session. The reference marker must be scanned
+first, the active frame is shown on screen at all times, and the frame is
+recorded with every logged row and with the saved target.
+
+## Build and deploy
+
+Requires the Android SDK and a JDK 17+ (Android Studio's bundled JBR works).
+Set `sdk.dir` in `android/local.properties` if it is not already there.
+
+```bash
+cd experiments/phase-0-ar-positioning/android && ./gradlew :app:testDebugUnitTest :app:assembleDebug
+```
+
+```bash
+adb install -r experiments/phase-0-ar-positioning/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+The pose maths, frame handling and guidance sign conventions are covered by JVM
+unit tests in `android/app/src/test/`. They need no device. Sign errors in
+guidance are invisible in a screenshot and would silently corrupt every
+recorded trial, so run them before trusting field numbers.
+
+## Running a trial
+
+1. Print both markers (see `markers/PRINTING.md`) and enter their measured
+   widths under SETUP. Mis-stated width scales every distance proportionally.
+2. Mount the reference marker at the subject/backdrop, facing the shooting area.
+   Leave it there for the whole session.
+3. Attach the stand marker to the light head, facing the way the light points.
+4. Open the app, point it at the reference marker until `ref` reads SEEN, then
+   at the stand marker.
+5. Measure the stand position independently — tape, floor marks, angle finder.
+6. `SAVE TARGET`, then `REC` on.
+7. Move the stand away. `MARK TRIAL`, then use the guidance to bring it back.
+8. When the app reads IN TOLERANCE, measure again with the tape. The gap
+   between the app's claim and the tape is the result; the app's own numbers
+   are not evidence about the app.
+9. Repeat for 20-30+ trials across distances, viewing angles and lighting.
+10. `EXPORT`, then record the outcome per `../../docs/validation/VALIDATION_LOG.md`
+    (VAL-001) and `../../docs/DECISIONS.md`.
+
+## Log format
+
+`EXPORT` writes both formats to `Android/data/com.lightguide.phase0/files/logs/`
+on the device, retrievable with:
+
+```bash
+adb pull /sdcard/Android/data/com.lightguide.phase0/files/logs/
+```
+
+Every length is in **centimetres**, on screen and in both exports, matching the
+tape measure used for ground truth. ARCore works in metres internally; the
+conversion happens once, at the display and logging boundary.
+
+CSV columns: `timestamp_iso, timestamp_ms, session_id, event, trial,
+frame_mode, tracking_state, reference_age_ms, camera_distance_cm, x_cm, y_cm,
+z_cm, pitch_deg, yaw_deg, roll_deg, dx_cm, dy_cm, dz_cm, d_pitch_deg,
+d_yaw_deg, d_roll_deg, position_error_cm, orientation_error_deg,
+in_position_tol, in_orientation_tol, note`.
+
+`camera_distance_cm` is the phone-to-marker distance. It does not depend on
+either frame, so it is the one reading that can be checked against a tape
+immediately - which makes it the fastest way to catch a wrong printed marker
+width, since a width wrong by some ratio scales this distance by the same
+ratio.
+
+`event` is one of `SESSION_START`, `TARGET_SAVED`, `TARGET_CLEARED`,
+`TRIAL_MARK` or `SAMPLE`. Samples are recorded at 10 Hz only while `REC` is on,
+so a log holds deliberate trials rather than every second the app was open. The
+JSON export carries the same rows plus device model, Android version, marker
+widths, tolerances and unit definitions, so an exported file is self-describing
+without this README.
+
+The `MATCH %` shown on screen is a display aid with an arbitrary scale. It is
+not a validation measure — use `position_error_cm` and
+`orientation_error_deg`, against tape ground truth.
+
+## Deliberately not included
+
+No BLE, ESP32, ToF, spectral sensing, IMU fusion, accounts or production UI, per
+the non-goals above. No 3D overlay is drawn on the camera feed either: the point
+is to read numbers and compare them against a tape measure, and a rendered
+augmentation invites judging accuracy by eye instead.
