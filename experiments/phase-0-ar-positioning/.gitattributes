@@ -1,0 +1,7 @@
+# gradlew is executed by /bin/sh; CRLF endings make it unrunnable on
+# Linux/macOS, and Git on Windows would otherwise convert it on checkout.
+gradlew text eol=lf
+
+# Markers must round-trip byte-identical: the printed sheet and the tracked
+# template are the same file, so any rewriting would desynchronise them.
+*.png binary
