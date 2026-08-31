@@ -10,6 +10,9 @@ import com.lightguide.phase0.pose.Tolerances
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileWriter
+import java.io.IOException
+import java.io.Writer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -52,6 +55,24 @@ class MeasurementLogger(private val context: Context) {
     private val rows = ArrayList<Row>()
     private var trial = 0
 
+    /** Directory shared by the live file and the exports. */
+    private val logDir: File
+        get() = File(context.getExternalFilesDir(null), "logs").apply { mkdirs() }
+
+    /**
+     * Written continuously during the session. Deliberately the same path the
+     * CSV export writes, so EXPORT simply rewrites a complete copy over it and
+     * there is only ever one CSV per session to collect.
+     */
+    private val liveFile: File get() = File(logDir, "phase0_$sessionId.csv")
+
+    private var liveWriter: Writer? = null
+
+    /** First live-write failure, surfaced in the status line. Null while healthy. */
+    @Volatile
+    var liveWriteError: String? = null
+        private set
+
     var recording: Boolean = false
         private set
 
@@ -85,11 +106,67 @@ class MeasurementLogger(private val context: Context) {
         trial = 0
     }
 
+    /** Absolute path of the live CSV, for the status line and adb pull. */
+    val livePath: String get() = liveFile.absolutePath
+
     private fun append(row: Row) {
         synchronized(rows) {
             if (rows.size >= MAX_ROWS) return
             rows.add(row)
         }
+        appendToDisk(row)
+    }
+
+    /**
+     * Streams every row to the session CSV as it happens.
+     *
+     * Rows used to live only in memory until EXPORT, so an Android kill or a
+     * crash lost the whole session - a real risk after an hour of trials that
+     * cannot be repeated. The live file is the same format as the export, so a
+     * killed session is still fully analysable.
+     *
+     * A failure here must never take down a trial in progress, so it is
+     * recorded once and then swallowed; the in-memory rows and EXPORT remain
+     * as the backstop.
+     */
+    private fun appendToDisk(row: Row) {
+        try {
+            val writer = liveWriter ?: openLiveWriter() ?: return
+            writer.write(toCsv(row))
+            writer.write("\n")
+            writer.flush()
+        } catch (e: IOException) {
+            if (liveWriteError == null) {
+                liveWriteError = "${e.javaClass.simpleName}: ${e.message}"
+            }
+        }
+    }
+
+    private fun openLiveWriter(): Writer? = try {
+        val fresh = !liveFile.exists() || liveFile.length() == 0L
+        liveFile.parentFile?.mkdirs()
+        FileWriter(liveFile, true).also {
+            if (fresh) {
+                it.write(CSV_HEADER)
+                it.write("\n")
+                it.flush()
+            }
+            liveWriter = it
+        }
+    } catch (e: IOException) {
+        liveWriteError = "${e.javaClass.simpleName}: ${e.message}"
+        null
+    }
+
+    /** Flushes and closes the live file; safe to call more than once. */
+    fun close() {
+        try {
+            liveWriter?.flush()
+            liveWriter?.close()
+        } catch (_: IOException) {
+            // Nothing useful to do while shutting down.
+        }
+        liveWriter = null
     }
 
     private fun buildRow(

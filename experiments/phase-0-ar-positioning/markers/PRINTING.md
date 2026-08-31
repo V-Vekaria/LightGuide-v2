@@ -93,6 +93,21 @@ position. Every saved pose is stored relative to it, which is what makes a pose
 mean the same thing in a later session. Moving it mid-session invalidates any
 target saved before the move.
 
+## Verifying marker quality objectively
+
+Do not judge a marker by eye. Google ships `arcoreimg`, the same scorer ARCore
+uses, in the ARCore Android SDK under `tools/arcoreimg/`. It rates an image
+0-100 for trackability; Google's guidance is 75 or above.
+
+```bash
+arcoreimg eval-img --input_image_path=stand_marker.png
+```
+
+Both markers in this folder score **100/100** (checked 2026-08-31). Re-run it
+after any change to `generate_markers.mjs` - a pattern that looks busy to a
+human can still score badly, and a low score shows up in the field as dropouts
+and jitter rather than as an obvious failure.
+
 ## Regenerating
 
 ```bash

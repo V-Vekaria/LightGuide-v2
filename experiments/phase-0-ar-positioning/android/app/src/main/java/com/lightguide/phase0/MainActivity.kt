@@ -189,6 +189,7 @@ class MainActivity : Activity(), ArRenderer.Listener {
     }
 
     override fun onDestroy() {
+        logger.close()
         session?.close()
         session = null
         super.onDestroy()
@@ -326,6 +327,9 @@ class MainActivity : Activity(), ArRenderer.Listener {
             append("log ").append(logger.rowCount).append(" rows")
             append("  |  trials ").append(logger.trialCount)
             append("  |  rec ").append(if (logger.recording) "ON" else "off")
+            append("  |  ").append(
+                logger.liveWriteError?.let { "DISK WRITE FAILED: $it" } ?: "saved to disk"
+            )
         }
 
         poseView.text = formatPose(state?.reading)
