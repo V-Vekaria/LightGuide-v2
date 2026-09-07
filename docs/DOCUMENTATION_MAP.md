@@ -6,6 +6,7 @@ Use this file to find the authoritative document for each type of decision.
 - `product/PRODUCT_VISION.md` — long-term purpose, target user and product principles.
 - `product/PRD.md` — what V1 must achieve and what is explicitly out of scope.
 - `product/USER_WORKFLOWS.md` — photographer-facing save/recreate/recovery flows.
+- `product/APP_MVP_PLAN.md` — application experience decisions, MoSCoW backlog, user stories and sprint plan aligned with V1.
 - `product/ROADMAP.md` — development phases and exit gates.
 - `product/COMPETITIVE_LANDSCAPE.md` — substitutes, adjacent competitors and differentiation hypothesis.
 
