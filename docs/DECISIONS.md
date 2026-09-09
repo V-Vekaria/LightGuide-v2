@@ -59,13 +59,15 @@ Use the smartphone camera/computation for visual positioning and later subject a
 
 **Status:** DEFERRED
 
-Current candidates:
-- VL53L5CX-class multi-zone ToF;
-- TCS3448-class spectral/light sensor;
-- high-quality orientation sensor;
-- ESP32-S3-class MCU.
+Current evaluation candidates:
+- VL53L5CX 8×8 multi-zone ToF breakout;
+- Adafruit AS7343 14-channel Light/Color breakout (ADA6477);
+- SparkFun BNO086 Qwiic orientation breakout (SEN-22857);
+- ESP32-S3-WROOM-1-N8R8 DevKitC-1-compatible development board.
 
-Do not treat exact part numbers as locked until Phase 0 positioning is complete and system requirements are clearer.
+The AS7343 is the purchased/recommended evaluation direction; earlier documentation mentioning a TCS3448-class device remains an alternative for later comparison, not the ordered evaluation sensor.
+
+Do not treat these exact parts as the production BOM until Phase 0 positioning and subsequent sensor experiments establish that each part adds sufficient value.
 
 ## ADR-007 — Existing manual-target prototype
 
@@ -97,3 +99,21 @@ Not reusable as product truth:
 **Status:** CONFIRMED
 
 Do not continue broad architecture redesign or final hardware purchasing now. Build the Phase-0 AR positioning proof of concept and make the next positioning decision from measured evidence.
+
+## ADR-010 — Prototype evaluation kit does not lock the product BOM
+
+**Status:** CONFIRMED
+
+The September 2026 ESP32-S3 and sensor purchases are an evaluation kit, not a final commercial-hardware decision.
+
+Recorded hardware contexts:
+- university: Arduino Nano 33 BLE Sense and academic sensors;
+- legacy commercial bench implementation: Arduino Nano ESP32 with HC-SR04/LDR and Wi-Fi SoftAP;
+- new evaluation controller: ESP32-S3-WROOM-1-N8R8 DevKitC-1-compatible board;
+- new evaluation sensors: VL53L5CX, BNO086 SEN-22857 and AS7343 ADA6477.
+
+The new board supports BLE, but BLE firmware is not yet implemented. Its pin map and board configuration differ from the existing Arduino Nano ESP32 and must be verified after arrival.
+
+Only the controller order has been verified from an order screenshot. The user reports that the sensor kit was ordered, but exact seller listings/received parts remain unverified until receipts or photographs are checked.
+
+The detailed and authoritative component status is maintained in `V1_BOM.md`.
