@@ -117,3 +117,22 @@ The new board supports BLE, but BLE firmware is not yet implemented. Its pin map
 Only the controller order has been verified from an order screenshot. The user reports that the sensor kit was ordered, but exact seller listings/received parts remain unverified until receipts or photographs are checked.
 
 The detailed and authoritative component status is maintained in `V1_BOM.md`.
+
+## ADR-011 — Phased mobile and spatial stack
+
+**Status:** CONFIRMED
+
+Use native Android/Kotlin with ARCore for Phase 0 and the first physical positioning validation.
+
+If the AR positioning gate passes, build the broader application shell with React Native/TypeScript and Expo Development Builds. Expose Android ARCore through a native module behind a platform-neutral spatial-engine interface. Do not use Expo Go as the product test environment.
+
+iPhone remains a commercial target, but its Swift/ARKit spatial implementation is deferred until Mac/Xcode and physical iPhone test access exist. Cross-platform screen design is not evidence of tested iOS spatial support.
+
+Reasoning:
+- AR positioning is the highest-risk capability and should be tested through the best-supported native Android path;
+- the current Windows development environment and available ARCore phone support Android validation;
+- no Mac is currently available, so promising simultaneous iOS delivery would be untestable;
+- a React Native shell remains appropriate for the larger non-AR product if native spatial engines are isolated;
+- Unity, browser-only delivery and two complete native apps are rejected for the current solo, near-zero-budget stage.
+
+The production-shell choice remains conditional on Phase 0 succeeding; the Phase-0 experiment may be discarded without becoming technical debt.
