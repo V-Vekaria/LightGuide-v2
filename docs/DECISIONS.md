@@ -136,3 +136,19 @@ Reasoning:
 - Unity, browser-only delivery and two complete native apps are rejected for the current solo, near-zero-budget stage.
 
 The production-shell choice remains conditional on Phase 0 succeeding; the Phase-0 experiment may be discarded without becoming technical debt.
+
+## ADR-012 — Lean seven-table application database
+
+**Status:** CONFIRMED — logical prototype design; implementation pending.
+
+Use seven core application tables: profiles, equipment, shoots, setups, setup_versions, images and recreations. Store scene objects, measurements, equipment-at-capture and calibration context in validated, versioned scene snapshots instead of separate per-object/per-measurement tables initially.
+
+Preserve exact target versions, actual recreation snapshots, measurement provenance, ownership, local-first saving, conflict preservation and 30-day Trash. Authentication and local sync/media infrastructure are separate from the seven-table count.
+
+Defer reusable equipment kits, collaboration, dedicated analytics and AI-specific tables until their features are implemented. Preserve required Phase-0 validation logging; do not continuously retain every BLE reading by default.
+
+Reasoning: reduce solo-prototype implementation complexity without removing information needed for recreation. Advanced per-light concurrent editing and cross-setup measurement queries are accepted trade-offs.
+
+This replaces the earlier, more granular database proposal from discussion. It does not replace the native Android/ARCore Phase-0 gate, create a database, migrate existing data or lock production infrastructure.
+
+Authoritative detail and remaining implementation work: [Lean Prototype Database Design](product/DATABASE_DESIGN.md).
