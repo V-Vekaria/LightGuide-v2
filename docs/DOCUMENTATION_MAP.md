@@ -11,7 +11,9 @@ Use this file to find the authoritative document for each type of decision.
 - `product/COMPETITIVE_LANDSCAPE.md` — substitutes, adjacent competitors and differentiation hypothesis.
 
 ## Engineering
-- [product/DATABASE_DESIGN.md](product/DATABASE_DESIGN.md) — agreed seven-table prototype data model, versioned scene snapshots, preservation rules and pending implementation details.
+- [product/DATABASE_DESIGN.md](product/DATABASE_DESIGN.md) — agreed seven-table prototype data model, versioned scene snapshots, preservation rules and links to the detailed implementation specifications.
+- [product/DATABASE_SCHEMA.md](product/DATABASE_SCHEMA.md) — seven-table field/type/constraint specification and structured snapshot format.
+- [product/OFFLINE_SYNC.md](product/OFFLINE_SYNC.md) — save/sync transactions, conflicts, media, deletion recovery and acceptance tests.
 - `V1_PRODUCT_SPEC.md` — current detailed V1 product specification.
 - `V1_ARCHITECTURE.md` — current system architecture.
 - `engineering/ENGINEERING_REQUIREMENTS.md` — measurable technical requirements and targets.
