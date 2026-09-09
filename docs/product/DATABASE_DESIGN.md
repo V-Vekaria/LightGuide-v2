@@ -56,7 +56,7 @@ The snapshot preserves, when available:
 
 Do not store native ARCore/ARKit runtime objects as portable product data. Missing, unsupported, stale or invalid readings must not become fake zero measurements.
 
-Matching tolerance is not sensor accuracy. Record the tolerances used for an attempt so later changes to defaults cannot change historical results. Coordinate conventions, orientation representation and exact field validation remain implementation specifications to finish, not assumptions silently introduced by this document.
+Matching tolerance is not sensor accuracy. Record the tolerances used for an attempt so later changes to defaults cannot change historical results. Coordinate conventions, orientation representation and field validation are now specified in [Database Schema v1](DATABASE_SCHEMA.md); implementing and testing them is still required.
 
 ## Local-first persistence and sync
 
@@ -69,7 +69,7 @@ Keep local operational records separately for:
 - local image paths and media transfer status;
 - current remembered-node configuration and calibration.
 
-The exact local table layout remains to be specified. Local filesystem paths must not become cloud-portable image locations.
+The local operational table layout is specified in [Offline Sync v1](OFFLINE_SYNC.md). Local filesystem paths must not become cloud-portable image locations.
 
 Core safeguards:
 
@@ -105,18 +105,24 @@ It makes independent concurrent edits to individual lights and advanced cross-se
 
 A future migration can extract nested data into tables if demonstrated needs justify it. Preserve stable IDs and snapshot-format versions to make that possible.
 
-## Still to specify before implementation
+## Detailed implementation specification
 
-- Exact columns, types, keys, indexes and ownership constraints.
-- Snapshot validation schema, units, coordinate frames and image-reference rules.
-- Draft persistence and atomic version publication.
-- Revision checking, idempotency, conflicts for non-setup records, and retry protocol.
-- Account attachment for guest records.
-- Trash, media retention, tombstones and permanent-deletion behaviour.
-- Database access policies and tests when cloud access is enabled.
-- Migration and backup/recovery tests.
+The two follow-on specifications now define the baseline:
 
-Approval of this logical design does not mean those engineering details are finished.
+- [Database Schema v1](DATABASE_SCHEMA.md): exact domain fields, types, constraints, snapshot format, coordinate conventions and access rules.
+- [Offline Sync v1](OFFLINE_SYNC.md): local-save transactions, account attachment, revisions, conflict procedures, media, Trash, tombstones, retries and acceptance tests.
+
+See ADR-013 in [DECISIONS.md](../DECISIONS.md). Seven core tables remain unchanged; local/server operational sync tables are explicitly additional infrastructure.
+
+## Remaining implementation and verification
+
+- Write versioned SQLite/PostgreSQL migrations and runtime JSON validators.
+- Implement the specified transactional mutations, private storage access and owner checks.
+- Implement and test the local outbox, conflict UI, guest attachment and media retry worker.
+- Test rollback, backup/recovery, old-format migrations and every sync acceptance scenario.
+- Validate spatial adapters, calibration interpretation and matching behaviour on real hardware.
+
+The database specification is now documented. No database has been deployed and no implementation/acceptance tests are claimed passed. The native Android/ARCore positioning experiment remains the immediate engineering priority.
 
 ## Technical reference
 
