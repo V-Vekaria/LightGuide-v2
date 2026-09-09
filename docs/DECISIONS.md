@@ -152,3 +152,17 @@ Reasoning: reduce solo-prototype implementation complexity without removing info
 This replaces the earlier, more granular database proposal from discussion. It does not replace the native Android/ARCore Phase-0 gate, create a database, migrate existing data or lock production infrastructure.
 
 Authoritative detail and remaining implementation work: [Lean Prototype Database Design](product/DATABASE_DESIGN.md).
+
+## ADR-013 — Prototype schema and offline-sync specification v1
+
+**Status:** CONFIRMED implementation baseline; not implemented or validated.
+
+The seven domain tables in ADR-012 now have a field/type/relationship specification in [DATABASE_SCHEMA.md](product/DATABASE_SCHEMA.md). Structured scene snapshots preserve measurement provenance, calibration context, immutable target versions and actual recreation evidence.
+
+The protocol in [OFFLINE_SYNC.md](product/OFFLINE_SYNC.md) specifies durable local saves, guest attachment, idempotent operation IDs, server-authoritative revisions, preserved setup branches, explicit conflict resolution, private image transfers and deletion/tombstone recovery. Internal local/server sync records are additional infrastructure, not new product features or a claim of seven total physical tables.
+
+Matching defaults retain the user's distance/height tolerance of 0.03 m, direction/tilt 3 degrees, and brightness relative tolerance 0.10. They are application targets, not demonstrated sensor accuracy or a replacement for measured Phase-0 validation criteria.
+
+Implementation details use a versioned engineering baseline: reference coordinates originate at the floor beneath the subject, orientations use explicit platform-neutral quaternions and unknown/stale data cannot qualify for measured Match. These conventions require adapter and validation tests before use.
+
+Cloud sync remains after the positioning gate. Do not build this full backend as a prerequisite for the native Android/ARCore experiment. Required next work is migrations, validators, transactional functions, client integration and acceptance tests—not more database feature expansion.
