@@ -1,10 +1,12 @@
+> LEGACY NANO ESP32 ONLY — not the N8R8 evaluation-kit wiring, firmware or current task list. Dated status/commands below require rechecking before use. Start new work from [the current handoff](../../CLAUDE.md) and [BOM](../../docs/V1_BOM.md).
+
 # firmware/
 
 Two kinds of sketch live here.
 
-## Milestones — the planned path
+## Historical milestones — not the current task queue
 
-Each has its own README with wiring and an acceptance check. Work them in order.
+These sketches belong to the earlier Nano ESP32 implementation. Consult the [dated M5 report](../reports/M5_conformance_acceptance.md) for completed integration evidence; do not restart this sequence for the N8R8 kit.
 
 | Dir | Milestone | Status |
 |---|---|---|
@@ -12,10 +14,10 @@ Each has its own README with wiring and an acceptance check. Work them in order.
 | `00b_display_test/` | M0b — OLED bring-up | ✅ pass |
 | `00c_distance_buzzer/` | M0c — HC-SR04 + buzzer + switch | ✅ pass |
 | `01_sensor_check/` | M1 — distance + light, ADC/Wi-Fi retest | ✅ pass |
-| `02_littlefs_store/` | M2 — persistence | ⬜ next |
-| `03_softap_http/` | M3 — SoftAP + HTTP | 🔒 gated |
-| `04_websocket_live/` | M4 — live frames | ⬜ |
-| `05_integration/` | M5 — one firmware + conformance | ⬜ |
+| `02_littlefs_store/` | M2 — persistence | Historic placeholder; integrated implementation is in 05_integration |
+| `03_softap_http/` | M3 — SoftAP + HTTP | Historic placeholder; integrated implementation is in 05_integration |
+| `04_websocket_live/` | M4 — live frames | Historic placeholder; integrated implementation is in 05_integration |
+| `05_integration/` | M5 — one firmware + conformance | 21/21 legacy hardware conformance recorded on 24 Aug 2026 |
 
 ## Diagnostics — written to answer one question each
 

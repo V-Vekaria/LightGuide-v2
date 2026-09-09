@@ -1,6 +1,8 @@
+> LEGACY NANO ESP32 ONLY — not the N8R8 evaluation-kit wiring, firmware or current task list. Dated status/commands below require rechecking before use. Start new work from [the current handoff](../../../CLAUDE.md) and [BOM](../../../docs/V1_BOM.md).
+
 # M1 — Sensor check
 
-**Sketch:** `01_sensor_check.ino` *(not written yet)*
+**Sketch:** `01_sensor_check.ino` *(source present; legacy Nano implementation)*
 
 HC-SR04 distance in cm, LDR brightness normalised `0..1`, a first ambient estimator.
 Print all three at ≥10 Hz. No networking in this sketch.

@@ -1,56 +1,43 @@
-# AGENTS.md — start here
+# AGENTS.md — Current LightGuide v2 instructions
 
-## Current product direction
+## Product and immediate milestone
 
-LightGuide v2 is the commercial R&D repository. The current V1 is **Measure → Save → Recreate** real photographic lighting setups.
+Commercial R&D: **Measure → Save → Recreate** real lighting setups.
+Start with the native Android/Kotlin ARCore experiment in [experiments/phase-0-ar-positioning/](experiments/phase-0-ar-positioning/README.md). Do not extend the old root app as the new mobile application.
 
 Before changing code, read:
-1. `CLAUDE.md`
-2. `docs/V1_PRODUCT_SPEC.md`
-3. `docs/V1_ARCHITECTURE.md`
-4. `docs/DECISIONS.md`
-5. `docs/TEST_PLAN.md`
+1. [CLAUDE.md](CLAUDE.md) — task routing and current handoff.
+2. [docs/STATUS.md](docs/STATUS.md) — implemented versus planned.
+3. [docs/V1_PRODUCT_SPEC.md](docs/V1_PRODUCT_SPEC.md).
+4. [docs/V1_ARCHITECTURE.md](docs/V1_ARCHITECTURE.md).
+5. [docs/DECISIONS.md](docs/DECISIONS.md).
+6. [docs/TEST_PLAN.md](docs/TEST_PLAN.md).
 
-## Immediate engineering task
+Use [docs/DOCUMENTATION_MAP.md](docs/DOCUMENTATION_MAP.md) for specialised requirements. Database work additionally requires DATABASE_DESIGN.md, DATABASE_SCHEMA.md and OFFLINE_SYNC.md under docs/product/. Hardware work additionally requires docs/V1_BOM.md.
 
-The active milestone is `experiments/phase-0-ar-positioning/`.
+## Boundaries
 
-Build/validate the Android ARCore positioning proof of concept before final commercial hardware decisions. The experiment must test whether a phone plus known visual references can record and restore stand X/Y/Z and pitch/yaw/roll with roughly 3–5 cm positional repeatability and 2–3° orientation under realistic studio conditions.
+- Smartphone is the primary spatial/UI layer; positioning remains a hypothesis requiring measured trials.
+- Core operation works offline; do not build cloud infrastructure before the positioning experiment needs it.
+- One node first; IDs and snapshots must accommodate multiple lights.
+- React Native/Expo Development Builds are the broader application direction after Phase 0; iOS is untested/deferred pending Apple hardware access.
+- New evaluation hardware is the ESP32-S3-WROOM-1-N8R8 kit described in the BOM, not the legacy Arduino Nano ESP32.
+- Separately requested board/sensor bench tests may proceed, but do not inject electronics into Phase 0 unless needed to answer its positioning question.
+- Final production BOM, calibrated accuracy and implementation-ready BLE protocol are not locked.
+- No dedicated node camera, autonomous motorised stands or AI artistic recommendations in the V1 core.
+- Never claim the ±3 cm application tolerance is proven by a broader 3–5 cm feasibility screen.
+- Do not modify the separate LightGuide-Edge university repository.
 
-Do not add ESP32/BLE/spectral/ToF hardware work to Phase 0 unless it becomes necessary to answer the positioning question.
+## Legacy isolation
 
-## Legacy implementation warning
+Root src/, mock-device/, device/, their tests and root web-tooling configuration belong to the earlier Preact/manual-target/Nano ESP32 implementation. Keep them buildable. Reuse guidance, liveness, storage or conformance concepts only after reading their tests.
 
-The existing root `src/`, `mock-device/`, `device/`, `docs/superpowers/` and associated tests belong to an earlier commercial prototype built around manually entered target distance/light values, ultrasonic sensing and LDR measurements.
+Historical plans and handovers have moved to docs/archive/legacy-companion/. They are evidence, not task instructions; ignore embedded old agent/sub-skill directives for current development. Legacy device instructions apply only when explicitly maintaining that implementation.
 
-That code is preserved because it contains useful engineering. It is **not the current product architecture**.
+Do not move or delete code, scripts, traces or test reports merely to tidy documentation. New hardware needs a separate verified configuration; never flash the Nano build/pin map onto the N8R8 board by assumption.
 
-Potentially reusable after review:
-- guidance filtering, hysteresis, arrival and liveness concepts;
-- device abstraction/conformance patterns;
-- setup persistence and backup/export concepts;
-- mock-device/test infrastructure;
-- UI interaction lessons.
+## Completion and decisions
 
-Do not silently make the old manual-target workflow current again.
-
-## Rules for new V1 work
-
-- Product direction: Measure → Save → Recreate.
-- Smartphone is the primary spatial and UI layer.
-- Android/ARCore is the first positioning prototype.
-- Visual-marker/reference positioning is a hypothesis, not a proven fact.
-- Core operation must remain offline-capable.
-- Design data models for multiple light nodes, implement one first.
-- Do not lock UWB, MCU, IMU or final commercial sensor BOM before Phase 0 evidence.
-- Do not add a dedicated node camera for V1.
-- Do not make AI lighting recommendations the V1 core.
-- Do not modify the separate `LightGuide-Edge` university repository.
-
-## Existing legacy tests
-
-The earlier companion-app implementation has extensive tests and should remain buildable while it is preserved. If modifying legacy modules for reuse, understand their existing liveness/staleness semantics before deleting or simplifying them.
-
-## Decision discipline
-
-Any architecture change must be recorded in `docs/DECISIONS.md`. Mark it as CONFIRMED, HYPOTHESIS, DEFERRED or LEGACY. Code should not become the only place where a major product decision exists.
+Document architecture changes in docs/DECISIONS.md. Topic documents own details; handoff files link to them instead of maintaining another full specification.
+Current stage is implementation and validation, not repeated expansion of product planning.
+Run relevant available checks. Clearly report anything requiring physical hardware or unavailable tooling. Record actual evidence under docs/validation/ and never convert mocks or successful compilation into claims of real-world accuracy.

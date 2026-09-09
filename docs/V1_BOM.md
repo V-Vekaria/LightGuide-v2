@@ -16,7 +16,7 @@ The hardware listed below is a **prototype evaluation kit**, not a final product
 
 The Arduino Nano ESP32 and ESP32-S3-WROOM-1-N8R8 DevKitC-style board use the same ESP32-S3 family but have different form factors, pin maps and board targets. Existing wiring and firmware configuration must not be copied blindly.
 
-## Phase 0 — buy/use now
+## Phase 0 — use existing equipment
 
 Use existing/common equipment where possible:
 - ARCore-compatible Android phone;
@@ -56,12 +56,16 @@ These are hypotheses to test. Their presence in the kit is not evidence that all
 |---|---|---|
 | MCU / wireless | ESP32-S3 class; N8R8 DevKit used for evaluation | Provisional |
 | Local depth/distance | VL53L5CX-class 8×8 multi-zone ToF | Provisional |
-| Light/spectral sensing | Compare ordered AS7343 evaluation results with requirements and alternatives such as TCS3448-class devices | Provisional; exact production sensor not locked |
+| Light/spectral sensing | AS7343 ADA6477 evaluation; compare measured results with product requirements | Provisional; exact production sensor not locked |
 | Orientation | BNO086 evaluation board | Provisional; production orientation solution not locked |
-| User status | RGB LED | Likely |
+| User status | Use the board's programmable onboard RGB LED if verified; no separate LED purchase by default | Pin mapping, programmability and visibility to verify |
 | Communication | BLE for core native phone-node link; legacy Wi-Fi retained only as reusable/fallback engineering | Architecture preference |
 | Power | Rechargeable battery + USB-C | Requirement direction |
 | Enclosure | Compact stand-mounted housing with repeatable alignment | Requirement direction |
+
+## Prototype feedback-output decision
+
+Use the onboard programmable RGB LED for prototype status/identification if the actual board test confirms it works. A power-only indicator is not sufficient; exact GPIO mapping depends on the received board. Do not assume a display, buzzer, battery-monitoring circuit or usable pairing-confirmation button is present. The phone provides detailed guidance. This is an evaluation decision, not a final enclosure/status-light design.
 
 ## Specifically not treated as final commercial components
 

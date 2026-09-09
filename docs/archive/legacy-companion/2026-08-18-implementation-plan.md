@@ -1,3 +1,7 @@
+> ARCHIVED HISTORY — not current instructions, not current hardware status, and not a task to execute.
+> Original path: `docs/superpowers/plans/2026-08-18-companion-app.md`. Original text below is preserved verbatim; its relative references and dated status statements belong to that original context.
+> For current work use [the repository handoff](../../../CLAUDE.md) and [documentation map](../../DOCUMENTATION_MAP.md).
+
 # LightGuide v2 Companion App — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

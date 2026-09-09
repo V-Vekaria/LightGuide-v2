@@ -1,58 +1,59 @@
-# LightGuide v2 — AI Handoff
+# LightGuide v2 — Current Build Handoff
 
-## Current product truth
+## Start here
 
-LightGuide v2 is the commercial R&D project. Current V1 is **Measure → Save → Recreate** for real photographic lighting setups.
+Read [AGENTS.md](AGENTS.md), [current status](docs/STATUS.md) and the [documentation map](docs/DOCUMENTATION_MAP.md). This file is a short entry point; topic documents own the details.
 
-Do not revert the product to the older manual-target concept where a photographer enters a distance such as 50 cm and an ultrasonic/LDR node guides them to it. That implementation remains in this repository only as legacy reference and a source of potentially reusable engineering.
+Current product: **Measure → Save → Recreate** real photographic lighting setups, Android first, offline core, one physical node initially.
 
-## Current V1 architecture
+Planning is sufficient to begin bounded implementation. It is not evidence that positioning, the new sensors, BLE or cloud sync work.
 
-- Smartphone is the primary spatial-computing and UI layer.
-- Android/ARCore is the first positioning prototype target.
-- Known visual marker/reference on each node is the first positioning hypothesis.
-- Phone establishes a world/reference frame and estimates node X/Y/Z plus pitch/yaw/roll.
-- Future node communicates over BLE.
-- Proposed future node sensing: VL53L5CX-class multi-zone ToF, TCS3448-class spectral/light sensing, and a suitable orientation sensor.
-- Final MCU/IMU/UWB choices are not locked until positioning validation.
-- Core Measure/Save/Recreate workflow must work offline.
-- Architecture should support multiple light nodes, but only one node is built first.
+## What to work on next
 
-## Immediate task
+For an application-build request without a more specific milestone, start in [experiments/phase-0-ar-positioning/](experiments/phase-0-ar-positioning/README.md):
+1. Inspect the existing experiment and state what is implemented.
+2. Build the smallest native Kotlin/Android ARCore capture/save/recreate experiment.
+3. Establish a repeatable subject/studio reference; capture a light pose; save it locally; calculate return guidance.
+4. Never confirm Match with stale or invalid tracking.
+5. Add timestamped trial logging and give the user exact on-phone/physical validation steps.
+6. Report builds/tests actually run and what requires the user's phone. Do not fabricate validation results.
 
-Build and validate `experiments/phase-0-ar-positioning/` before finalising commercial hardware.
+Do not start the entire cloud-backed application or extend the root legacy Preact app as though it were the chosen mobile architecture.
 
-The experiment must:
-1. detect a known-size visual marker attached to a light stand;
-2. record pose X/Y/Z and pitch/yaw/roll relative to a stable subject/studio reference;
-3. save that pose;
-4. allow the stand to be moved;
-5. compute current-vs-saved delta;
-6. guide the user back to the saved pose;
-7. log measured error against independent ground truth.
+The broader direction after the positioning gate is React Native/TypeScript with Expo Development Builds and native spatial adapters. iOS implementation/testing waits for Mac/Xcode and iPhone access. See [architecture](docs/V1_ARCHITECTURE.md) and ADR-011.
 
-Initial engineering gate: approximately 3–5 cm positional repeatability and 2–3° orientation under realistic studio conditions. Treat these as test targets, not marketing claims.
+## Hardware work
 
-## Do not do yet
+For an explicitly requested hardware task, use [V1_BOM.md](docs/V1_BOM.md):
+- evaluation controller: ESP32-S3-WROOM-1-N8R8 DevKitC-1-compatible board;
+- evaluation sensors: VL53L5CX, BNO086 SEN-22857 and AS7343 ADA6477;
+- only the controller order is screenshot-verified; exact received sensor variants still need verification;
+- verify the exact board, pin map, voltage requirements and each sensor before combined wiring;
+- use the onboard programmable RGB LED if confirmed working; do not add a separate LED by default;
+- do not assume OLED, buzzer, battery measurement or a suitable user-confirmation button exists;
+- keep new-board work separate from the legacy Nano ESP32 firmware and wiring.
 
-- Do not order/finalise a full commercial sensor BOM.
-- Do not lock UWB unless AR validation demonstrates it is needed.
-- Do not put a dedicated camera into the LightGuide node for V1.
-- Do not build an AI lighting-recommendation engine as the V1 core.
-- Do not modify the separate `LightGuide-Edge` university repository.
+Component bench tests can proceed as a separately requested task, but do not replace the phone-positioning gate. BLE behaviour is planned; its implementation-ready GATT/security/message contract and firmware are not finished. Production hardware remains unselected.
 
-## Existing code
+## Database implementation handoff
 
-Potentially reusable: guidance filtering/stability logic, device abstraction/conformance concepts, setup storage, backup/export concepts and mock-device testing. Reuse only after checking fit with the current architecture.
+Seven core domain tables with validated scene snapshots:
+- [logical design](docs/product/DATABASE_DESIGN.md);
+- [fields, relationships and snapshot format](docs/product/DATABASE_SCHEMA.md);
+- [offline sync, conflicts, media and deletion](docs/product/OFFLINE_SYNC.md).
 
-## Sources of truth
+These are specifications, not deployed migrations or passed tests. Internal sync records are additional infrastructure. Do not make a full backend a prerequisite for Phase 0.
 
-Read in this order:
-1. `docs/V1_PRODUCT_SPEC.md`
-2. `docs/V1_ARCHITECTURE.md`
-3. `docs/DECISIONS.md`
-4. `docs/POSITIONING_RESEARCH.md`
-5. `docs/TEST_PLAN.md`
-6. this file
+Application distance/height matching defaults are ±3 cm; direction/tilt ±3 degrees; brightness ±10%; spectral comparison experimental. These are tolerances, not proven accuracy. The broader historical 3–5 cm Phase-0 screening range does not prove the tighter application target; evaluate both separately.
 
-When a new architectural decision is made, record it in `docs/DECISIONS.md` before allowing code to make the decision implicit.
+## Legacy boundary
+
+Root src/, mock-device/ and device/ contain the earlier manual-target Preact + Nano ESP32 implementation. Preserve their code, tests and recorded evidence; reuse only after checking fit. Root npm build/test success is not an Android/AR/BLE validation result.
+
+Old plans and handover history are in [the archive](docs/archive/legacy-companion/README.md); do not execute them as current instructions. Do not modify the separate LightGuide-Edge university repository.
+
+## Decision and delivery discipline
+
+Use [DECISIONS.md](docs/DECISIONS.md) and the topic owners in the map to resolve old conflicting prose. If authoritative current requirements genuinely conflict, flag the conflict rather than guessing.
+
+Work in small reviewable milestones. Preserve unrelated work. State implemented, simulated, untested and blocked items separately. Update current status and validation evidence after real work; a planning decision never counts as a passed test.

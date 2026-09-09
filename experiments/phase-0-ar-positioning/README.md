@@ -26,10 +26,10 @@ UP         7 cm
 FORWARD   11 cm
 ROTATE     6°
 TILT       4°
-MATCH      72%
+STATUS     NOT MATCHED
 ```
 
-The exact UI is not important for the first technical test.
+The exact UI is not important for the first technical test. Do not invent a percentage match/confidence score. Use explicit matched/not-matched/unverifiable states and show stale or lost tracking.
 
 ## Coordinate-frame requirement
 
@@ -45,7 +45,9 @@ Initial gate:
 - acceptable relocalisation and detection time;
 - practical marker size/visibility.
 
-See `../../docs/TEST_PLAN.md` and `../../docs/POSITIONING_RESEARCH.md` before implementation.
+The 3–5 cm range is only a feasibility screen. The application uses ±3 cm distance/height tolerances; separately evaluate whether the measured system supports them. Do not claim a tighter capability from a looser screening result.
+
+See [TEST_PLAN.md](../../docs/TEST_PLAN.md), [POSITIONING_RESEARCH.md](../../docs/POSITIONING_RESEARCH.md) and the [current handoff](../../CLAUDE.md) before implementation.
 
 ## First implementation sequence
 
@@ -58,7 +60,7 @@ See `../../docs/TEST_PLAN.md` and `../../docs/POSITIONING_RESEARCH.md` before im
 7. Add basic directional guidance.
 8. Add CSV/JSON trial logging.
 9. Run physical validation.
-10. Record pass/conditional-pass/fail in `docs/DECISIONS.md`.
+10. Record measured evidence in [VALIDATION_LOG.md](../../docs/validation/VALIDATION_LOG.md) and the resulting decision in [DECISIONS.md](../../docs/DECISIONS.md).
 
 ## Non-goals for Phase 0
 

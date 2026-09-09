@@ -1,53 +1,17 @@
-# LightGuide ESP32
+# Legacy Nano ESP32 firmware
 
-**Device-side firmware for the LightGuide v2 companion app.**
-Arduino Nano ESP32 (ESP32-S3) · started 19 August 2026 · **skeleton, no firmware yet**
+This directory is the earlier Arduino Nano ESP32 + HC-SR04/LDR prototype using Wi-Fi SoftAP, HTTP and WebSocket. It is preserved for reuse and regression testing, not as the current mobile/BLE product.
 
-The app in this repo is finished and reviewed, but has only ever talked to a mock device.
-This is the firmware that replaces that mock with real hardware.
+Start new work with [the root handoff](../CLAUDE.md) and [current hardware BOM](../docs/V1_BOM.md). For explicit legacy maintenance read [AGENTS.md](AGENTS.md) and [STATUS.md](STATUS.md).
 
----
+The [M5 report](reports/M5_conformance_acceptance.md) records 21/21 legacy hardware-contract tests on 24 August 2026. Firmware source exists in [firmware/05_integration/](firmware/05_integration/README.md); the old "skeleton/no firmware" statement was obsolete. No new test run is claimed.
 
-## Read this first
+## Retained engineering material
 
-**[`AGENTS.md`](AGENTS.md)** — the contract. Scope, the one rule, the milestone list, the
-progress log. Start every session there.
-**[`STATUS.md`](STATUS.md)** — what to do next, in one screen.
+- [Board records](docs/00-BOARD.md): historic Nano-specific wiring/toolchain evidence, not N8R8 instructions.
+- [API notes](docs/01-API-CONTRACT.md): legacy compatibility context.
+- [Firmware index](firmware/README.md): old probes and integration.
+- [Run notes](RUN.md): legacy commands; verify actual device before use.
+- [Reports](reports/M5_conformance_acceptance.md): recorded acceptance evidence.
 
-| Doc | What it holds |
-|---|---|
-| [`docs/00-BOARD.md`](docs/00-BOARD.md) | Verified board facts, toolchain state, **and the 5 V / ADC2 hazards — read before wiring** |
-| [`docs/01-API-CONTRACT.md`](docs/01-API-CONTRACT.md) | The HTTP + WebSocket surface the firmware must serve |
-| [`docs/02-MILESTONES.md`](docs/02-MILESTONES.md) | Six steps with acceptance checks |
-| [`docs/03-OPEN-DECISIONS.md`](docs/03-OPEN-DECISIONS.md) | Five decisions, two of which block milestone 3 |
-| [`RUN.md`](RUN.md) | Every command, in order |
-
-## Layout
-
-```
-firmware/    one sketch per milestone, 00 → 05
-docs/        the plan and the contract
-tools/       host-side scripts (serial sniffing, flashing helpers)
-reports/     acceptance evidence as milestones pass
-```
-
-## How this fits the repo
-
-| Path | What it is |
-|---|---|
-| `../src` | the companion app — Preact, 15.89 KB gz |
-| `../mock-device` | the mock this firmware replaces |
-| `../.superpowers/sdd/device-contract-report.md` | **the authoritative device contract** |
-| `device/` (here) | the firmware |
-
-App and firmware are versioned together on purpose: the firmware serves the app's built
-bundle from flash, so a mismatched pair is not a working product.
-
-## Elsewhere
-
-| Repo | What it is | Status |
-|---|---|---|
-| `../../LightGuide-Edge` | v1, COM683 CW2, Nano 33 BLE Sense | **Submitted and frozen — do not touch** |
-
-> v1 is a different SoC with different pins and **no on-board sensors on this board**.
-> Very little carries over — see [`docs/00-BOARD.md`](docs/00-BOARD.md) §2.
+Old milestone/open-decision notes are historical. They must not restart completed work or override the new architecture.

@@ -1,6 +1,8 @@
+> LEGACY NANO ESP32 ONLY — not the N8R8 evaluation-kit wiring, firmware or current task list. Dated status/commands below require rechecking before use. Start new work from [the current handoff](../../../CLAUDE.md) and [BOM](../../../docs/V1_BOM.md).
+
 # M0 — Board probe
 
-**Sketch:** `00_board_probe.ino` *(not written yet)*
+**Sketch:** `00_board_probe.ino` *(source present; legacy Nano implementation)*
 
 Establish the board is healthy and learn its real parameters. Report over serial:
 chip model/revision/CPU/MAC, flash size and **partition table**, PSRAM, an I²C scan

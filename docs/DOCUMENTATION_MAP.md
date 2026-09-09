@@ -2,6 +2,10 @@
 
 Use this file to find the authoritative document for each type of decision.
 
+## Start here
+- [Current build handoff](../CLAUDE.md) — next task and platform/hardware boundaries.
+- [Current project status](STATUS.md) — what is documented, implemented and unvalidated.
+
 ## Product
 - `product/PRODUCT_VISION.md` — long-term purpose, target user and product principles.
 - `product/PRD.md` — what V1 must achieve and what is explicitly out of scope.
@@ -43,3 +47,7 @@ These should be created when the project reaches the relevant maturity, not befo
 - compliance/certification plan;
 - service/support plan;
 - launch/marketing plan.
+
+## Historical material — not current instructions
+- [Legacy companion archive](archive/legacy-companion/README.md) — superseded plans and app/firmware handover history.
+- The retained root web app and device/ source are legacy engineering; their tests do not validate the Android AR or N8R8 BLE product.

@@ -118,13 +118,15 @@ A saved light configuration should ultimately support a vector such as:
 
 - node identity;
 - position relative to subject/studio frame: X, Y, Z;
-- orientation: pitch, yaw, roll;
+- orientation: platform-neutral quaternion in the documented reference frame, with derived pitch/yaw/roll for display;
 - local distance/depth observations;
 - illumination/spectral measurements;
 - optional light/modifier metadata;
 - timestamp and calibration metadata.
 
 V1 should store enough information to recreate physical state. AI interpretation is not required for the core loop.
+
+The authoritative application persistence specification is the [seven-table design](product/DATABASE_DESIGN.md), [schema/snapshot format](product/DATABASE_SCHEMA.md) and [offline-sync procedure](product/OFFLINE_SYNC.md). These documents specify implementation work; they do not indicate an already deployed database.
 
 ## Multi-light model
 

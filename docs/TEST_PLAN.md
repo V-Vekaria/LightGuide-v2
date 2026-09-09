@@ -75,6 +75,8 @@ Preferred result:
 - low failure/outlier rate;
 - acceptable marker and scanning workflow.
 
+The 3–5 cm range is a broad feasibility screen, not the application's match tolerance. The agreed application defaults are ±3 cm for distance/height and ±3 degrees for direction/tilt. Report error distributions and the fraction meeting the tighter target separately; passing the broader screen does not prove ±3 cm accuracy. Preserve original failed/outlier trials.
+
 If results are materially worse, investigate reference/marker improvements first, then sensor fusion/UWB if needed.
 
 ## Later V1 system tests

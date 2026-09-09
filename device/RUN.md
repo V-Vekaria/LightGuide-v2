@@ -1,3 +1,5 @@
+> LEGACY NANO ESP32 ONLY — not the N8R8 evaluation-kit wiring, firmware or current task list. Dated status/commands below require rechecking before use. Start new work from [the current handoff](../CLAUDE.md) and [BOM](../docs/V1_BOM.md).
+
 # RUN — every command, in order
 
 Paths assume this folder is the working directory.
@@ -7,7 +9,7 @@ Paths assume this folder is the working directory.
 
 ## 0. One-time setup
 
-Install the ESP32 core (**~1 GB**, not yet installed):
+Historical setup command for a fresh legacy environment; check what is already installed before running:
 
 ```bash
 arduino-cli core install arduino:esp32

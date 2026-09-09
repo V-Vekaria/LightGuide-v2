@@ -65,7 +65,7 @@ Current evaluation candidates:
 - SparkFun BNO086 Qwiic orientation breakout (SEN-22857);
 - ESP32-S3-WROOM-1-N8R8 DevKitC-1-compatible development board.
 
-The AS7343 is the purchased/recommended evaluation direction; earlier documentation mentioning a TCS3448-class device remains an alternative for later comparison, not the ordered evaluation sensor.
+AS7343 ADA6477 is the recommended evaluation direction; exact sensor receipt is still unverified. Superseded unnamed/alternative sensor suggestions are not current hardware instructions; use V1_BOM.md for authoritative component status.
 
 Do not treat these exact parts as the production BOM until Phase 0 positioning and subsequent sensor experiments establish that each part adds sufficient value.
 
@@ -166,3 +166,17 @@ Matching defaults retain the user's distance/height tolerance of 0.03 m, directi
 Implementation details use a versioned engineering baseline: reference coordinates originate at the floor beneath the subject, orientations use explicit platform-neutral quaternions and unknown/stale data cannot qualify for measured Match. These conventions require adapter and validation tests before use.
 
 Cloud sync remains after the positioning gate. Do not build this full backend as a prerequisite for the native Android/ARCore experiment. Required next work is migrations, validators, transactional functions, client integration and acceptance tests—not more database feature expansion.
+
+## ADR-014 — Current handoff cleanup and legacy isolation
+
+**Status:** CONFIRMED documentation maintenance; no product implementation or validation claim.
+
+At the user's request, remove obsolete plans and stale handover details from active entry points. Move the August companion implementation/design plans and previous app/firmware handover snapshots into docs/archive/legacy-companion/. Preserve their original text as dated evidence, not instructions.
+
+Refresh root CLAUDE.md, AGENTS.md, README.md and current status with the Android-first route, N8R8/VL53L5CX/BNO086/AS7343 evaluation kit, seven-table schema/sync links and validation boundaries. Replace the legacy device's stale skeleton/milestone instructions with explicit maintenance-only guidance. Label retained legacy wiring/command notes.
+
+Retain legacy code, scripts, traces, dependency files and acceptance reports at their existing paths so reference builds are not broken. Remove obsolete sensor alternatives from active guidance. Reuse the onboard programmable RGB LED if verified; do not assume other feedback hardware exists.
+
+The ±3 cm application matching default remains distinct from the historical 3–5 cm feasibility screen; both must be evaluated honestly. Neither documentation cleanup nor completed planning finalises production hardware, proves sensor/AR accuracy or supplies an implemented BLE/database system.
+
+Recovery: archived originals and the parent Git commit retain the pre-cleanup material. No source or measured test evidence is discarded.

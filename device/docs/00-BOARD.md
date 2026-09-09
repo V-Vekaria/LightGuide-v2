@@ -1,3 +1,5 @@
+> LEGACY NANO ESP32 ONLY — not the N8R8 evaluation-kit wiring, firmware or current task list. Dated status/commands below require rechecking before use. Start new work from [the current handoff](../../CLAUDE.md) and [BOM](../../docs/V1_BOM.md).
+
 # 00 — Board facts and hardware constraints
 
 Everything in §1 was **observed on the actual board**, not read from a datasheet.

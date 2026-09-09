@@ -1,3 +1,5 @@
+> LEGACY NANO ESP32 ONLY — not the N8R8 evaluation-kit wiring, firmware or current task list. Dated status/commands below require rechecking before use. Start new work from [the current handoff](../../../CLAUDE.md) and [BOM](../../../docs/V1_BOM.md).
+
 # M0b — Display bring-up
 
 **Sketch:** `00b_display_test.ino`

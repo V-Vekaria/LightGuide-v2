@@ -26,7 +26,7 @@ The intended workflow is:
 
 ## Current engineering milestone
 
-The next milestone is **Phase 0: AR positioning validation**. Before finalising commercial electronics or ordering a full sensor stack, we must prove that phone-based spatial positioning is accurate and usable enough in a real studio.
+The next milestone is **Phase 0: AR positioning validation**. Before finalising production electronics or integrating the whole product, we must prove that phone-based spatial positioning is accurate and usable enough in a real studio. The already selected evaluation kit can be checked independently; it does not bypass this gate.
 
 Initial acceptance targets for the experiment are approximately:
 
@@ -35,7 +35,9 @@ Initial acceptance targets for the experiment are approximately:
 - reliable relocalisation after moving the stand;
 - usable marker detection at realistic studio distances and viewing angles.
 
-These are engineering targets, not product claims. If phone AR cannot meet the requirement reliably, the positioning architecture will be augmented or replaced, with UWB/sensor fusion as a candidate fallback.
+These are broad feasibility-screening targets, not product claims. The application's tighter distance/height matching defaults are ±3 cm; passing a 3–5 cm screen does not establish that capability. See the schema and engineering requirements for the distinction. If phone AR cannot meet the requirement reliably, the positioning architecture will be augmented or replaced, with UWB/sensor fusion as a candidate fallback.
+
+Start with [CLAUDE.md](CLAUDE.md), [current status](docs/STATUS.md) and [the documentation map](docs/DOCUMENTATION_MAP.md).
 
 See:
 
@@ -47,7 +49,21 @@ See:
 - [`CLAUDE.md`](CLAUDE.md)
 - [`experiments/phase-0-ar-positioning/README.md`](experiments/phase-0-ar-positioning/README.md)
 
+## Application and data specification
+
+The broader application direction is React Native/TypeScript with Expo Development Builds after the native Android experiment; iOS awaits appropriate development/test hardware.
+
+- [Application scope and backlog](docs/product/APP_MVP_PLAN.md)
+- [Seven-table database design](docs/product/DATABASE_DESIGN.md)
+- [Fields and snapshot format](docs/product/DATABASE_SCHEMA.md)
+- [Offline-sync procedures](docs/product/OFFLINE_SYNC.md)
+- [Exact evaluation-kit status](docs/V1_BOM.md)
+
+These are implementation plans, not claims of deployed databases, working new-node BLE or validated accuracy.
+
 ## Legacy commercial prototype
+
+Old companion-app plans and dated handovers have been removed from active paths and placed in [the legacy archive](docs/archive/legacy-companion/README.md).
 
 The existing Preact/TypeScript companion app, mock device, guidance logic and `device/` firmware work predate the current architecture. Preserve them as reference unless a later migration decision explicitly replaces them.
 

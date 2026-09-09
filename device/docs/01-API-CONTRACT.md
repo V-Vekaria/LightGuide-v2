@@ -1,15 +1,10 @@
+> LEGACY NANO ESP32 ONLY — not the N8R8 evaluation-kit wiring, firmware or current task list. Dated status/commands below require rechecking before use. Start new work from [the current handoff](../../CLAUDE.md) and [BOM](../../docs/V1_BOM.md).
+
 # 01 — Device API contract
 
-> ## ⚠️ This file is NOT the contract. It is a pointer.
+> LEGACY HTTP/WebSocket compatibility notes only. The old external report pointers were unavailable in the current tree and are not the new BLE specification.
 >
-> **The authoritative firmware-facing spec is, in two parts:**
-> **`../../.superpowers/sdd/device-contract-report.md` §1** — the setup library, the
-> active target and the live feed.
-> **`../../.superpowers/sdd/device-connection-report.md` §1** — `GET /api/info`: identity,
-> firmware version, protocol version and per-sensor health.
->
-> Read both before writing any endpoint. Between them they state every route, status code
-> and validation rule, with the reasoning for each.
+> For existing behaviour inspect [types](../../src/contract/types.ts), [HTTP client](../../src/device/http-client.ts), [conformance tests](../../src/device/conformance.http.test.ts) and [firmware API](../firmware/05_integration/api.cpp). Resolve any inconsistency with code and dated reports before maintenance.
 
 **Why a pointer and not a copy:** on 20 August 2026 this file *was* a copy, written from
 `progress.md`. The app had moved on, `progress.md` had been superseded, and the copy was
@@ -63,10 +58,10 @@ Established during bring-up; see `reports/M1_sensor_check_acceptance.md`.
 - `distance_cm` is centimetres. The HC-SR04 reports **no target as a ~130 ms HIGH pulse** —
   map that to `null`. See `docs/00-BOARD.md` §4c.
 
-## 4. Division of responsibility — settled, do not revisit
+## 4. Original division of responsibility — historical, not current V1 policy
 
 > **The device measures; the app computes.**
 
-No verdicts, deltas or instruction wording in firmware. Guidance copy and tolerances change
+Original design note (do not treat this as a description of current firmware without checking the source): no verdicts, deltas or instruction wording in firmware. Guidance copy and tolerances change
 without reflashing. This is why the buzzer is still an open question (**D6**) rather than an
 obvious feature.
