@@ -61,7 +61,11 @@ Power, modifier, distance, height, direction, tilt, colour temperature and notes
 
 ### Equipment workflow
 
-The inventory grows progressively rather than requiring full studio cataloguing during onboarding. Reusable kits reduce repeated selection. Capability data matters more than brand names for future substitutions.
+The inventory grows progressively rather than requiring full studio cataloguing during onboarding. In the initial lean application prototype, select equipment individually; reusable kits remain a deferred Should feature. Capability data matters more than brand names for future substitutions.
+
+### Database design decision
+
+The agreed logical prototype model uses seven core application tables and structured setup-version snapshots. See [Lean Prototype Database Design](DATABASE_DESIGN.md) and ADR-012 in [DECISIONS.md](../DECISIONS.md). Measurement provenance, historical versions, ownership and offline-sync safeguards remain required. This is a documented design, not an implemented database, and does not change the Phase-0 positioning priority.
 
 ### Device workflow
 
