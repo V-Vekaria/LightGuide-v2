@@ -236,10 +236,9 @@ class PoseMathTest {
     }
 
     @Test
-    fun `an exactly matched pose reports full match`() {
+    fun `an exactly matched pose is in tolerance on both axes`() {
         val pose = Transform(Vec3(0.4f, 1.7f, 2.2f), rotY(15f))
         val result = Guidance.compute(PoseDelta.between(pose, pose), Tolerances())
-        assertEquals(100, result.matchPercent)
         assertTrue(result.allInTolerance)
     }
 

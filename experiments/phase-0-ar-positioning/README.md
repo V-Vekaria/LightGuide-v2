@@ -161,7 +161,13 @@ CSV columns: `timestamp_iso, timestamp_ms, session_id, event, trial,
 frame_mode, tracking_state, reference_age_ms, camera_distance_cm, x_cm, y_cm,
 z_cm, pitch_deg, yaw_deg, roll_deg, dx_cm, dy_cm, dz_cm, d_pitch_deg,
 d_yaw_deg, d_roll_deg, position_error_cm, orientation_error_deg,
-in_position_tol, in_orientation_tol, note`.
+in_position_tol, in_orientation_tol, match_state, note`.
+
+`in_position_tol` and `in_orientation_tol` are blank rather than true/false
+whenever `match_state` is not `in_tolerance`/`out_of_tolerance` - an inferred
+stand pose, a stale reference, lost camera tracking or an incompatible saved
+target all read as `unverifiable`, and a blank flag cannot be misread later as
+a real pass/fail. See "Hardening" below.
 
 `camera_distance_cm` is the phone-to-marker distance. It does not depend on
 either frame, so it is the one reading that can be checked against a tape
@@ -176,7 +182,18 @@ JSON export carries the same rows plus device model, Android version, marker
 widths, tolerances and unit definitions, so an exported file is self-describing
 without this README.
 
-The recovered UI still displays an arbitrary `MATCH %`. This conflicts with current requirements and must be removed before new physical testing. The inherited defaults are 4 cm / 2.5 degrees, not the agreed 3 cm / 3 degrees. Follow the source-audit hardening milestone before using this app to assert a valid match; recorded deltas are not independent ground truth.
+## Hardening (M0, 2026-09-10)
+
+The [source audit](../../docs/validation/AR_SOURCE_AUDIT_2026-09-10.md) gaps are addressed in source, with JVM tests in `android/app/src/test/`:
+
+- **Tolerance profile.** Defaults are now 3 cm / 3 degrees. A value from before this change (most notably the old 4 cm / 2.5 degree default) is only still in effect if it was explicitly saved via SETUP > Apply on a device that had this app installed previously; the status line marks it `(INHERITED - not the 3cm/3deg profile)` rather than silently presenting it as current. A fresh install reads `(profile)`.
+- **No cosmetic match percentage.** The verdict is one of `IN TOLERANCE`, `OUT OF TOLERANCE` or `UNVERIFIABLE`, logged as `match_state` on every row. There is no arbitrary percentage anywhere in the UI or exports.
+- **Inferred vs. observed pose.** ARCore reports `TrackingState.TRACKING` for a while after an augmented image leaves view, via `TrackingMethod.LAST_KNOWN_POSE`. The app now distinguishes that from `FULL_TRACKING`; an inferred stand pose can still be displayed (useful for the operator) but cannot arm `SAVE TARGET` and always reads `UNVERIFIABLE`, never a numeric pass.
+- **Reference freshness.** A reference marker's last *actual* detection (not an inferred one) must be under 5 seconds old (`REFERENCE_MAX_AGE_MS` in `pose/Models.kt`) or the frame is `UNVERIFIABLE` and capture is blocked, even though `frame` may still read `REFERENCE`.
+- **Reference/configuration identity.** A saved target now records the marker widths in effect when it was captured. Comparing it against a reading taken under different SETUP widths - or a pre-hardening save with no recorded widths at all - is refused (`targetConfigMismatch`) exactly like the existing different-frame case, with an on-screen reason. A pre-hardening saved target fails to load and must be re-saved.
+- **Pause/session-change clearing.** The last on-screen reading is cleared on `onPause` so a resume cannot briefly show pre-pause data as current, and a reference latched under a since-replaced `Session` (camera error recovery, or a marker-width change) is discarded rather than reused.
+
+None of this is a physical accuracy result. It makes the numbers the app already produced trustworthy to log; VAL-001-003 in [VALIDATION_LOG.md](../../docs/validation/VALIDATION_LOG.md) remain planned until real trials run.
 
 ## Deliberately not included
 
