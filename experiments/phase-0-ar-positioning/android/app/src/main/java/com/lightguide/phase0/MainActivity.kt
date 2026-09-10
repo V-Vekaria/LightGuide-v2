@@ -33,7 +33,10 @@ import com.lightguide.phase0.log.MeasurementLogger
 import com.lightguide.phase0.pose.FrameMode
 import com.lightguide.phase0.pose.M_TO_CM
 import com.lightguide.phase0.pose.MarkerSizes
+import com.lightguide.phase0.pose.MatchState
+import com.lightguide.phase0.pose.ObservationKind
 import com.lightguide.phase0.pose.Reading
+import com.lightguide.phase0.pose.ToleranceSource
 import com.lightguide.phase0.pose.Tolerances
 import java.util.Locale
 
@@ -84,6 +87,8 @@ class MainActivity : Activity(), ArRenderer.Listener {
         displayRotationHelper = DisplayRotationHelper(this)
         renderer = ArRenderer(displayRotationHelper, this)
         renderer.target = store.loadTarget()
+        renderer.referenceConfig = store.markerSizes
+        renderer.tolerances = store.tolerances
 
         bindViews()
         applyWindowInsets()
@@ -92,7 +97,8 @@ class MainActivity : Activity(), ArRenderer.Listener {
 
         logger.logEvent(
             MeasurementLogger.EventType.SESSION_START,
-            "app session ${logger.sessionId}",
+            "app session ${logger.sessionId} | tol source ${store.toleranceSource}",
+            null,
             null,
             store.tolerances,
         )
@@ -186,6 +192,9 @@ class MainActivity : Activity(), ArRenderer.Listener {
         surface.onPause()
         session?.pause()
         main.removeCallbacksAndMessages(null)
+        // Otherwise a resume could briefly redraw the pre-pause reading as if
+        // it were current, before the GL thread delivers a fresh ArState.
+        latestState = null
     }
 
     override fun onDestroy() {
@@ -227,6 +236,9 @@ class MainActivity : Activity(), ArRenderer.Listener {
             session?.close()
             session = null
             renderer.session = null
+            // The next resume creates a new Session/tracking graph; a
+            // reference latched under the old one must not carry over.
+            renderer.resetReference()
             sessionError = "Camera not available: ${e.message}"
         }
     }
@@ -281,7 +293,7 @@ class MainActivity : Activity(), ArRenderer.Listener {
         val now = System.currentTimeMillis()
         if (now - lastSampleLogMs < SAMPLE_LOG_INTERVAL_MS) return
         lastSampleLogMs = now
-        logger.logSample(reading, state.cameraTracking.name, store.tolerances)
+        logger.logSample(reading, state.matchState, state.cameraTracking.name, store.tolerances)
     }
 
     // -------------------------------------------------------------- UI --
@@ -323,6 +335,15 @@ class MainActivity : Activity(), ArRenderer.Listener {
             append("  |  target ").append(
                 if (target == null) "none" else "${target.frameMode.name} @ ${target.label}"
             )
+            append("  |  tol ").append(fmt(tolerances.positionCm)).append("cm/")
+                .append(fmt(tolerances.orientationDeg)).append("deg")
+            append(
+                when (store.toleranceSource) {
+                    ToleranceSource.PROFILE_DEFAULT -> " (profile)"
+                    ToleranceSource.EXPLICIT_MATCHING_PROFILE -> " (saved)"
+                    ToleranceSource.EXPLICIT_DIFFERENT_FROM_PROFILE -> " (INHERITED - not the 3cm/3deg profile)"
+                }
+            )
             append('\n')
             append("log ").append(logger.rowCount).append(" rows")
             append("  |  trials ").append(logger.trialCount)
@@ -356,27 +377,57 @@ class MainActivity : Activity(), ArRenderer.Listener {
     }
 
     private fun formatGuidance(state: ArRenderer.ArState?, tolerances: Tolerances): String {
-        if (state?.targetFrameMismatch == true) {
-            return "Target was saved in a different frame than the current one.\n" +
-                "Scan the REF marker again, or clear the target."
+        if (state?.targetIncompatible == true) {
+            return state.targetIncompatibleReason.orEmpty()
         }
         val delta = state?.reading?.delta ?: return "no target saved / no delta"
         return Guidance.compute(delta, tolerances).steps.joinToString("\n") { it.format() }
     }
 
+    /**
+     * Shows the raw numeric error whenever it exists, but the leading verdict
+     * word is always [ArRenderer.ArState.matchState] - never inferred again
+     * from the numbers here. An UNVERIFIABLE reading still shows its error so
+     * the operator can see roughly where things stand, but it must never read
+     * as IN TOLERANCE while the pose is inferred, stale or incompatible.
+     */
     private fun formatVerdict(state: ArRenderer.ArState?, tolerances: Tolerances): String {
-        val delta = state?.reading?.delta ?: return "---"
-        val result = Guidance.compute(delta, tolerances)
+        val delta = state?.reading?.delta
+        val verdictWord = when (state?.matchState) {
+            MatchState.IN_TOLERANCE -> "IN TOLERANCE"
+            MatchState.OUT_OF_TOLERANCE -> "OUT OF TOLERANCE"
+            MatchState.UNVERIFIABLE, null -> "UNVERIFIABLE"
+        }
+        if (delta == null) {
+            val reason = state?.targetIncompatibleReason
+            return if (reason != null) "$verdictWord   $reason" else verdictWord
+        }
+        val unverifiableNote = if (state?.matchState == MatchState.UNVERIFIABLE) {
+            "  (" + unverifiableReason(state) + ")"
+        } else {
+            ""
+        }
         return String.format(
             Locale.US,
-            "%s   err %.1f cm / %.2f deg   tol %.1f cm / %.1f deg   match %d%%",
-            if (result.allInTolerance) "IN TOLERANCE" else "OUT OF TOLERANCE",
+            "%s   err %.1f cm / %.2f deg   tol %.1f cm / %.1f deg%s",
+            verdictWord,
             delta.positionErrorCm,
             delta.orientationErrorDeg,
             tolerances.positionCm,
             tolerances.orientationDeg,
-            result.matchPercent,
+            unverifiableNote,
         )
+    }
+
+    private fun unverifiableReason(state: ArRenderer.ArState?): String {
+        val reading = state?.reading ?: return "no reading"
+        return when {
+            !reading.cameraTrackingOk -> "camera tracking lost"
+            reading.standObservation != ObservationKind.FULL_TRACKING ->
+                "stand marker not currently visible - pose is inferred"
+            !reading.referenceValid -> "reference marker stale - rescan it"
+            else -> "target incompatible"
+        }
     }
 
     // ---------------------------------------------------------- actions --
@@ -384,7 +435,7 @@ class MainActivity : Activity(), ArRenderer.Listener {
     private fun saveTarget() {
         val state = latestState
         val reading = state?.reading
-        if (reading == null) {
+        if (state == null || reading == null) {
             toast("No stand marker in view - nothing to save")
             return
         }
@@ -394,11 +445,16 @@ class MainActivity : Activity(), ArRenderer.Listener {
             toast("Scan the REF marker first: an AR-world pose is not reproducible")
             return
         }
+        if (!reading.captureEligible) {
+            toast("Not capture-eligible: " + unverifiableReason(state))
+            return
+        }
         val target = ExperimentStore.SavedTarget(
             frameMode = reading.frameMode,
             transform = reading.standPose.transform,
             savedAtMs = System.currentTimeMillis(),
             label = "t${logger.trialCount}",
+            referenceConfig = store.markerSizes,
         )
         store.saveTarget(target)
         renderer.target = target
@@ -406,6 +462,7 @@ class MainActivity : Activity(), ArRenderer.Listener {
             MeasurementLogger.EventType.TARGET_SAVED,
             "target saved in ${target.frameMode.name}",
             reading,
+            state.matchState,
             store.tolerances,
         )
         toast("Target saved")
@@ -419,6 +476,7 @@ class MainActivity : Activity(), ArRenderer.Listener {
             MeasurementLogger.EventType.TARGET_CLEARED,
             "target cleared",
             latestState?.reading,
+            latestState?.matchState,
             store.tolerances,
         )
         toast("Target cleared")
@@ -432,7 +490,12 @@ class MainActivity : Activity(), ArRenderer.Listener {
     }
 
     private fun markTrial() {
-        val trial = logger.markTrial(latestState?.reading, store.tolerances, noteField.text.toString())
+        val trial = logger.markTrial(
+            latestState?.reading,
+            latestState?.matchState,
+            store.tolerances,
+            noteField.text.toString(),
+        )
         noteField.setText("")
         toast("Trial $trial marked")
         refreshUi()
@@ -453,6 +516,7 @@ class MainActivity : Activity(), ArRenderer.Listener {
             MeasurementLogger.EventType.NOTE,
             text,
             latestState?.reading,
+            latestState?.matchState,
             store.tolerances,
         )
         noteField.setText("")
@@ -507,13 +571,17 @@ class MainActivity : Activity(), ArRenderer.Listener {
         }
 
         store.tolerances = Tolerances(positionCm, orientationDeg)
+        renderer.tolerances = store.tolerances
         val newSizes = MarkerSizes(standCm / M_TO_CM, referenceCm / M_TO_CM)
         val sizesChanged = newSizes != store.markerSizes
         store.markerSizes = newSizes
+        renderer.referenceConfig = newSizes
 
         if (sizesChanged) {
             // Marker widths are baked into the augmented-image database, so the
-            // session has to be rebuilt for a new width to take effect.
+            // session has to be rebuilt for a new width to take effect. A
+            // target saved under the old widths becomes incompatible (see
+            // ArRenderer.buildState's configMismatch check) until re-saved.
             renderer.session = null
             session?.close()
             session = null

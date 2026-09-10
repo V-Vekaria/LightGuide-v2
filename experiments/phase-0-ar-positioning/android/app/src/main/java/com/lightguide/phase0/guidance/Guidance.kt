@@ -1,8 +1,10 @@
 package com.lightguide.phase0.guidance
 
+import com.lightguide.phase0.pose.MatchState
+import com.lightguide.phase0.pose.ObservationKind
 import com.lightguide.phase0.pose.PoseDelta
+import com.lightguide.phase0.pose.Reading
 import com.lightguide.phase0.pose.Tolerances
-import com.lightguide.phase0.pose.clamp01
 import kotlin.math.abs
 
 /**
@@ -33,7 +35,6 @@ object Guidance {
         val steps: List<Step>,
         val positionInTolerance: Boolean,
         val orientationInTolerance: Boolean,
-        val matchPercent: Int,
     ) {
         val allInTolerance: Boolean get() = positionInTolerance && orientationInTolerance
     }
@@ -43,13 +44,6 @@ object Guidance {
     // let a pose pass per-axis while failing overall, so axes get the tolerance
     // divided across three dimensions.
     private const val AXIS_SHARE = 0.577f // 1/sqrt(3)
-
-    /**
-     * Scale used only for the cosmetic MATCH readout. It is a display aid with
-     * no bearing on pass/fail; validation uses the raw errors in the log.
-     */
-    private const val MATCH_POSITION_SPAN_CM = 50f
-    private const val MATCH_ORIENTATION_SPAN_DEG = 45f
 
     fun compute(delta: PoseDelta, tolerances: Tolerances): Result {
         val posAxisTolCm = tolerances.positionCm * AXIS_SHARE
@@ -70,15 +64,37 @@ object Guidance {
             angularStep("ROLL", delta.rotation.rollDeg, "ROLL CW", "ROLL CCW", oriAxisTolDeg),
         )
 
-        val posScore = clamp01(1f - delta.positionErrorCm / MATCH_POSITION_SPAN_CM)
-        val oriScore = clamp01(1f - delta.orientationErrorDeg / MATCH_ORIENTATION_SPAN_DEG)
-
         return Result(
             steps = steps,
             positionInTolerance = delta.positionErrorCm <= tolerances.positionCm,
             orientationInTolerance = delta.orientationErrorDeg <= tolerances.orientationDeg,
-            matchPercent = Math.round(100f * (0.5f * posScore + 0.5f * oriScore)),
         )
+    }
+
+    /**
+     * The single authoritative verdict for display and logging.
+     *
+     * Numeric in-tolerance alone is not enough: an inferred stand pose, a
+     * stale/never-seen reference, lost camera tracking or a target saved under
+     * a different frame/marker configuration must all read as UNVERIFIABLE
+     * rather than silently falling back to whatever the numbers say. Replaces
+     * the removed cosmetic match percentage.
+     */
+    fun matchState(
+        reading: Reading,
+        delta: PoseDelta?,
+        targetIncompatible: Boolean,
+        tolerances: Tolerances,
+    ): MatchState {
+        if (delta == null || targetIncompatible) return MatchState.UNVERIFIABLE
+        if (!reading.cameraTrackingOk) return MatchState.UNVERIFIABLE
+        if (reading.standObservation != ObservationKind.FULL_TRACKING) return MatchState.UNVERIFIABLE
+        if (!reading.referenceValid) return MatchState.UNVERIFIABLE
+        return if (compute(delta, tolerances).allInTolerance) {
+            MatchState.IN_TOLERANCE
+        } else {
+            MatchState.OUT_OF_TOLERANCE
+        }
     }
 
     /**

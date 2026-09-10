@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.lightguide.phase0.pose.FrameMode
 import com.lightguide.phase0.pose.MarkerSizes
 import com.lightguide.phase0.pose.Mat3
+import com.lightguide.phase0.pose.ToleranceSource
 import com.lightguide.phase0.pose.Tolerances
 import com.lightguide.phase0.pose.Transform
 import com.lightguide.phase0.pose.Vec3
@@ -27,6 +28,12 @@ class ExperimentStore(context: Context) {
         val transform: Transform,
         val savedAtMs: Long,
         val label: String,
+        /**
+         * Marker widths in effect when this target was captured. A target is
+         * only comparable to a current reading captured under the identical
+         * configuration - see [com.lightguide.phase0.guidance.Guidance.matchState].
+         */
+        val referenceConfig: MarkerSizes,
     )
 
     fun saveTarget(target: SavedTarget) {
@@ -37,6 +44,8 @@ class ExperimentStore(context: Context) {
             put("savedAtMs", target.savedAtMs)
             put("label", target.label)
             put("tx", t.x.toDouble()); put("ty", t.y.toDouble()); put("tz", t.z.toDouble())
+            put("standWidthM", target.referenceConfig.standWidthM.toDouble())
+            put("referenceWidthM", target.referenceConfig.referenceWidthM.toDouble())
             // Store the rotation matrix directly: it is what the maths uses, so
             // there is no quaternion round-trip to get a sign convention wrong.
             put("r", org.json.JSONArray().apply {
@@ -46,6 +55,12 @@ class ExperimentStore(context: Context) {
         prefs.edit().putString(KEY_TARGET, json.toString()).apply()
     }
 
+    /**
+     * Returns null for a target saved before [referenceConfig] was recorded.
+     * A pre-hardening save cannot be verified against the current marker
+     * configuration, so it is treated as absent rather than silently assumed
+     * compatible - the operator re-saves it explicitly instead.
+     */
     fun loadTarget(): SavedTarget? {
         val raw = prefs.getString(KEY_TARGET, null) ?: return null
         return runCatching {
@@ -64,6 +79,10 @@ class ExperimentStore(context: Context) {
                 ),
                 savedAtMs = json.getLong("savedAtMs"),
                 label = json.optString("label", "target"),
+                referenceConfig = MarkerSizes(
+                    standWidthM = json.getDouble("standWidthM").toFloat(),
+                    referenceWidthM = json.getDouble("referenceWidthM").toFloat(),
+                ),
             )
         }.getOrNull()
     }
@@ -81,6 +100,25 @@ class ExperimentStore(context: Context) {
             .putFloat(KEY_TOL_POS, value.positionCm)
             .putFloat(KEY_TOL_ORI, value.orientationDeg)
             .apply()
+
+    /**
+     * Whether the active [tolerances] are the current 3 cm / 3 deg profile, an
+     * explicitly-saved value that happens to match it, or an inherited value
+     * from before this profile existed (most notably the old 4 cm / 2.5 deg
+     * default, which this store never wrote automatically but earlier builds
+     * may have persisted via SETUP > Apply). Nothing here rewrites a stored
+     * value; the UI surfaces the distinction instead.
+     */
+    val toleranceSource: ToleranceSource
+        get() = if (!prefs.contains(KEY_TOL_POS) && !prefs.contains(KEY_TOL_ORI)) {
+            ToleranceSource.PROFILE_DEFAULT
+        } else if (tolerances.positionCm == Tolerances.DEFAULT_POSITION_CM &&
+            tolerances.orientationDeg == Tolerances.DEFAULT_ORIENTATION_DEG
+        ) {
+            ToleranceSource.EXPLICIT_MATCHING_PROFILE
+        } else {
+            ToleranceSource.EXPLICIT_DIFFERENT_FROM_PROFILE
+        }
 
     var markerSizes: MarkerSizes
         get() = MarkerSizes(

@@ -5,6 +5,7 @@ import android.os.Build
 import com.lightguide.phase0.pose.FrameMode
 import com.lightguide.phase0.pose.M_TO_CM
 import com.lightguide.phase0.pose.MarkerSizes
+import com.lightguide.phase0.pose.MatchState
 import com.lightguide.phase0.pose.Reading
 import com.lightguide.phase0.pose.Tolerances
 import org.json.JSONArray
@@ -45,8 +46,11 @@ class MeasurementLogger(private val context: Context) {
         val dPitchDeg: Float?, val dYawDeg: Float?, val dRollDeg: Float?,
         val positionErrorCm: Float?,
         val orientationErrorDeg: Float?,
+        /** Null whenever [matchState] is not a numeric verdict (UNVERIFIABLE or absent). */
         val inPositionTolerance: Boolean?,
         val inOrientationTolerance: Boolean?,
+        /** The authoritative verdict at logging time; see Guidance.matchState. Null if no reading existed. */
+        val matchState: MatchState?,
         val note: String,
     )
 
@@ -84,20 +88,20 @@ class MeasurementLogger(private val context: Context) {
     }
 
     /** Records an operator-visible event regardless of the recording toggle. */
-    fun logEvent(type: EventType, note: String, reading: Reading?, tolerances: Tolerances) {
-        append(buildRow(type, reading, tolerances, note))
+    fun logEvent(type: EventType, note: String, reading: Reading?, matchState: MatchState?, tolerances: Tolerances) {
+        append(buildRow(type, reading, matchState, tolerances, note))
     }
 
     /** Records a live reading, but only while recording is armed. */
-    fun logSample(reading: Reading, trackingState: String, tolerances: Tolerances) {
+    fun logSample(reading: Reading, matchState: MatchState, trackingState: String, tolerances: Tolerances) {
         if (!recording) return
-        append(buildRow(EventType.SAMPLE, reading, tolerances, "", trackingState))
+        append(buildRow(EventType.SAMPLE, reading, matchState, tolerances, "", trackingState))
     }
 
-    fun markTrial(reading: Reading?, tolerances: Tolerances, note: String): Int {
+    fun markTrial(reading: Reading?, matchState: MatchState?, tolerances: Tolerances, note: String): Int {
         trial += 1
         val text = if (note.isBlank()) "trial $trial start" else "trial $trial start | $note"
-        append(buildRow(EventType.TRIAL_MARK, reading, tolerances, text))
+        append(buildRow(EventType.TRIAL_MARK, reading, matchState, tolerances, text))
         return trial
     }
 
@@ -172,11 +176,17 @@ class MeasurementLogger(private val context: Context) {
     private fun buildRow(
         type: EventType,
         reading: Reading?,
+        matchState: MatchState?,
         tolerances: Tolerances,
         note: String,
         trackingState: String = if (reading != null) "TRACKING" else "NONE",
     ): Row {
         val delta = reading?.delta
+        // A numeric in/out-of-tolerance flag is only meaningful alongside a
+        // verified verdict; UNVERIFIABLE (inferred pose, stale reference, lost
+        // camera tracking or an incompatible target) must not leave a stale
+        // true/false behind for analysis to misread as a real result.
+        val numericVerdictAvailable = matchState == MatchState.IN_TOLERANCE || matchState == MatchState.OUT_OF_TOLERANCE
         return Row(
             event = type,
             timestampMs = reading?.timestampMs ?: System.currentTimeMillis(),
@@ -199,8 +209,17 @@ class MeasurementLogger(private val context: Context) {
             dRollDeg = delta?.rotation?.rollDeg,
             positionErrorCm = delta?.positionErrorCm,
             orientationErrorDeg = delta?.orientationErrorDeg,
-            inPositionTolerance = delta?.let { it.positionErrorCm <= tolerances.positionCm },
-            inOrientationTolerance = delta?.let { it.orientationErrorDeg <= tolerances.orientationDeg },
+            inPositionTolerance = if (numericVerdictAvailable) {
+                delta?.let { it.positionErrorCm <= tolerances.positionCm }
+            } else {
+                null
+            },
+            inOrientationTolerance = if (numericVerdictAvailable) {
+                delta?.let { it.orientationErrorDeg <= tolerances.orientationDeg }
+            } else {
+                null
+            },
+            matchState = matchState,
             note = note,
         )
     }
@@ -248,6 +267,7 @@ class MeasurementLogger(private val context: Context) {
             f(r.dPitchDeg), f(r.dYawDeg), f(r.dRollDeg),
             f(r.positionErrorCm), f(r.orientationErrorDeg),
             b(r.inPositionTolerance), b(r.inOrientationTolerance),
+            r.matchState?.name?.lowercase(Locale.US) ?: "",
             escape(r.note),
         ).joinToString(",")
     }
@@ -287,6 +307,7 @@ class MeasurementLogger(private val context: Context) {
                 putOpt("orientationErrorDeg", r.orientationErrorDeg?.rounded())
                 putOpt("inPositionTolerance", r.inPositionTolerance)
                 putOpt("inOrientationTolerance", r.inOrientationTolerance)
+                putOpt("matchState", r.matchState?.name?.lowercase(Locale.US))
                 put("note", r.note)
             })
         }
@@ -332,7 +353,7 @@ class MeasurementLogger(private val context: Context) {
             "timestamp_iso,timestamp_ms,session_id,event,trial,frame_mode,tracking_state," +
                 "reference_age_ms,camera_distance_cm,x_cm,y_cm,z_cm,pitch_deg,yaw_deg,roll_deg," +
                 "dx_cm,dy_cm,dz_cm,d_pitch_deg,d_yaw_deg,d_roll_deg," +
-                "position_error_cm,orientation_error_deg,in_position_tol,in_orientation_tol,note"
+                "position_error_cm,orientation_error_deg,in_position_tol,in_orientation_tol,match_state,note"
 
         val ISO_FORMAT = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US)
 
