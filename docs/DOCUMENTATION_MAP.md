@@ -5,6 +5,8 @@ Use this file to find the authoritative document for each type of decision.
 ## Start here
 - [Current build handoff](../CLAUDE.md) — next task and platform/hardware boundaries.
 - [Current project status](STATUS.md) — what is documented, implemented and unvalidated.
+- [Software delivery handoff](engineering/CLAUDE_BUILD_HANDOFF.md) — autonomous implementation milestones, automated tests and user device handover.
+- [Recovered Android source audit](validation/AR_SOURCE_AUDIT_2026-09-10.md) — branch provenance and remaining code corrections.
 
 ## Product
 - `product/PRODUCT_VISION.md` — long-term purpose, target user and product principles.
@@ -13,6 +15,7 @@ Use this file to find the authoritative document for each type of decision.
 - `product/APP_MVP_PLAN.md` — application experience decisions, MoSCoW backlog, user stories and sprint plan aligned with V1.
 - `product/ROADMAP.md` — development phases and exit gates.
 - `product/COMPETITIVE_LANDSCAPE.md` — substitutes, adjacent competitors and differentiation hypothesis.
+- [Reuse research](product/COMPETITOR_REUSE_RESEARCH_2026-09-10.md) — verified competitor exports, AR/sensor libraries and later datasets.
 
 ## Engineering
 - [product/DATABASE_DESIGN.md](product/DATABASE_DESIGN.md) — agreed seven-table prototype data model, versioned scene snapshots, preservation rules and links to the detailed implementation specifications.
@@ -31,9 +34,7 @@ Use this file to find the authoritative document for each type of decision.
 - `validation/RISK_REGISTER.md` — current product/technical risks and mitigations.
 
 ## Current development priority
-The highest-priority open risk is phone-based spatial positioning. Work should therefore begin in:
-
-`../experiments/phase-0-ar-positioning/`
+The highest-priority open risk is phone-based spatial positioning. Reuse and harden the existing code in `../experiments/phase-0-ar-positioning/`; it is no longer a README-only directory. Per ADR-015, implement the offline application alongside physical testing, following the software delivery handoff.
 
 Do not lock the final commercial node electronics until Phase 0 produces sufficient evidence.
 

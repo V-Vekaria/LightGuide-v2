@@ -54,3 +54,9 @@ Every important architecture decision should eventually point to one or more ent
 
 ## Decision discipline
 Do not convert a target into a claimed specification until it has passed a defined validation test under stated conditions.
+
+## Source recovery audit — 2026-09-10
+
+The implementation was found on branch experiment/phase-0-ar-positioning at 5bc532b0d1bfd94f8f554867eec94e7403d1a7ce and incorporated into the current baseline. See [source audit](AR_SOURCE_AUDIT_2026-09-10.md) for methods, evidence and code gaps.
+
+Outcome: source/assets located and inspected; no new physical trial or Android build/test pass claimed. VAL-001–004 remain open. Historical marker observations in the recovered printing instructions are retained, not promoted into a complete ±3 cm result.

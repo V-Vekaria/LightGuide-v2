@@ -3,7 +3,7 @@
 ## Product and immediate milestone
 
 Commercial R&D: **Measure → Save → Recreate** real lighting setups.
-Start with the native Android/Kotlin ARCore experiment in [experiments/phase-0-ar-positioning/](experiments/phase-0-ar-positioning/README.md). Do not extend the old root app as the new mobile application.
+Reuse the recovered native Android/Kotlin ARCore experiment in [experiments/phase-0-ar-positioning/](experiments/phase-0-ar-positioning/README.md). It was found on experiment/phase-0-ar-positioning at 5bc532b0d1bfd94f8f554867eec94e7403d1a7ce; do not scaffold it again. Follow [the software delivery handoff](docs/engineering/CLAUDE_BUILD_HANDOFF.md) for a full application-build request. Do not extend the old root app as the new mobile application.
 
 Before changing code, read:
 1. [CLAUDE.md](CLAUDE.md) — task routing and current handoff.
@@ -20,7 +20,7 @@ Use [docs/DOCUMENTATION_MAP.md](docs/DOCUMENTATION_MAP.md) for specialised requi
 - Smartphone is the primary spatial/UI layer; positioning remains a hypothesis requiring measured trials.
 - Core operation works offline; do not build cloud infrastructure before the positioning experiment needs it.
 - One node first; IDs and snapshots must accommodate multiple lights.
-- React Native/Expo Development Builds are the broader application direction after Phase 0; iOS is untested/deferred pending Apple hardware access.
+- Per ADR-015, the React Native/Expo Development Builds offline application may proceed alongside physical Phase-0 validation behind spatial/transport interfaces. Live integration and accuracy claims still require evidence; iOS remains untested/deferred pending Apple hardware access.
 - New evaluation hardware is the ESP32-S3-WROOM-1-N8R8 kit described in the BOM, not the legacy Arduino Nano ESP32.
 - Separately requested board/sensor bench tests may proceed, but do not inject electronics into Phase 0 unless needed to answer its positioning question.
 - Final production BOM, calibrated accuracy and implementation-ready BLE protocol are not locked.

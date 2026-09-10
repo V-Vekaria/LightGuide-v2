@@ -19,7 +19,7 @@ The broader application can be designed now, but only the V1 Must backlog should
 
 - Phase 0 and first physical positioning validation use native Android/Kotlin with ARCore.
 - The available Windows development environment and ARCore-compatible phone support this route.
-- If Phase 0 passes, the broader application direction is React Native/TypeScript with Expo Development Builds and platform-specific spatial modules behind a shared interface.
+- Per ADR-015, implement the React Native/TypeScript + Expo Development Builds offline shell alongside physical testing, with platform-specific spatial modules behind a shared interface. Live measured positioning still requires the Phase-0 evidence. Follow [the implementation handoff](../engineering/CLAUDE_BUILD_HANDOFF.md) for execution order.
 - Expo Go is not a valid AR/BLE test environment.
 - iPhone remains a commercial requirement, but Swift/ARKit implementation and validation are deferred until Mac/Xcode and physical iPhone test access exist.
 - The five-photographer beta must not be advertised as iPhone-compatible until that implementation is genuinely tested.
@@ -312,7 +312,7 @@ A story is complete only when:
 ## 7. Open decisions
 
 - final Vedic/Sanskrit-rooted commercial brand;
-- result of the provisional React Native/Expo production-shell spike after Phase 0;
+- outcome of React Native/Expo offline-shell implementation and eventual native spatial integration;
 - iPhone ARKit implementation and validation once Mac/Xcode access exists;
 - result of Phase-0 AR positioning validation;
 - commercial MCU, IMU, sensors, battery, enclosure and mount;

@@ -15,6 +15,12 @@ Deliverables:
 Exit gate:
 - spatial accuracy and orientation repeatability are sufficient for a practical recreation workflow.
 
+## Parallel software delivery (ADR-015)
+
+Reuse the recovered Android experiment and address its source-audit gaps. While the user completes physical validation, implement the offline application shell, durable setup storage, photographs, manual recreation and labelled simulated spatial states. Execute available automated checks and prepare the device handover. See [CLAUDE_BUILD_HANDOFF.md](../engineering/CLAUDE_BUILD_HANDOFF.md).
+
+This parallel track does not pass the positioning gate or advance final electronics decisions.
+
 ## Phase 1 — One-node engineering prototype
 **Goal:** integrate the first physical LightGuide node with the validated spatial architecture.
 

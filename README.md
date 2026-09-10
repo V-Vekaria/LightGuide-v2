@@ -51,7 +51,9 @@ See:
 
 ## Application and data specification
 
-The broader application direction is React Native/TypeScript with Expo Development Builds after the native Android experiment; iOS awaits appropriate development/test hardware.
+The offline application uses React Native/TypeScript with Expo Development Builds and can be implemented alongside physical testing per ADR-015; live positioning remains subject to validation. iOS awaits appropriate development/test hardware.
+
+The Android source and marker assets have been recovered from branch experiment/phase-0-ar-positioning. Start with the [software delivery handoff](docs/engineering/CLAUDE_BUILD_HANDOFF.md) and [source audit](docs/validation/AR_SOURCE_AUDIT_2026-09-10.md), not another AR scaffold.
 
 - [Application scope and backlog](docs/product/APP_MVP_PLAN.md)
 - [Seven-table database design](docs/product/DATABASE_DESIGN.md)

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Matches getExternalFilesDir(null)/logs, where MeasurementLogger writes. -->
+    <external-files-path
+        name="phase0-logs"
+        path="logs/" />
+</paths>

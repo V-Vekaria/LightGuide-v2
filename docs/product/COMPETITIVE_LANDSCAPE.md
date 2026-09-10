@@ -1,6 +1,17 @@
 # LightGuide — Competitive Landscape
 
-**Research baseline:** 28 August 2026
+**Research baseline:** 28 August 2026; reuse/competitor update 10 September 2026.
+
+See [the detailed reuse research](COMPETITOR_REUSE_RESEARCH_2026-09-10.md) for source links and adoption decisions.
+
+## September findings
+
+- Sidus Link Pro documents 3D fixture placement and exportable fixture reports containing X/Y/Z coordinates. A user-owned export importer is a later integration candidate; obtain a sample and verify format/units first.
+- set.a.light 3D exports lighting plans containing positions, distances and settings. This is existing overlap with saved setup geometry, not evidence of automatic physical capture.
+- Datacolor and PhotoRobot remain useful measurement and repeatable-workflow benchmarks.
+- Use official ARCore and sensor libraries to reduce implementation work. OpenIllumination (CC BY 4.0) and Poly Haven assets (CC0) may help later AI/demo evaluation; neither replaces application storage or our own physical measurements.
+
+These findings narrow the differentiation hypothesis to measured physical capture/recreation. No reusable proprietary competitor engine or directly equivalent sensor/pose dataset was verified.
 
 This document tracks alternatives by the job they solve. It is not a claim of patent novelty or freedom to operate.
 

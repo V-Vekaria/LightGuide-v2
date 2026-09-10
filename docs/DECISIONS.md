@@ -180,3 +180,22 @@ Retain legacy code, scripts, traces, dependency files and acceptance reports at 
 The ±3 cm application matching default remains distinct from the historical 3–5 cm feasibility screen; both must be evaluated honestly. Neither documentation cleanup nor completed planning finalises production hardware, proves sensor/AR accuracy or supplies an implemented BLE/database system.
 
 Recovery: archived originals and the parent Git commit retain the pre-cleanup material. No source or measured test evidence is discarded.
+
+## ADR-015 — Recover existing AR source and develop the offline application alongside validation
+
+**Date:** 2026-09-10  
+**Status:** CONFIRMED delivery decision; physical capability remains unvalidated.
+
+The user requested checking the repository for prior Android work, applying the reuse decisions and preparing autonomous application development/testing before their own device tests.
+
+A branch audit found the implementation on `experiment/phase-0-ar-positioning` at `5bc532b0d1bfd94f8f554867eec94e7403d1a7ce`. Incorporate that experiment's files into the current baseline while retaining current documentation and legacy code. Do not recreate the scaffold or merge obsolete branch-wide planning files. See [source audit](validation/AR_SOURCE_AUDIT_2026-09-10.md).
+
+The recovered source is experimental. Its 4 cm / 2.5 degree defaults, cosmetic match score, stale-tracking rules and reference/configuration lifecycle need reconciliation before new physical trials. Source recovery does not resolve those defects.
+
+Permit the React Native/TypeScript + Expo Development Builds offline application under apps/mobile/ to proceed alongside physical Phase-0 testing. This changes the sequencing restrictions in ADR-009/011: the gate controls validated live positioning and final hardware decisions, not independent local UI/storage/manual-recreation implementation. Maintain a platform-neutral spatial interface and a separate native measurement harness so an AR change does not require rewriting the offline application.
+
+Reuse official ARCore features and manufacturer libraries for BNO086, VL53L5CX and AS7343, pinning compatible versions and retaining applicable licences during implementation. See [research and adoption boundaries](product/COMPETITOR_REUSE_RESEARCH_2026-09-10.md). Competitor export import, AI datasets, cloud services and production electronics remain later work, not prerequisites for the offline prototype.
+
+The coding agent should complete available automated software checks, report blocked native/toolchain checks and continue independent work. The user performs physical print/pose/relocalisation, BLE and sensor tests. Mock or emulator results cannot establish ±3 cm accuracy, calibrated light measurement or iOS support.
+
+Authoritative task sequence and acceptance criteria: [CLAUDE_BUILD_HANDOFF.md](engineering/CLAUDE_BUILD_HANDOFF.md).

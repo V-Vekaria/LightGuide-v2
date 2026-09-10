@@ -10,17 +10,16 @@ Planning is sufficient to begin bounded implementation. It is not evidence that 
 
 ## What to work on next
 
-For an application-build request without a more specific milestone, start in [experiments/phase-0-ar-positioning/](experiments/phase-0-ar-positioning/README.md):
-1. Inspect the existing experiment and state what is implemented.
-2. Build the smallest native Kotlin/Android ARCore capture/save/recreate experiment.
-3. Establish a repeatable subject/studio reference; capture a light pose; save it locally; calculate return guidance.
-4. Never confirm Match with stale or invalid tracking.
-5. Add timestamped trial logging and give the user exact on-phone/physical validation steps.
-6. Report builds/tests actually run and what requires the user's phone. Do not fabricate validation results.
+Use [the software delivery handoff](docs/engineering/CLAUDE_BUILD_HANDOFF.md) for the exact scope, milestones, tests and user handover.
 
-Do not start the entire cloud-backed application or extend the root legacy Preact app as though it were the chosen mobile architecture.
+1. Inspect the recovered [Android experiment](experiments/phase-0-ar-positioning/README.md); do not create another scaffold.
+2. Resolve the [source-audit gaps](docs/validation/AR_SOURCE_AUDIT_2026-09-10.md), including 3 cm defaults, arbitrary match percentage, stale tracking and reference/configuration validity.
+3. Run available Android build/unit checks and record actual outputs.
+4. Build the offline React Native/TypeScript application under apps/mobile/ in incremental working milestones, using Expo Development Builds and explicit spatial/transport adapters.
+5. Exercise local saving, restart recovery, version preservation, manual recreation and labelled simulations before handing the app to the user.
+6. Continue independent software work when physical hardware is unavailable. Keep real AR accuracy, BLE, sensor calibration and iOS checks explicitly pending.
 
-The broader direction after the positioning gate is React Native/TypeScript with Expo Development Builds and native spatial adapters. iOS implementation/testing waits for Mac/Xcode and iPhone access. See [architecture](docs/V1_ARCHITECTURE.md) and ADR-011.
+ADR-015 permits the offline application to proceed alongside Phase 0. It does not pass the positioning gate or authorise the entire cloud/AI roadmap. Preserve the native experiment as a separate measurement harness. See [architecture](docs/V1_ARCHITECTURE.md).
 
 ## Hardware work
 

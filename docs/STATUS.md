@@ -1,35 +1,46 @@
 # LightGuide v2 — Current Status
 
-**Status:** Planning baseline ready for bounded implementation; physical validation remains open.
-**Current application milestone:** [Phase-0 Android positioning experiment](../experiments/phase-0-ar-positioning/README.md).
+**Status:** Android experiment recovered into the current baseline; software hardening and offline application implementation next. Physical validation remains open.
+**Current handoff:** [CLAUDE_BUILD_HANDOFF.md](engineering/CLAUDE_BUILD_HANDOFF.md).
+
+## Implemented source recovered
+
+The experiment was present on branch `experiment/phase-0-ar-positioning` at `5bc532b0d1bfd94f8f554867eec94e7403d1a7ce`, although main previously contained only its README. The Android source, Gradle wrapper, marker assets, printing instructions and JVM tests are now included under [experiments/phase-0-ar-positioning/](../experiments/phase-0-ar-positioning/README.md).
+
+Source inspection confirms marker registration, reference-relative pose maths, target persistence, directional guidance and CSV/JSON logging. This is an experimental implementation, not the finished consumer application.
+
+The earlier statement that the experiment existed only as a README applied to main, not all branches. Recovery preserves source/assets from the experiment commit; current documentation takes precedence over its historical defaults.
+
+## Required corrections before physical validation
+
+See [the source audit](validation/AR_SOURCE_AUDIT_2026-09-10.md). The recovered code still uses 4 cm / 2.5 degree defaults, a cosmetic match percentage, incomplete tracking-freshness gating and experiment-specific coordinates/persistence. These are identified work items, not fixes already made.
 
 ## Agreed and documented
 
 - Measure → Save → Recreate; Android first; offline core; one-node validation.
-- Native Kotlin/ARCore feasibility experiment, then conditional React Native/Expo application direction.
-- Evaluation kit and purchase-verification boundaries in [V1_BOM.md](V1_BOM.md).
-- Seven-table logical model, [schema](product/DATABASE_SCHEMA.md) and [sync specification](product/OFFLINE_SYNC.md).
-- ±3 cm distance/height matching defaults, distinct from measurement uncertainty and the broader feasibility screen.
+- Native Kotlin/ARCore measurement harness; React Native/Expo offline shell may proceed alongside physical testing per ADR-015.
+- Evaluation-kit identities and purchase-verification boundaries in [V1_BOM.md](V1_BOM.md).
+- Seven-table [schema](product/DATABASE_SCHEMA.md) and [sync specification](product/OFFLINE_SYNC.md).
+- Application defaults: ±3 cm distance/height, ±3 degrees direction/tilt; these do not establish measured accuracy.
+- [Reuse research](product/COMPETITOR_REUSE_RESEARCH_2026-09-10.md): official ARCore/sensor libraries first, competitor imports and AI datasets later.
 
 ## Not yet established
 
-- Passing Phase-0 position/relocalisation evidence. At this documentation audit the experiment folder contains its README, not a built Android app.
-- Verified exact received sensor variants, new-board pin map and combined sensor performance.
-- New-node BLE implementation, complete GATT/security/message contract or end-to-end tests.
-- Implemented/migrated cloud database and tested offline sync.
-- iOS implementation or physical iPhone tests.
-- Final production electronics, power/enclosure design or market validation.
+- Current Android build/test pass in this environment; Android SDK, Gradle command, Kotlin compiler and adb were unavailable during this recovery audit.
+- Passing physical position/relocalisation evidence. Printing instructions contain historical marker observations; these are not a complete ±3 cm validation result.
+- A built React Native application, migrated SQLite schema or tested cloud sync.
+- Exact received sensor variants, verified new-board pin map and combined sensor performance.
+- Implemented new-node BLE firmware and complete GATT/security/message contract.
+- iOS implementation/testing, production electronics or photographer validation.
 
 ## Next work
 
-Application: build the small native AR experiment, then measure it against [TEST_PLAN.md](TEST_PLAN.md).
-Hardware, when requested: verify the evaluation board and each received sensor independently using the BOM bring-up checklist; keep the resulting bench work separate from legacy firmware.
-Integrate after the positioning gate produces evidence. Do not expand the whole backend/UI before the core feasibility question is answered.
+Coding agent: execute the [software handoff](engineering/CLAUDE_BUILD_HANDOFF.md), starting with source hardening, then the offline user journey. Report real test results and deliver Android installation instructions plus a focused physical checklist.
 
-## Existing code and evidence
+User: operate the phone, print the exact markers at measured dimensions, take independent measurements and verify received hardware when the software is ready.
 
-The root Preact application, mock-device and Nano ESP32 firmware are legacy engineering. The [24 August report](../device/reports/M5_conformance_acceptance.md) records 21/21 legacy hardware-contract tests; this is not a new test run or proof of new-node BLE/AR functionality.
+## Legacy evidence
 
-Old app/firmware handovers and plans are [archived](archive/legacy-companion/README.md). Their dated "next task", port, flash and milestone statements are not current instructions.
+Root Preact, mock-device and Nano ESP32 firmware remain legacy engineering. The [24 August report](../device/reports/M5_conformance_acceptance.md) records 21/21 legacy contract tests; it is not proof of new-node BLE or Android positioning.
 
-Update this page after implementation changes. Keep test claims tied to dated evidence in [the validation log](validation/VALIDATION_LOG.md).
+Keep evidence in [the validation log](validation/VALIDATION_LOG.md). Never count documentation, imported source or simulated data as a physical pass.

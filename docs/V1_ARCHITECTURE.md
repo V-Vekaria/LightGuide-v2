@@ -19,9 +19,11 @@ LightGuide uses a phased architecture because spatial positioning is the highest
 
 Phase-0 code is an experiment. It does not need to become the final consumer application, and production UI/backend work must not distort the positioning test.
 
-### Production application direction after the Phase-0 gate
+### Offline application alongside Phase 0 (ADR-015)
 
-If Phase 0 supports continuing:
+The offline application shell may be implemented while physical positioning tests are pending. It consumes explicit spatial/transport interfaces with labelled simulations and manual fallback. Passing Phase 0 remains necessary for relying on the live positioning architecture; it is not a prerequisite for local forms, persistence and manual recreation.
+
+Current implementation direction:
 
 - shared application shell: React Native + TypeScript;
 - framework/tooling: Expo with Development Builds, not Expo Go;
@@ -171,7 +173,7 @@ LOCKED for Phase 0:
 - native ARCore;
 - real ARCore-compatible Android phone.
 
-PROVISIONAL after Phase 0:
+SELECTED for the offline prototype; live spatial integration remains conditional:
 - React Native/TypeScript application shell;
 - Expo Development Builds;
 - SQLite local store;
