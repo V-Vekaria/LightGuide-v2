@@ -18,6 +18,7 @@ Use this file to find the authoritative document for each type of decision.
 - [Reuse research](product/COMPETITOR_REUSE_RESEARCH_2026-09-10.md) — verified competitor exports, AR/sensor libraries and later datasets.
 
 ## Engineering
+- [`../apps/mobile/README.md`](../apps/mobile/README.md) — the implemented offline application: what is implemented, simulated, tested and untested, plus build/run instructions.
 - [product/DATABASE_DESIGN.md](product/DATABASE_DESIGN.md) — agreed seven-table prototype data model, versioned scene snapshots, preservation rules and links to the detailed implementation specifications.
 - [product/DATABASE_SCHEMA.md](product/DATABASE_SCHEMA.md) — seven-table field/type/constraint specification and structured snapshot format.
 - [product/OFFLINE_SYNC.md](product/OFFLINE_SYNC.md) — save/sync transactions, conflicts, media, deletion recovery and acceptance tests.

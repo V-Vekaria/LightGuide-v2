@@ -51,9 +51,9 @@ See:
 
 ## Application and data specification
 
-The offline application uses React Native/TypeScript with Expo Development Builds and can be implemented alongside physical testing per ADR-015; live positioning remains subject to validation. iOS awaits appropriate development/test hardware.
+The offline application lives at [`apps/mobile/`](apps/mobile/README.md) - React Native/TypeScript with Expo Router and a local-first SQLite data layer, implemented alongside physical testing per ADR-015. It has a tested save/manual-recreate journey; live phone-AR-based positioning remains subject to validation and has no native adapter wired in yet. iOS awaits appropriate development/test hardware. See `apps/mobile/README.md` for exactly what is implemented, simulated, tested and untested.
 
-The Android source and marker assets have been recovered from branch experiment/phase-0-ar-positioning. Start with the [software delivery handoff](docs/engineering/CLAUDE_BUILD_HANDOFF.md) and [source audit](docs/validation/AR_SOURCE_AUDIT_2026-09-10.md), not another AR scaffold.
+The Android AR source and marker assets have been recovered from branch experiment/phase-0-ar-positioning and hardened per the source audit. Start with the [software delivery handoff](docs/engineering/CLAUDE_BUILD_HANDOFF.md), [source audit](docs/validation/AR_SOURCE_AUDIT_2026-09-10.md) and [current status](docs/STATUS.md) - not another AR scaffold.
 
 - [Application scope and backlog](docs/product/APP_MVP_PLAN.md)
 - [Seven-table database design](docs/product/DATABASE_DESIGN.md)
