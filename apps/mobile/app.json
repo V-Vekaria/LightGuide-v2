@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "LightGuide",
+    "slug": "lightguide-mobile",
+    "scheme": "lightguide",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.lightguide.mobile",
+      "permissions": ["CAMERA"]
+    },
+    "plugins": ["expo-router", "expo-sqlite", "expo-image-picker"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
