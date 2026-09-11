@@ -1,6 +1,6 @@
 # LightGuide v2 — Current Status
 
-**Status on `codex/offline-mobile-app`:** offline application implemented; run 34606894914 at e59aecc478721cd38c0b6bceeffa582a71595419 passed software/browser checks, APK compilation, installation, launch, save, force-close and offline reopen. Manual recreation failed while the test reused a stale accessibility tree. The new timer-display/fresh-tree repair awaits CI; APK readiness is not established. Physical validation remains open. See [Android retry evidence](validation/CODEX_ANDROID_RETRY_2026-09-11.md).
+**Status on `codex/offline-mobile-app`:** offline application implemented and ready for Android phone evaluation. Run [34612856890](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34612856890) at `27639e4b60dbfb4b82d13915b962db1acdbfbd0f` passed software/browser checks, APK compilation, installation, launch, save, force-close, offline reopen and all four manual recreation steps plus outcome recording. Downloaded artifact and smoke evidence agree on package `com.lightguide.codex` and APK SHA-256 `58fd3c902f2c1a52f05ea7e6f1d76963a92d045d863578df82d2df8b364fc72b`. Physical camera/AR, BLE, sensors and ±3 cm accuracy validation remain open. See [Android retry evidence](validation/CODEX_ANDROID_RETRY_2026-09-11.md).
 
 See [Codex build evidence](validation/CODEX_BUILD_2026-09-11.md) and [run instructions](../apps/mobile/README.md).
 **Current handoff:** [CLAUDE_BUILD_HANDOFF.md](engineering/CLAUDE_BUILD_HANDOFF.md).
@@ -28,9 +28,8 @@ See [the source audit](validation/AR_SOURCE_AUDIT_2026-09-10.md). On this branch
 
 ## Not yet established
 
-- Complete Android emulator workflow pass; installation and offline persistence now pass, but manual recreation/outcome recording still require a successful same-revision test after the fresh-tree repair.
 - Passing physical position/relocalisation evidence. Printing instructions contain historical marker observations; these are not a complete ±3 cm validation result.
-- Complete native runtime verification and tested cloud sync. Install/save/restart passed on the revision above; recreation and final APK/evidence checksum comparison remain pending. Cloud sync remains unimplemented.
+- Physical native AR runtime verification and tested cloud sync. The offline mobile shell passed emulator installation, persistence and manual recreation; camera/AR accuracy, BLE and cloud sync remain unimplemented or untested.
 - Exact received sensor variants, verified new-board pin map and combined sensor performance.
 - Implemented new-node BLE firmware and complete GATT/security/message contract.
 - iOS implementation/testing, production electronics or photographer validation.
