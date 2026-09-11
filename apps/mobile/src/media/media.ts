@@ -61,8 +61,8 @@ export async function pickPhoto(
   const tmp = new File(Paths.cache, id + ".jpg"),
     final = photoFile(id + ".jpg");
   try {
-    new File(asset.uri).copy(original);
-    new File(resized.uri).copy(tmp);
+    await new File(asset.uri).copy(original);
+    await new File(resized.uri).copy(tmp);
     const bytes = await tmp.bytes();
     if (bytes.length > 10485760)
       throw new Error("Optimised photo exceeds 10 MB.");
@@ -71,7 +71,7 @@ export async function pickPhoto(
     )
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
-    tmp.move(final);
+    await tmp.move(final);
     repo.registerImage({
       id,
       mime_type: "image/jpeg",
@@ -85,7 +85,10 @@ export async function pickPhoto(
     return id;
   } catch (e) {
     for (const f of [tmp, final, original]) if (f.exists) f.delete();
-    throw e;
+    throw new Error(
+      "Could not save this photo. Please select it again and check that your phone has free storage.",
+      { cause: e },
+    );
   }
 }
 export async function photoUri(

@@ -30,6 +30,18 @@ export default function Home() {
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState<"active" | "archive" | "trash">("active"),
     [error, setError] = useState<string | null>(null);
+  const [equipmentQuery, setEquipmentQuery] = useState("");
+  const [equipmentType, setEquipmentType] = useState("all");
+  const equipment = repo
+    .equipment()
+    .filter(
+      (item) =>
+        (equipmentType === "all" || item.kind === equipmentType) &&
+        [item.name, item.manufacturer, item.model]
+          .join(" ")
+          .toLowerCase()
+          .includes(equipmentQuery.trim().toLowerCase()),
+    );
   const setups = repo.setups(),
     attempts = repo.recreations(),
     draft = repo.draft("capture:new");
@@ -140,7 +152,7 @@ export default function Home() {
             ? "Every saved version stays available, even when you change your setup."
             : tab === "Shoots"
               ? "Keep shoot plans and recreation attempts connected."
-              : "Add only what you use. You can fill in the rest later."
+              : "Your equipment inventory. Tap an item to edit its details."
       }
       footer={footer}
     >
@@ -188,7 +200,9 @@ export default function Home() {
                 </View>
               </Card>
             </View>
-            <Card style={wideLayout ? [s.column, { justifyContent: "center" }] : {}}>
+            <Card
+              style={wideLayout ? [s.column, { justifyContent: "center" }] : {}}
+            >
               <Label>YOUR WORKSPACE</Label>
               <Text style={{ fontSize: 44, color: c.text, fontWeight: "600" }}>
                 {setups.length.toString().padStart(2, "0")}
@@ -303,6 +317,11 @@ export default function Home() {
       {tab === "Equipment" && (
         <>
           <Card>
+            <Heading>How your inventory works</Heading>
+            <Body>
+              Add one record for each item you own. When saving a setup, select
+              the equipment used so you can remember it during recreation.
+            </Body>
             <Badge tone="warning">LIVE CONNECTION UNAVAILABLE</Badge>
             <Body>
               This build cannot connect to a LightGuide sensor. Equipment below
@@ -314,7 +333,28 @@ export default function Home() {
             onPress={() => router.push("/equipment")}
           />
           <View style={{ height: 20 }} />
-          {repo.equipment().map((e) => (
+          <Field
+            label="Search equipment"
+            value={equipmentQuery}
+            onChange={setEquipmentQuery}
+            placeholder="Name, manufacturer or model"
+          />
+          <Label>Filter by equipment type</Label>
+          <Choice
+            options={[
+              "all",
+              "camera",
+              "lens",
+              "light",
+              "modifier",
+              "reflector",
+              "other",
+            ]}
+            value={equipmentType}
+            onChange={setEquipmentType}
+          />
+          <View style={{ height: 16 }} />
+          {equipment.map((e) => (
             <Card
               key={e.id}
               onPress={() =>
@@ -322,6 +362,7 @@ export default function Home() {
               }
             >
               <Label>{e.kind}</Label>
+              <Body muted>Item name</Body>
               <Heading>{e.name}</Heading>
               <Body muted>
                 {[e.manufacturer, e.model].filter(Boolean).join(" · ") ||
@@ -329,6 +370,12 @@ export default function Home() {
               </Body>
             </Card>
           ))}
+          {equipment.length === 0 && repo.equipment().length > 0 && (
+            <Card>
+              <Heading>No matching equipment.</Heading>
+              <Body muted>Try another name or choose All.</Body>
+            </Card>
+          )}
           {repo.equipment().length === 0 && (
             <Card>
               <Heading>Start with your main light.</Heading>

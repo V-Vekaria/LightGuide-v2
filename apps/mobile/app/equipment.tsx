@@ -10,6 +10,7 @@ import {
   ErrorMessage,
   Field,
   Screen,
+  Label,
 } from "../src/ui/components";
 import { humanError, type EquipmentInput } from "../src/domain/schema";
 export default function Equipment() {
@@ -39,10 +40,14 @@ export default function Equipment() {
     <Screen
       back
       title={id ? "Equipment details." : "Add your equipment."}
-      subtitle="Keep it simple. The name is enough to get started."
+      subtitle="Save one record per item, then select it when creating a setup."
     >
       <ErrorMessage message={error} />
       <Card>
+        <Label>Equipment type</Label>
+        <Body muted>
+          Choose what this item is. These buttons set its category.
+        </Body>
         <Choice
           options={
             [
@@ -61,8 +66,18 @@ export default function Equipment() {
           label="Equipment name"
           value={form.name}
           onChange={(name) => setForm({ ...form, name })}
-          placeholder="Main studio light"
+          placeholder={
+            form.kind === "reflector"
+              ? "Silver reflector — 80 cm"
+              : form.kind === "lens"
+                ? "Canon 50 mm lens"
+                : "Main studio light"
+          }
         />
+        <Body muted>
+          Name this specific item, not a quantity. For two reflectors, use names
+          such as “Silver reflector” and “White reflector”.
+        </Body>
         <Field
           label="Manufacturer (optional)"
           value={form.manufacturer ?? ""}
