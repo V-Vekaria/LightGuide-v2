@@ -9,7 +9,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.lightguide.phase0"
+        applicationId = "com.lightguide.codex.phase0"
         minSdk = 24 // ARCore's floor
         targetSdk = 36
         versionCode = 1

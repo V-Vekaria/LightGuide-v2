@@ -72,10 +72,9 @@ data class Tolerances(
     val orientationDeg: Float = DEFAULT_ORIENTATION_DEG,
 ) {
     companion object {
-        // Midpoints of the Phase 0 engineering gate in docs/POSITIONING_RESEARCH.md
-        // (3-5 cm position, 2-3 deg orientation). Test targets, not claims.
-        const val DEFAULT_POSITION_CM = 4.0f
-        const val DEFAULT_ORIENTATION_DEG = 2.5f
+        // Agreed application test profile; targets, not accuracy claims.
+        const val DEFAULT_POSITION_CM = 3.0f
+        const val DEFAULT_ORIENTATION_DEG = 3.0f
     }
 }
 
@@ -92,6 +91,7 @@ data class MarkerSizes(
 /** One observation of the stand marker, ready for display and logging. */
 data class Reading(
     val timestampMs: Long,
+    val observedAtMonotonicMs: Long,
     val frameMode: FrameMode,
     val standPose: Pose6,
     /** Milliseconds since the reference marker was last tracked, null in AR_WORLD. */

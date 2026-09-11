@@ -89,7 +89,7 @@ class MeasurementLogger(private val context: Context) {
     }
 
     /** Records a live reading, but only while recording is armed. */
-    fun logSample(reading: Reading, trackingState: String, tolerances: Tolerances) {
+    fun logSample(reading: Reading?, trackingState: String, tolerances: Tolerances) {
         if (!recording) return
         append(buildRow(EventType.SAMPLE, reading, tolerances, "", trackingState))
     }
@@ -109,7 +109,7 @@ class MeasurementLogger(private val context: Context) {
     /** Absolute path of the live CSV, for the status line and adb pull. */
     val livePath: String get() = liveFile.absolutePath
 
-    private fun append(row: Row) {
+    @Synchronized private fun append(row: Row) {
         synchronized(rows) {
             if (rows.size >= MAX_ROWS) return
             rows.add(row)
@@ -129,7 +129,7 @@ class MeasurementLogger(private val context: Context) {
      * recorded once and then swallowed; the in-memory rows and EXPORT remain
      * as the backstop.
      */
-    private fun appendToDisk(row: Row) {
+    @Synchronized private fun appendToDisk(row: Row) {
         try {
             val writer = liveWriter ?: openLiveWriter() ?: return
             writer.write(toCsv(row))
@@ -159,7 +159,7 @@ class MeasurementLogger(private val context: Context) {
     }
 
     /** Flushes and closes the live file; safe to call more than once. */
-    fun close() {
+    @Synchronized fun close() {
         try {
             liveWriter?.flush()
             liveWriter?.close()
@@ -213,7 +213,8 @@ class MeasurementLogger(private val context: Context) {
      * Writes both formats into the app's external files dir, which is readable
      * over `adb pull` and shareable without any storage permission.
      */
-    fun export(tolerances: Tolerances, markerSizes: MarkerSizes): Export {
+    @Synchronized fun export(tolerances: Tolerances, markerSizes: MarkerSizes): Export {
+        close()
         val snapshot = synchronized(rows) { ArrayList(rows) }
         val dir = File(context.getExternalFilesDir(null), "logs").apply { mkdirs() }
 
@@ -252,8 +253,11 @@ class MeasurementLogger(private val context: Context) {
         ).joinToString(",")
     }
 
-    private fun escape(s: String): String =
-        if (s.contains(',') || s.contains('"')) "\"" + s.replace("\"", "\"\"") + "\"" else s
+    private fun escape(s: String): String {
+        // Quote multiline cells and neutralise spreadsheet formula injection.
+        val safe = if (s.trimStart().firstOrNull() in listOf('=', '+', '-', '@')) "'" + s else s
+        return "\"" + safe.replace("\"", "\"\"") + "\""
+    }
 
     private fun buildJson(
         snapshot: List<Row>,
