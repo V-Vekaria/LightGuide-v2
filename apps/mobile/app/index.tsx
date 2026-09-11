@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useStore } from "../src/ui/Store";
 import {
@@ -23,6 +23,8 @@ import type { Setup } from "../src/data/repository";
 const tabs = ["Home", "Shoots", "Create", "Setups", "Equipment"] as const;
 export default function Home() {
   const { repo, refresh } = useStore();
+  const { width, fontScale } = useWindowDimensions();
+  const wideLayout = width >= 760 && fontScale <= 1.3;
   const params = useLocalSearchParams<{ tab?: string }>();
   const tab = tabs.find((t) => t === params.tab) ?? "Home";
   const [query, setQuery] = useState(""),
@@ -149,8 +151,8 @@ export default function Home() {
             <Badge>OFFLINE READY</Badge>
             <Body muted>Saved on this device</Body>
           </View>
-          <View style={s.split}>
-            <View style={[s.column, { flex: 1.4 }]}>
+          <View style={wideLayout ? s.split : { gap: 4 }}>
+            <View style={wideLayout ? [s.column, { flex: 1.4 }] : {}}>
               <Card
                 style={{
                   backgroundColor: "#183B33",
@@ -186,7 +188,7 @@ export default function Home() {
                 </View>
               </Card>
             </View>
-            <Card style={[s.column, { justifyContent: "center" }]}>
+            <Card style={wideLayout ? [s.column, { justifyContent: "center" }] : {}}>
               <Label>YOUR WORKSPACE</Label>
               <Text style={{ fontSize: 44, color: c.text, fontWeight: "600" }}>
                 {setups.length.toString().padStart(2, "0")}
@@ -300,6 +302,13 @@ export default function Home() {
       )}
       {tab === "Equipment" && (
         <>
+          <Card>
+            <Badge tone="warning">LIVE CONNECTION UNAVAILABLE</Badge>
+            <Body>
+              This build cannot connect to a LightGuide sensor. Equipment below
+              is a manual inventory; adding an item does not pair a device.
+            </Body>
+          </Card>
           <Button
             title="Add equipment"
             onPress={() => router.push("/equipment")}
