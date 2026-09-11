@@ -60,13 +60,28 @@ jobs:
         working-directory: apps/mobile
       - name: Build standalone evaluation APK with embedded JavaScript
         working-directory: apps/mobile/android
-        run: ./gradlew :app:assembleRelease --no-daemon
+        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Test installed Android application offline
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          script: cd apps/mobile && python scripts/android-smoke.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lightguide-codex-android
           path: |
             apps/mobile/android/app/build/outputs/apk/release/*.apk
+            apps/mobile/artifacts/android-smoke/
 
   positioning:
     runs-on: ubuntu-latest

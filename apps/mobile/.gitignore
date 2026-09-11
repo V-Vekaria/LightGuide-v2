@@ -12,3 +12,5 @@ artifacts/
 dist-web/
 dist-android/
 playwright-report/
+__pycache__/
+*.pyc
