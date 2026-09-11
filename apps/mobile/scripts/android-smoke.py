@@ -26,9 +26,13 @@ def tree():
     (OUT / 'latest-ui.xml').write_bytes(raw)
     return ET.fromstring(raw)
 
-def find(label, scroll=False, contains=False):
+def find(label, scroll=False, contains=False, node_class=None, focused=False):
     for attempt in range(18):
         for node in tree().iter('node'):
+            if node_class and node.get('class') != node_class:
+                continue
+            if focused and node.get('focused') != 'true':
+                continue
             values = [node.get('text', ''), node.get('content-desc', '')]
             if (any(label in v for v in values) if contains else label in values):
                 bounds = list(map(int, re.findall(r'\d+', node.get('bounds', ''))))
@@ -40,8 +44,8 @@ def find(label, scroll=False, contains=False):
         time.sleep(.5)
     raise AssertionError(f'Visible control not found: {label}')
 
-def tap(label, scroll=False, contains=False):
-    x1,y1,x2,y2 = find(label,scroll,contains)
+def tap(label, scroll=False, contains=False, node_class=None):
+    x1,y1,x2,y2 = find(label,scroll,contains,node_class)
     adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
 
 def launch():
@@ -71,9 +75,19 @@ try:
     launch()
     tap('Save a setup')
     passed('launch')
-    tap('Setup name')
+    # The visible label and editable control share an accessibility name.
+    # Require the native input, then prove focus and entry before proceeding.
+    tap('Setup name', node_class='android.widget.EditText')
+    find('Setup name', node_class='android.widget.EditText', focused=True)
     adb('shell','input','text','CodexNativeSmoke')
-    adb('shell','input','keyevent','KEYCODE_BACK')
+    find('CodexNativeSmoke', node_class='android.widget.EditText', focused=True)
+    passed('setup name entered')
+    # Back navigates out of the form if the keyboard is already hidden.
+    ime = adb('shell','dumpsys','input_method').decode(errors='replace')
+    if re.search(r'mInputShown=true\b|mIsInputViewShown=true\b', ime):
+        adb('shell','input','keyevent','KEYCODE_BACK')
+    find('CodexNativeSmoke', node_class='android.widget.EditText')
+    (OUT/'setup-entered.png').write_bytes(adb('exec-out','screencap','-p'))
     tap('Save setup',scroll=True)
     find('CodexNativeSmoke',contains=True)
     passed('save')
