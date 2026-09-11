@@ -85,7 +85,13 @@ function RecreationFlow({
         v = clock.current;
       if (v.active) v.elapsed += Math.max(0, now - v.at);
       v.at = now;
-      setElapsed(v.elapsed);
+      // Keep full-resolution timing in the ref and durable record, but avoid
+      // continuously invalidating the native accessibility tree for a clock.
+      setElapsed((shown) =>
+        Math.floor(shown / 60000) === Math.floor(v.elapsed / 60000)
+          ? shown
+          : v.elapsed,
+      );
       try {
         repo.setSetting("timer:" + id, Math.round(v.elapsed));
       } catch (e) {
@@ -237,8 +243,7 @@ function RecreationFlow({
               STEP {Math.min(step + 1, steps.length)} OF {steps.length}
             </Label>
             <Body muted>
-              {Math.floor(elapsed / 60000)}m {Math.floor(elapsed / 1000) % 60}s
-              active
+              {Math.floor(elapsed / 60000)}m active · recorded to the second
             </Body>
           </View>
           <Card>

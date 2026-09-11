@@ -21,10 +21,20 @@ def adb(*args, timeout=30):
     return subprocess.check_output(['adb', *args], timeout=timeout, stderr=subprocess.STDOUT)
 
 def tree():
-    adb('shell', 'uiautomator', 'dump', '/sdcard/lightguide-ui.xml')
-    raw = adb('shell', 'cat', '/sdcard/lightguide-ui.xml')
-    (OUT / 'latest-ui.xml').write_bytes(raw)
-    return ET.fromstring(raw)
+    # uiautomator can exit zero without writing when the UI never goes idle.
+    # Never reuse the previous screen's XML after such a failed dump.
+    for attempt in range(3):
+        adb('shell', 'rm', '-f', '/sdcard/lightguide-ui.xml')
+        output = adb('shell', 'uiautomator', 'dump', '/sdcard/lightguide-ui.xml')
+        (OUT / 'ui-dump.txt').write_bytes(output)
+        if b'UI hierchary dumped to:' in output:
+            raw = adb('shell', 'cat', '/sdcard/lightguide-ui.xml')
+            root = ET.fromstring(raw)
+            (OUT / 'latest-ui.xml').write_bytes(raw)
+            return root
+        print('UI dump did not produce a fresh tree: ' + output.decode(errors='replace'), flush=True)
+        time.sleep(1)
+    raise AssertionError('Unable to obtain a fresh Android accessibility tree')
 
 def find(label, scroll=False, contains=False, node_class=None, focused=False):
     for attempt in range(18):
@@ -102,7 +112,15 @@ try:
     tap('CodexNativeSmoke',scroll=True,contains=True)
     passed('offline reopen with saved setup')
     tap('Recreate this version',scroll=True)
-    for _ in range(4): tap('Mark step complete',scroll=True)
+    find('MANUAL RECREATION')
+    for step in range(1, 5):
+        find(f'STEP {step} OF 4')
+        tap('Mark step complete',scroll=True)
+        if step < 4:
+            find(f'STEP {step + 1} OF 4')
+        else:
+            find('Steps completed')
+        passed(f'manual recreation step {step}')
     tap('Finish and record outcome',scroll=True)
     find('Recreation recorded.',contains=True)
     passed('manual recreate and record outcome')

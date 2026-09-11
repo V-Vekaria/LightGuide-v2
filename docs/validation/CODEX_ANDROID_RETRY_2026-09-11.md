@@ -43,3 +43,35 @@ and allows activity startup 90 seconds. Ordinary adb commands retain the
 30-second bound. Exceptions and available diagnostics are preserved.
 
 Runtime readiness is still pending the corrected test; no check is waived.
+
+## 11 September: save/reopen pass; stale recreation accessibility tree
+
+Run https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34606894914,
+attempt 1, source `e59aecc478721cd38c0b6bceeffa582a71595419`:
+software, Android compilation and positioning jobs passed. Android smoke logs
+and downloaded artifact 10267239900 evidence.json confirm install, launch,
+setup name entry, save, force-close and offline reopen passed for
+`com.lightguide.codex`. Evidence APK SHA256:
+`3d3b84c4db5b1cff6daa9495b77cf63091db7c1f8f80e080df5a8bc077168dda`.
+This iteration downloaded the evidence ZIP, not the APK; no final checksum
+comparison or readiness claim is made.
+
+Recreation failed finding `Mark step complete`. The final screenshot shows
+the recreation form (Finish disabled), but latest-ui.xml still describes the
+previous setup-detail screen. Logcat shows repeated UIAutomator launches
+about 13 seconds apart. The recreation timer updates visible seconds each
+second, consistent with UIAutomator never reaching idle. The old script
+ignored dump output and read the previous XML even if a dump wrote nothing.
+There is no result.txt success file in the failed evidence archive.
+
+Bounded repair: preserve full-resolution active timing and per-second durable
+recording, but update the visible elapsed minute only when it changes. The
+test deletes old device XML before each dump, requires explicit dump success,
+retries at most three times and records dump output. Each of the four manual
+steps must now show its expected progress and the final Steps completed state.
+No acceptance gate, identity, security check or measured-match rule is removed.
+
+Local validation: Python compilation passed; three mocked dump tests passed
+(fresh success, stale-file rejection, transient failure/recovery). Native
+recreation and full CI for this repair remain pending. Physical camera/AR,
+BLE, sensors and ±3 cm accuracy remain untested.
