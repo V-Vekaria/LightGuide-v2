@@ -64,3 +64,18 @@ Outcome: source/assets located and inspected; no new physical trial or Android b
 ## 11 September 2026 — independent Codex build
 
 See [CODEX_BUILD_2026-09-11.md](CODEX_BUILD_2026-09-11.md) for executed checks and pending native/physical validation. App IDs and branch are isolated for comparison with Claude.
+
+
+## 11 September 2026 — Codex offline Android APK verification
+
+Workflow run [34612856890](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34612856890)
+at source `27639e4b60dbfb4b82d13915b962db1acdbfbd0f` passed software,
+positioning, APK compilation and emulator smoke jobs. Downloaded same-run APK
+and smoke-evidence artifacts matched package `com.lightguide.codex` and APK
+SHA-256 `58fd3c902f2c1a52f05ea7e6f1d76963a92d045d863578df82d2df8b364fc72b`.
+Install, launch, save, force-close, offline reopen, all four manual recreation
+steps and outcome recording passed. See
+[CODEX_ANDROID_RETRY_2026-09-11.md](CODEX_ANDROID_RETRY_2026-09-11.md).
+
+Outcome: PASS for offline Android phone-evaluation readiness. VAL-001–004 and
+physical camera/AR, BLE, sensor and ±3 cm accuracy validation remain open.
