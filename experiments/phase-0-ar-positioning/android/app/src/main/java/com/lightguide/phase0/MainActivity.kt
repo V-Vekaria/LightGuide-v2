@@ -72,7 +72,6 @@ class MainActivity : Activity(), ArRenderer.Listener {
     private var sessionError: String? = null
 
     /** Latest state from the GL thread; read on the UI thread when refreshing. */
-    @Volatile
     @Volatile private var latestState: ArRenderer.ArState? = null
     private val captureStability = com.lightguide.phase0.pose.CaptureStability()
 

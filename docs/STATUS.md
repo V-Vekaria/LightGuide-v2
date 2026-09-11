@@ -1,6 +1,6 @@
 # LightGuide v2 — Current Status
 
-**Status on `codex/offline-mobile-app`:** offline application implemented; software/browser validation and Android packaging in progress. This independent comparison branch does not alter Claude's work or `main`. Physical validation remains open.
+**Status on `codex/offline-mobile-app`:** offline application implemented; software/browser checks and Android release compilation passed. APK download verified; emulator workflow verification remains pending after a runner disk-space failure. Physical validation remains open. See [Android retry evidence](validation/CODEX_ANDROID_RETRY_2026-09-11.md).
 
 See [Codex build evidence](validation/CODEX_BUILD_2026-09-11.md) and [run instructions](../apps/mobile/README.md).
 **Current handoff:** [CLAUDE_BUILD_HANDOFF.md](engineering/CLAUDE_BUILD_HANDOFF.md).
@@ -28,9 +28,9 @@ See [the source audit](validation/AR_SOURCE_AUDIT_2026-09-10.md). On this branch
 
 ## Not yet established
 
-- Current Android build/test pass in this environment; Android SDK, Gradle command, Kotlin compiler and adb were unavailable during this recovery audit.
+- Complete Android emulator workflow pass; the release APK compiles, but emulator setup exhausted runner disk space. The retry isolates the emulator on a fresh runner.
 - Passing physical position/relocalisation evidence. Printing instructions contain historical marker observations; these are not a complete ±3 cm validation result.
-- A verified native APK and tested cloud sync. The React Native source, SQLite migrations and JavaScript bundles are implemented and checked on this branch.
+- Native runtime verification and tested cloud sync. An actual release APK was downloaded; install/save/restart/recreate evidence is still required. Cloud sync remains unimplemented.
 - Exact received sensor variants, verified new-board pin map and combined sensor performance.
 - Implemented new-node BLE firmware and complete GATT/security/message contract.
 - iOS implementation/testing, production electronics or photographer validation.
