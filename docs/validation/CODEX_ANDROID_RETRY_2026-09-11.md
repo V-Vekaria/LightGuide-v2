@@ -75,3 +75,25 @@ Local validation: Python compilation passed; three mocked dump tests passed
 (fresh success, stale-file rejection, transient failure/recovery). Native
 recreation and full CI for this repair remain pending. Physical camera/AR,
 BLE, sensors and ±3 cm accuracy remain untested.
+
+
+## Final same-revision workflow pass
+
+Run [34612856890](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34612856890),
+attempt 1, source `27639e4b60dbfb4b82d13915b962db1acdbfbd0f`, completed
+successfully. The software, Android release build, positioning and
+`android-smoke` jobs all passed.
+
+Non-expired artifact `lightguide-codex-android` (ID `10269669002`) was
+downloaded successfully. It contains a real 66,337,886-byte
+`app-release.apk`. Non-expired artifact `codex-android-smoke-evidence`
+(ID `10269259678`) was also downloaded and inspected. Its result reports a
+pass for install, launch, save, offline force-stop/restart and manual recreation
+outcome. Its evidence records every required check, the same source SHA,
+package `com.lightguide.codex`, and APK SHA-256
+`58fd3c902f2c1a52f05ea7e6f1d76963a92d045d863578df82d2df8b364fc72b`.
+An independent checksum of the downloaded APK matched exactly.
+
+Outcome: the offline Android APK is ready for phone evaluation. This is not
+physical validation of camera/AR, BLE, sensors or the ±3 cm positioning target;
+those remain pending.
