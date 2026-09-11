@@ -17,8 +17,8 @@ def passed(check):
     evidence['checks'].append(check)
     print('PASS: ' + check, flush=True)
 
-def adb(*args):
-    return subprocess.check_output(['adb', *args], timeout=30)
+def adb(*args, timeout=30):
+    return subprocess.check_output(['adb', *args], timeout=timeout, stderr=subprocess.STDOUT)
 
 def tree():
     adb('shell', 'uiautomator', 'dump', '/sdcard/lightguide-ui.xml')
@@ -45,7 +45,10 @@ def tap(label, scroll=False, contains=False):
     adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
 
 def launch():
-    adb('shell','am','start','-W','-n',PACKAGE+'/.MainActivity')
+    output = adb('shell','am','start','-W','-n',PACKAGE+'/.MainActivity', timeout=90)
+    print(output.decode(errors='replace'), flush=True)
+    if b'Error:' in output or b'Status: timeout' in output:
+        raise AssertionError('Android activity launch failed')
 
 try:
     apk=Path('android/app/build/outputs/apk/release/app-release.apk')
@@ -54,7 +57,15 @@ try:
         if len(candidates)!=1: raise AssertionError('Expected exactly one evaluation APK')
         apk=candidates[0]
     evidence['apk_sha256'] = hashlib.sha256(apk.read_bytes()).hexdigest()
-    adb('install','-r',str(apk))
+    # A freshly booted CI emulator may need more than 30 seconds to install
+    # the 66 MB universal APK while Android finishes its own first boot work.
+    install_output = adb('install','-r',str(apk), timeout=180)
+    (OUT/'install.txt').write_bytes(install_output)
+    print(install_output.decode(errors='replace'), flush=True)
+    if b'Success' not in install_output:
+        raise AssertionError('APK installer did not report Success')
+    if not adb('shell','pm','path',PACKAGE).strip().startswith(b'package:'):
+        raise AssertionError('Installed Codex package was not found')
     passed('install')
     adb('logcat','-c')
     launch()
@@ -84,9 +95,21 @@ try:
     (OUT/'completed.png').write_bytes(adb('exec-out','screencap','-p'))
     (OUT/'result.txt').write_text('PASS: install, launch, save, offline force-stop/restart, manual recreation outcome.\n')
     print('PASS: Android offline save/restart/recreation journey')
+except Exception as error:
+    evidence['error'] = repr(error)
+    raise
 finally:
     (OUT/'evidence.json').write_text(json.dumps(evidence, indent=2) + '\n')
-    (OUT/'last-screen.png').write_bytes(adb('exec-out','screencap','-p'))
-    (OUT/'logcat.txt').write_bytes(adb('logcat','-d','-t','2000'))
-    adb('shell','svc','wifi','enable')
-    adb('shell','svc','data','enable')
+    # Diagnostic failures must not hide the original test failure or prevent
+    # the other evidence from being collected.
+    for name, command in [('last-screen.png', ('exec-out','screencap','-p')),
+                          ('logcat.txt', ('logcat','-d','-t','2000'))]:
+        try:
+            (OUT/name).write_bytes(adb(*command))
+        except Exception as error:
+            print(f'Could not collect {name}: {error}', flush=True)
+    for service in ('wifi', 'data'):
+        try:
+            adb('shell','svc',service,'enable')
+        except Exception as error:
+            print(f'Could not restore {service}: {error}', flush=True)
