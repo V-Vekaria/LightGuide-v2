@@ -13,7 +13,7 @@ All [source-audit](validation/AR_SOURCE_AUDIT_2026-09-10.md) findings are addres
 
 React Native/TypeScript/Expo Router application under [apps/mobile/](../apps/mobile/README.md): local-first SQLite (a subset of the seven-table design in [DATABASE_SCHEMA.md](product/DATABASE_SCHEMA.md)), immutable setup versions, archive distinct from Trash, pose-delta/guidance maths with an authoritative MatchState, and SpatialProvider/SensorTransport interfaces with only Unavailable/Simulated implementations - no native ARCore or BLE bridge exists yet. Full implemented/simulated/tested/untested breakdown is in [apps/mobile/README.md](../apps/mobile/README.md).
 
-**Verified in this environment:** `npx tsc --noEmit` clean; `npx jest` 40/40 passing against a real file-backed SQLite database (not a mock - see apps/mobile/README.md "Testing approach"), including two real bugs the tests caught before this was committed; `npx expo-doctor` 18/18. **Not verified:** the native Android debug build did not complete in this environment (`./gradlew :app:assembleDebug` stopped after 30+ minutes with no forward progress for the last 20+, likely OneDrive-related - see [VALIDATION_LOG.md](validation/VALIDATION_LOG.md) "Android native build of apps/mobile/" and apps/mobile/README.md), so no APK exists for this app yet, and on-device/emulator behaviour of its screens and `expo-sqlite` binding remains unverified. No emulator or physical device was available in this environment either way.
+**Verified in this environment:** `npx tsc --noEmit` clean; `npx jest` 40/40 passing against a real file-backed SQLite database (not a mock - see apps/mobile/README.md "Testing approach"), including two real bugs the tests caught before this was committed; `npx expo-doctor` 18/18; and now `./gradlew :app:assembleDebug` -> **BUILD SUCCESSFUL, 201/201 tasks**, debug APK produced (131 MiB, all 4 ABIs) - see [VALIDATION_LOG.md](validation/VALIDATION_LOG.md) "Android native build of apps/mobile/" for the three distinct blockers hit and fixed along the way (a JDK version mismatch, a corrupted Gradle cache entry, and a genuine Windows path-length limit that required building from a short path outside OneDrive). **Not verified:** on-device/emulator *runtime* behaviour - the APK has been built but not yet installed or exercised on a device or emulator in this environment.
 
 ## Required corrections before physical validation
 
@@ -42,7 +42,7 @@ The Phase-0 experiment's code-level gaps from the source audit are now fixed (se
 
 Coding agent: M3 (verify/package/hand over) is next - see [CLAUDE_BUILD_HANDOFF.md](engineering/CLAUDE_BUILD_HANDOFF.md).
 
-User: operate the phone for both apps - print the exact Phase-0 markers at measured dimensions for AR validation using the hardened experiment APK, and build/install the offline app locally (commands in apps/mobile/README.md, including the JDK-17 and possible OneDrive-workaround notes) since no APK for it exists yet, then exercise its save/recreate journey to confirm on-device behaviour that could not be verified in this environment.
+User: operate the phone for both apps - print the exact Phase-0 markers at measured dimensions for AR validation using the hardened experiment APK, and install the offline app's debug APK (`C:\dev\LightGuide-v2\apps\mobile\android\app\build\outputs\apk\debug\app-debug.apk` on the machine this was built on, or rebuild per apps/mobile/README.md elsewhere) to exercise its save/recreate journey and confirm on-device behaviour that could not be verified in this environment.
 
 ## Legacy evidence
 

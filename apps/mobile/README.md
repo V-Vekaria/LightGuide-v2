@@ -36,13 +36,14 @@ for trusting *live* camera-based positioning, which this app does not yet have.
   (the same repository code runs for real against `driver.node.ts` in the
   test suite - see "Testing approach"), but this specific binding has not
   itself been executed.
-- The native Android debug build itself: `npx expo prebuild` succeeded, but
-  `./gradlew :app:assembleDebug` did not complete in this environment
-  (stopped after 30+ minutes with no forward progress for the last 20+;
-  see "Running on a device" below and `docs/validation/VALIDATION_LOG.md`
-  "Android native build of apps/mobile/"). No APK was produced for this app
-  in this delivery. This is INCONCLUSIVE, not a build failure - no compile
-  error occurred.
+- **Built, but not yet run.** `npx expo prebuild` and
+  `./gradlew :app:assembleDebug` both succeeded (201/201 tasks, debug APK
+  produced - see `docs/validation/VALIDATION_LOG.md` "Android native build
+  of apps/mobile/" for the three build-environment issues hit and fixed
+  along the way, and "Running on a device" below for the path-length
+  requirement that came out of it). The APK exists but has not been
+  installed or exercised on any device or emulator in this environment, so
+  its actual on-screen behaviour is still unverified.
 
 **Simulated, clearly labelled as such in the UI:**
 - The recreation screen's "Simulated guidance demo" section
@@ -107,6 +108,19 @@ Phase-0 experiment, which pins a newer Gradle (9.7.1) that does support it.
 If Android Studio's bundled JBR is JDK 25 (`Android Studio\jbr`), download a
 JDK 17 separately (e.g. Temurin) and point `JAVA_HOME` at it for this build.
 
+**Build from a short path, not deep inside OneDrive.** This build failed with
+`ninja: error: mkdir(...): No such file or directory` when run from a deeply
+nested, OneDrive-synced path. That is a genuine Windows path-length limit hit
+during native CMake compilation (RN/CMake generate long object-file paths) -
+`ninja.exe`, bundled with the Android SDK's CMake package, does not honour
+the `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled`
+registry opt-in even when it is already set to `1`. Cloning/copying the repo
+to something like `C:\dev\LightGuide-v2` and building from there (which also
+sidesteps OneDrive sync entirely) is what actually worked; see
+`docs/validation/VALIDATION_LOG.md` "Android native build of apps/mobile/"
+for the two other build-environment issues (JDK version, a corrupted Gradle
+cache entry) hit along the way and how they were fixed.
+
 ```bash
 cd apps/mobile
 npx expo prebuild --platform android   # generates android/ (gitignored)
@@ -116,20 +130,11 @@ JAVA_HOME=/path/to/jdk-17 ./gradlew :app:assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-**If this build is extremely slow or appears to stall** with no new Gradle
-task output for many minutes despite the java process consuming CPU: this
-was observed in this repository's own development environment, working
-inside a OneDrive-synced folder, and is consistent with the OneDrive
-file-locking/sync interference this repo's Phase-0 experiment already works
-around (`experiments/phase-0-ar-positioning/android/build.gradle.kts`
-redirects its build output outside OneDrive for exactly this reason; the
-generated `apps/mobile/android` project has no equivalent redirect). If you
-hit this, either exclude `apps/mobile/android/` and `apps/mobile/node_modules/`
-from OneDrive sync (right-click > "Always keep on this device", or pause
-sync during the build), or run the build from a checkout outside any synced
-folder. This was not confirmed as the root cause in this delivery - the
-build was stopped rather than left running indefinitely - so treat it as
-the leading hypothesis to try first, not a certainty.
+If `./gradlew :app:assembleDebug` fails with a corrupted-cache-style error
+(`Cannot snapshot ...: not a regular file`), most likely from a previous
+build that was interrupted mid-write, delete
+`~/.gradle/caches/<gradle-version>/transforms` (safe - it is a derived
+cache) and retry.
 
 Or, for iterative development with Metro/fast refresh instead of a plain
 debug APK: `npx expo run:android` (requires an emulator or connected device).
