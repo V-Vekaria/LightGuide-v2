@@ -7,7 +7,7 @@ permissions:
   contents: read
 concurrency:
   group: codex-application-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   software:
     runs-on: ubuntu-latest
@@ -79,7 +79,7 @@ jobs:
           java-version: 17
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
-      - run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0'
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
       - run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon
         working-directory: experiments/phase-0-ar-positioning/android
       - uses: actions/upload-artifact@v4

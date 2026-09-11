@@ -62,3 +62,7 @@ Expo SQLite's experimental web worker originally used a CPU-dependent loop-count
 ## Delivery and physical checks
 
 Follow [the application README](../../apps/mobile/README.md) for commands, installation and comparison steps. No hardware accuracy, new-board wiring, BLE firmware, cloud sync, iOS compatibility or commercial MVP validation is claimed. Use the exact marker assets and independent measurements in [TEST_PLAN.md](../TEST_PLAN.md) for physical trials.
+
+## Native build configuration follow-up
+
+The first branch CI run (`34560133580`) could not install `platforms;android-37`. Source inspection found no API 37 calls, so the Codex harness now compiles against available API 36 while retaining target 36, AGP 9.3.2, Gradle 9.7.1 and JDK 17. Build tools 36.0.0 match [AGP 9.3's documented default](https://developer.android.com/build/releases/agp-9-3-0-release-notes). This is a toolchain compatibility correction, not a waived native build check.
