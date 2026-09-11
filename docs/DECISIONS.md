@@ -199,3 +199,7 @@ Reuse official ARCore features and manufacturer libraries for BNO086, VL53L5CX a
 The coding agent should complete available automated software checks, report blocked native/toolchain checks and continue independent work. The user performs physical print/pose/relocalisation, BLE and sensor tests. Mock or emulator results cannot establish ±3 cm accuracy, calibrated light measurement or iOS support.
 
 Authoritative task sequence and acceptance criteria: [CLAUDE_BUILD_HANDOFF.md](engineering/CLAUDE_BUILD_HANDOFF.md).
+
+## ADR-016 — Independent Codex comparison build (11 September 2026)
+
+At the user's request, Codex implementation remains on `codex/offline-mobile-app`, with mobile ID `com.lightguide.codex` and harness ID `com.lightguide.codex.phase0`. Do not merge or overwrite Claude's implementation; the user will compare both. This changes distribution identity, not the agreed core scope or physical-validation gates. See the [build evidence](validation/CODEX_BUILD_2026-09-11.md).

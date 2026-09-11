@@ -60,3 +60,7 @@ Do not convert a target into a claimed specification until it has passed a defin
 The implementation was found on branch experiment/phase-0-ar-positioning at 5bc532b0d1bfd94f8f554867eec94e7403d1a7ce and incorporated into the current baseline. See [source audit](AR_SOURCE_AUDIT_2026-09-10.md) for methods, evidence and code gaps.
 
 Outcome: source/assets located and inspected; no new physical trial or Android build/test pass claimed. VAL-001–004 remain open. Historical marker observations in the recovered printing instructions are retained, not promoted into a complete ±3 cm result.
+
+## 11 September 2026 — independent Codex build
+
+See [CODEX_BUILD_2026-09-11.md](CODEX_BUILD_2026-09-11.md) for executed checks and pending native/physical validation. App IDs and branch are isolated for comparison with Claude.

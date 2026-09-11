@@ -1,6 +1,8 @@
 # LightGuide v2 — Current Status
 
-**Status:** Android experiment recovered into the current baseline; software hardening and offline application implementation next. Physical validation remains open.
+**Status on `codex/offline-mobile-app`:** offline application implemented; software/browser validation and Android packaging in progress. This independent comparison branch does not alter Claude's work or `main`. Physical validation remains open.
+
+See [Codex build evidence](validation/CODEX_BUILD_2026-09-11.md) and [run instructions](../apps/mobile/README.md).
 **Current handoff:** [CLAUDE_BUILD_HANDOFF.md](engineering/CLAUDE_BUILD_HANDOFF.md).
 
 ## Implemented source recovered
@@ -13,7 +15,7 @@ The earlier statement that the experiment existed only as a README applied to ma
 
 ## Required corrections before physical validation
 
-See [the source audit](validation/AR_SOURCE_AUDIT_2026-09-10.md). The recovered code still uses 4 cm / 2.5 degree defaults, a cosmetic match percentage, incomplete tracking-freshness gating and experiment-specific coordinates/persistence. These are identified work items, not fixes already made.
+See [the source audit](validation/AR_SOURCE_AUDIT_2026-09-10.md). On this branch, source fixes address defaults, scoring, freshness, reference/marker-size compatibility, stable capture and log validity. Native compilation and physical accuracy are still pending; see the branch evidence record.
 
 ## Agreed and documented
 
@@ -28,7 +30,7 @@ See [the source audit](validation/AR_SOURCE_AUDIT_2026-09-10.md). The recovered 
 
 - Current Android build/test pass in this environment; Android SDK, Gradle command, Kotlin compiler and adb were unavailable during this recovery audit.
 - Passing physical position/relocalisation evidence. Printing instructions contain historical marker observations; these are not a complete ±3 cm validation result.
-- A built React Native application, migrated SQLite schema or tested cloud sync.
+- A verified native APK and tested cloud sync. The React Native source, SQLite migrations and JavaScript bundles are implemented and checked on this branch.
 - Exact received sensor variants, verified new-board pin map and combined sensor performance.
 - Implemented new-node BLE firmware and complete GATT/security/message contract.
 - iOS implementation/testing, production electronics or photographer validation.

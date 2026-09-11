@@ -1,5 +1,7 @@
 # LightGuide v2 — Commercial R&D
 
+**Codex comparison branch:** runnable offline application in [apps/mobile](apps/mobile/README.md), with [validation evidence](docs/validation/CODEX_BUILD_2026-09-11.md). This branch stays separate from Claude and `main`; native APK/physical checks are tracked explicitly.
+
 **Current V1 objective: Measure → Save → Recreate real photographic lighting setups.**
 
 LightGuide v2 is the commercial R&D project. The product direction is a smart light-stand system that automatically records the physical state of a lighting setup and later guides the photographer to recreate it.

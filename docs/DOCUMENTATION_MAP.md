@@ -52,3 +52,10 @@ These should be created when the project reaches the relevant maturity, not befo
 ## Historical material — not current instructions
 - [Legacy companion archive](archive/legacy-companion/README.md) — superseded plans and app/firmware handover history.
 - The retained root web app and device/ source are legacy engineering; their tests do not validate the Android AR or N8R8 BLE product.
+
+## Independent Codex comparison build
+
+- [Application and run instructions](../apps/mobile/README.md)
+- [Implementation, endpoint and security evidence](validation/CODEX_BUILD_2026-09-11.md)
+
+These describe `codex/offline-mobile-app`; they do not replace another implementation.
