@@ -10,7 +10,7 @@
 // its own store — which is how the conformance suite gets a clean device to
 // run against without a server anyone started by hand.
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { WebSocketServer } from 'ws';
@@ -119,12 +119,15 @@ export function loadTraces(dir = DEFAULT_TRACES) {
 
 function loadSetups(storePath) {
   if (!storePath || !existsSync(storePath)) return [];
-  try { return JSON.parse(readFileSync(storePath, 'utf8')); } catch { return []; }
+  const data = JSON.parse(readFileSync(storePath, 'utf8'));
+  if (!Array.isArray(data) || data.some(s => !isStorableSetup(s))) throw new Error('Invalid mock store; preserve the file and repair it before restarting.');
+  return data;
 }
 
 function saveSetups(storePath, list) {
   if (!storePath) return;
-  writeFileSync(storePath, JSON.stringify(list, null, 2));
+  writeFileSync(storePath + '.tmp', JSON.stringify(list, null, 2), { mode: 0o600 });
+  renameSync(storePath + '.tmp', storePath);
 }
 
 /**
@@ -152,11 +155,22 @@ function isTarget(value) {
   );
 }
 
+export const MAX_BODY_BYTES = 512 * 1024;
+const allowedOrigin = origin => !origin || /^http:\/\/(localhost|127\.0\.0\.1):(?:5173|5174|8081)$/.test(origin);
+const allowedHost = host => /^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(host ?? '');
 function readBody(req) {
-  return new Promise((resolve) => {
-    let raw = '';
-    req.on('data', (c) => (raw += c));
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > MAX_BODY_BYTES) { chunks.length = 0; reject(Object.assign(new Error('Request too large'), { status: 413 })); }
+      else chunks.push(c);
+    });
+    req.on('aborted', () => reject(Object.assign(new Error('Request aborted'), { status: 400 })));
+    req.on('error', reject);
     req.on('end', () => {
+      const raw = Buffer.concat(chunks).toString('utf8');
       // `undefined` means "no readable body", which is distinct from `{}` —
       // the whole point of finding #4: an empty body must never be inferred
       // to mean anything.
@@ -215,17 +229,24 @@ export async function createMockDevice(options = {}) {
   let cursor = 0;
 
   const server = createServer(async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // Local development server, never a public or LAN-authenticated service.
+    if (!allowedHost(req.headers.host) || !allowedOrigin(req.headers.origin)) return res.writeHead(403).end();
+    if (req.headers.origin) res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') return res.writeHead(204).end();
 
-    const url = new URL(req.url, `http://localhost:${port}`);
     const json = (code, payload) => {
       res.writeHead(code, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(payload));
     };
     const noContent = () => { res.writeHead(204); res.end(); };
+    try {
+    const url = new URL(req.url, `http://localhost:${port}`);
+    if (['PUT','POST'].includes(req.method) && req.headers['content-type']?.split(';')[0].trim() !== 'application/json') return json(415, {error:'Use application/json'});
 
     if (url.pathname === '/api/info' && req.method === 'GET' && serveInfo) {
       // Answers unconditionally — before the setups have loaded, with both
@@ -259,7 +280,7 @@ export async function createMockDevice(options = {}) {
       }
       return json(200, flag === '1' ? setups : setups.filter((s) => !s.deleted));
     }
-    if (url.pathname.startsWith('/api/setups/') && req.method === 'PUT') {
+    if (/^\/api\/setups\/[A-Za-z0-9_-]{1,128}$/.test(url.pathname) && req.method === 'PUT') {
       const id = url.pathname.split('/').pop();
       const incoming = await readBody(req);
       if (!isStorableSetup(incoming)) {
@@ -268,18 +289,20 @@ export async function createMockDevice(options = {}) {
       // Stored verbatim: updated_at and deleted come from the writer, never
       // from the device clock. An import writing a tombstone depends on it.
       const stored = { ...incoming, id };
-      setups = setups.filter((s) => s.id !== id).concat(stored);
-      saveSetups(storePath, setups);
+      const next = setups.filter((s) => s.id !== id).concat(stored);
+      if (Buffer.byteLength(JSON.stringify(next)) > FILESYSTEM_BYTES) return json(507, {error:'Mock storage is full'});
+      saveSetups(storePath, next);
+      setups = next;
       return json(200, stored);
     }
-    if (url.pathname.startsWith('/api/setups/') && req.method === 'DELETE') {
+    if (/^\/api\/setups\/[A-Za-z0-9_-]{1,128}$/.test(url.pathname) && req.method === 'DELETE') {
       const id = url.pathname.split('/').pop();
-      const found = setups.find((s) => s.id === id);
       // Tombstone, not removal: the record survives so a later export can
       // carry the deletion. The device stamps updated_at here because there
       // is no body to take one from.
-      if (found) { found.deleted = true; found.updated_at = new Date().toISOString(); }
-      saveSetups(storePath, setups);
+      const next = setups.map(s => s.id === id ? {...s, deleted:true, updated_at:new Date().toISOString()} : s);
+      saveSetups(storePath, next);
+      setups = next;
       // 204 must carry no body.
       return noContent();
     }
@@ -307,10 +330,17 @@ export async function createMockDevice(options = {}) {
     // nothing has ever fetched it separately — leaving the route here only
     // gave a firmware author a fifth endpoint to implement for no caller.
     return json(404, { error: 'not found' });
+    } catch (error) {
+      if (!res.headersSent && !res.destroyed) return json(error.status === 413 ? 413 : error.status === 400 ? 400 : 500, {error:error.status === 413 ? 'Request too large' : 'Request could not be completed'});
+    }
   });
+  server.requestTimeout = 10_000;
+  server.headersTimeout = 10_000;
+  server.maxConnections = 32;
 
   // --- websocket: 10 Hz live feed -------------------------------------------
-  const wss = new WebSocketServer({ server, path: '/live' });
+  const wss = new WebSocketServer({ server, path: '/live', maxPayload:1024, perMessageDeflate:false,
+    verifyClient:({req}) => allowedHost(req.headers.host) && allowedOrigin(req.headers.origin) && wss.clients.size < 8 });
   wss.on('connection', (sock) => {
     // Abrupt client disconnects can fire 'error' on the socket mid-send.
     // An unhandled 'error' event throws and kills the whole process, so a
@@ -336,7 +366,8 @@ export async function createMockDevice(options = {}) {
           ts: Date.now(),
         });
         for (const sock of wss.clients) {
-          if (sock.readyState === 1) sock.send(payload);
+          if (sock.bufferedAmount > 64 * 1024) sock.terminate();
+          else if (sock.readyState === 1) sock.send(payload);
         }
       }, FRAME_INTERVAL_MS)
     : null;
@@ -375,7 +406,7 @@ export async function createMockDevice(options = {}) {
       pendingListen = null;
       resolve();
     });
-    server.listen(port);
+    server.listen(port, '127.0.0.1');
   });
 
   const actualPort = server.address().port;
