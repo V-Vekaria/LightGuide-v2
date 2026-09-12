@@ -15,6 +15,7 @@ import {
   Label,
   Photo,
   Screen,
+  useResponsiveColumns,
   s,
 } from "../src/ui/components";
 import {
@@ -27,6 +28,7 @@ import type { CaptureDraft } from "../src/data/repository";
 import { pickPhoto } from "../src/media/media";
 
 export default function Capture() {
+  const columns = useResponsiveColumns();
   const { repo, refresh } = useStore(),
     { id, light } = useLocalSearchParams<{ id?: string; light?: string }>();
   const key = id ? "capture:" + id + (light ? ":" + light : "") : "capture:new";
@@ -135,8 +137,8 @@ export default function Capture() {
         <Badge>LOCAL CAPTURE</Badge>
         {saved && <Body muted>Draft saved on this device</Body>}
       </View>
-      <View style={s.split}>
-        <View style={s.column}>
+      <View style={columns.split}>
+        <View style={columns.column}>
           <Card>
             <Label>01 / THE SETUP</Label>
             <Field
@@ -203,7 +205,7 @@ export default function Capture() {
             ))}
           </Card>
         </View>
-        <View style={s.column}>
+        <View style={columns.column}>
           <Card>
             <Label>03 / LIGHT DETAILS</Label>
             <Field
@@ -254,25 +256,23 @@ export default function Capture() {
           <Card>
             <Heading>Equipment used</Heading>
             {repo.equipment().length ? (
-              repo
-                .equipment()
-                .map((e) => (
-                  <Button
-                    key={e.id}
-                    kind="secondary"
-                    title={
-                      (form.equipmentIds.includes(e.id) ? "✓ " : "＋ ") + e.name
-                    }
-                    onPress={() =>
-                      change({
-                        ...form,
-                        equipmentIds: form.equipmentIds.includes(e.id)
-                          ? form.equipmentIds.filter((i) => i !== e.id)
-                          : [...form.equipmentIds, e.id],
-                      })
-                    }
-                  />
-                ))
+              repo.equipment().map((e) => (
+                <Button
+                  key={e.id}
+                  kind="secondary"
+                  title={
+                    (form.equipmentIds.includes(e.id) ? "✓ " : "＋ ") + e.name
+                  }
+                  onPress={() =>
+                    change({
+                      ...form,
+                      equipmentIds: form.equipmentIds.includes(e.id)
+                        ? form.equipmentIds.filter((i) => i !== e.id)
+                        : [...form.equipmentIds, e.id],
+                    })
+                  }
+                />
+              ))
             ) : (
               <Body muted>
                 You can add equipment later. It will not block saving.

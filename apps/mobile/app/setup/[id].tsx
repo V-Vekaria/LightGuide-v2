@@ -13,12 +13,14 @@ import {
   Label,
   Photo,
   Screen,
+  useResponsiveColumns,
   s,
 } from "../../src/ui/components";
 import { humanError } from "../../src/domain/schema";
 import { shareNotes, removeUnusedPhotos } from "../../src/media/media";
 
 export default function SetupDetail() {
+  const columns = useResponsiveColumns();
   const { repo, refresh } = useStore(),
     { id, conflict } = useLocalSearchParams<{
       id: string;
@@ -140,8 +142,8 @@ export default function SetupDetail() {
           />
         </View>
       )}
-      <View style={s.split}>
-        <View style={s.column}>
+      <View style={columns.split}>
+        <View style={columns.column}>
           {scene.images.length > 0 && (
             <Card>
               <View style={s.row}>
@@ -224,7 +226,7 @@ export default function SetupDetail() {
               </Card>
             ))}
         </View>
-        <View style={s.column}>
+        <View style={columns.column}>
           <Card>
             <Heading>Version history</Heading>
             <Body muted>

@@ -55,6 +55,14 @@ export default function Shoot() {
           onChange={(notes) => setForm({ ...form, notes })}
         />
         <Heading>Equipment to bring</Heading>
+        {form.planned_equipment_ids.some(
+          (item) => !repo.equipment().some((e) => e.id === item),
+        ) && (
+          <Body muted>
+            Some equipment was removed from your inventory. Saving this plan
+            will remove those unavailable items from its packing list.
+          </Body>
+        )}
         {repo.equipment().map((e) => (
           <Button
             key={e.id}

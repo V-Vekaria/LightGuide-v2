@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { AppState, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useStore } from "../../src/ui/Store";
 import {
   Badge,
@@ -14,6 +14,7 @@ import {
   Label,
   Photo,
   Screen,
+  useResponsiveColumns,
   s,
 } from "../../src/ui/components";
 import {
@@ -61,12 +62,19 @@ function RecreationFlow({
   title: string;
   deleted: boolean;
 }) {
+  const columns = useResponsiveColumns();
   const { repo, refresh } = useStore(),
     attempt = repo.recreation(id);
-  const progress = repo.setting("attempt:" + id, { step: 0, notes: "" });
+  const progress = repo.setting("attempt:" + id, {
+    step: 0,
+    notes: "",
+    outcome: "close_enough" as Outcome,
+  });
   const [step, setStep] = useState(progress.step),
     [notes, setNotes] = useState(progress.notes),
-    [outcome, setOutcome] = useState<Outcome>("close_enough"),
+    [outcome, setOutcome] = useState<Outcome>(
+      progress.outcome ?? "close_enough",
+    ),
     [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [images, setImages] = useState<Scene["images"]>(
@@ -78,37 +86,42 @@ function RecreationFlow({
     at: performance.now(),
     active: AppState.currentState === "active",
   });
-  useEffect(() => {
-    if (attempt.status !== "in_progress" || deleted) return;
-    const tick = () => {
-      const now = performance.now(),
-        v = clock.current;
-      if (v.active) v.elapsed += Math.max(0, now - v.at);
-      v.at = now;
-      // Keep full-resolution timing in the ref and durable record, but avoid
-      // continuously invalidating the native accessibility tree for a clock.
-      setElapsed((shown) =>
-        Math.floor(shown / 60000) === Math.floor(v.elapsed / 60000)
-          ? shown
-          : v.elapsed,
-      );
-      try {
-        repo.setSetting("timer:" + id, Math.round(v.elapsed));
-      } catch (e) {
-        setError(humanError(e));
-      }
-    };
-    const timer = setInterval(tick, 1000);
-    const sub = AppState.addEventListener("change", (state) => {
-      tick();
-      clock.current.active = state === "active";
-    });
-    return () => {
-      tick();
-      clearInterval(timer);
-      sub.remove();
-    };
-  }, [id, attempt.status, deleted, repo]);
+  useFocusEffect(
+    useCallback(() => {
+      if (attempt.status !== "in_progress" || deleted) return;
+      clock.current.at = performance.now();
+      clock.current.active = AppState.currentState === "active";
+      const tick = () => {
+        const now = performance.now(),
+          v = clock.current;
+        if (v.active) v.elapsed += Math.max(0, now - v.at);
+        v.at = now;
+        // Keep full-resolution timing in the ref and durable record, but avoid
+        // continuously invalidating the native accessibility tree for a clock.
+        setElapsed((shown) =>
+          Math.floor(shown / 60000) === Math.floor(v.elapsed / 60000)
+            ? shown
+            : v.elapsed,
+        );
+        try {
+          repo.setSetting("timer:" + id, Math.round(v.elapsed));
+        } catch (e) {
+          setError(humanError(e));
+        }
+      };
+      const timer = setInterval(tick, 1000);
+      const sub = AppState.addEventListener("change", (state) => {
+        tick();
+        clock.current.active = state === "active";
+      });
+      return () => {
+        tick();
+        clock.current.active = false;
+        clearInterval(timer);
+        sub.remove();
+      };
+    }, [id, attempt.status, deleted, repo]),
+  );
   const camera = target.objects.find((o) => o.kind === "camera");
   const lights = target.objects.filter((o) => o.kind === "light");
   const steps = [
@@ -142,6 +155,7 @@ function RecreationFlow({
   };
   const addPhoto = async () => {
     setBusy(true);
+    setError(null);
     try {
       const imageId = await pickPhoto(repo);
       if (imageId) {
@@ -268,8 +282,8 @@ function RecreationFlow({
               />
             </View>
           </Card>
-          <View style={s.split}>
-            <Card style={s.column}>
+          <View style={columns.split}>
+            <Card style={columns.column}>
               <Label>ORIGINAL SETUP</Label>
               {target.images.length ? (
                 target.images.map((i) => (
@@ -306,7 +320,7 @@ function RecreationFlow({
                 </View>
               ))}
             </Card>
-            <Card style={s.column}>
+            <Card style={columns.column}>
               <Label>YOUR RECREATED RESULT</Label>
               <Button
                 title="Add test photograph"
@@ -341,7 +355,15 @@ function RecreationFlow({
                   ] as const
                 }
                 value={outcome}
-                onChange={setOutcome}
+                onChange={(value) => {
+                  try {
+                    repo.saveRecreationProgress(id, step, notes, value);
+                    setOutcome(value);
+                    setError(null);
+                  } catch (e) {
+                    setError(humanError(e));
+                  }
+                }}
               />
               <Body muted>
                 This is your assessment. Live positioning and sensor

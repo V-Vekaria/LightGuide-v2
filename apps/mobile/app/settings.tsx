@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Constants from "expo-constants";
 import { Linking, Platform } from "react-native";
 import { useStore } from "../src/ui/Store";
 import {
@@ -20,7 +21,7 @@ export default function Settings() {
     <Screen
       back
       title="Your workspace. Your data."
-      subtitle="LightGuide 0.1 · Offline prototype"
+      subtitle={`LightGuide ${Constants.expoConfig?.version ?? "unknown"} · ${Platform.OS === "web" ? "Browser preview" : "Build " + (Constants.nativeBuildVersion ?? "unknown")} · Offline prototype`}
     >
       <ErrorMessage message={error} />
       <Card>

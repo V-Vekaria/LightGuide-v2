@@ -106,7 +106,7 @@ export default function Equipment() {
       {remove && (
         <Confirm
           title="Remove this equipment?"
-          message="Historical setups retain the equipment details recorded when they were saved."
+          message="This item will be removed from future shoot packing lists. Historical setups retain its recorded details."
           onCancel={() => setRemove(false)}
           onConfirm={() => {
             try {

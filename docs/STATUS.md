@@ -2,6 +2,8 @@
 
 **Status on `codex/offline-mobile-app`:** offline application implemented and ready for Android phone evaluation. Run [34612856890](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34612856890) at `27639e4b60dbfb4b82d13915b962db1acdbfbd0f` passed software/browser checks, APK compilation, installation, launch, save, force-close, offline reopen and all four manual recreation steps plus outcome recording. Downloaded artifact and smoke evidence agree on package `com.lightguide.codex` and APK SHA-256 `58fd3c902f2c1a52f05ea7e6f1d76963a92d045d863578df82d2df8b364fc72b`. Physical camera/AR, BLE, sensors and ±3 cm accuracy validation remain open. See [Android retry evidence](validation/CODEX_ANDROID_RETRY_2026-09-11.md).
 
+**12 September developer audit:** the subsequent photo/layout repair at `1d8348404005b945434647f2f523e4e28a996ee0` passed CI run 34650679069. Additional draft recovery, shoot-reference, recreation-state/timing and responsive-layout fixes are now prepared for release 0.1.1 (Android build 2). Local audit checks pass; this new revision's Android build and smoke gate remain pending. See [application audit](validation/CODEX_APPLICATION_AUDIT_2026-09-12.md).
+
 See [Codex build evidence](validation/CODEX_BUILD_2026-09-11.md) and [run instructions](../apps/mobile/README.md).
 **Current handoff:** [CLAUDE_BUILD_HANDOFF.md](engineering/CLAUDE_BUILD_HANDOFF.md).
 

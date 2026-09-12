@@ -8,6 +8,7 @@ import {
   Heading,
   Label,
   Screen,
+  useResponsiveColumns,
   s,
 } from "../src/ui/components";
 import { evaluatePose, type Pose } from "../src/domain/spatial";
@@ -22,6 +23,7 @@ const target: Pose = {
   quality: "valid",
 };
 export default function Simulation() {
+  const columns = useResponsiveColumns();
   const [position, setPosition] = useState<[number, number, number]>([
       0.18, 1.68, 1.61,
     ]),
@@ -52,8 +54,8 @@ export default function Simulation() {
       subtitle="An interactive demonstration of the guidance. No camera or sensor is being read."
     >
       <Badge tone="warning">SIMULATED DATA · NEVER A MEASURED MATCH</Badge>
-      <View style={s.split}>
-        <Card style={s.column}>
+      <View style={columns.split}>
+        <Card style={columns.column}>
           <Label>TOP VIEW</Label>
           <View
             style={{
@@ -119,7 +121,7 @@ export default function Simulation() {
             </>
           )}
         </Card>
-        <Card style={s.column}>
+        <Card style={columns.column}>
           <Heading>Move the simulated light</Heading>
           <Body muted>
             Each control moves 1 cm. Try losing tracking to see guidance

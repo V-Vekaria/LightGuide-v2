@@ -379,13 +379,27 @@ export class Repository {
   }
   removeEquipment(id: string) {
     uuid.parse(id);
-    this.db.run(
-      "UPDATE equipment SET deleted_at=?,purge_after=?,updated_at=? WHERE id=?",
-      this.timestamp(),
-      new Date(this.now().getTime() + TRASH_DAYS * 86400000).toISOString(),
-      this.timestamp(),
-      id,
-    );
+    this.atomic(() => {
+      this.db.run(
+        "UPDATE equipment SET deleted_at=?,purge_after=?,updated_at=? WHERE id=?",
+        this.timestamp(),
+        new Date(this.now().getTime() + TRASH_DAYS * 86400000).toISOString(),
+        this.timestamp(),
+        id,
+      );
+      // Future packing lists reference live inventory. Historical scene snapshots
+      // remain immutable and retain the equipment as it was at capture time.
+      for (const shoot of this.shoots()) {
+        const ids: string[] = JSON.parse(shoot.planned_equipment_ids);
+        if (ids.includes(id))
+          this.db.run(
+            "UPDATE shoots SET planned_equipment_ids=?,updated_at=? WHERE id=?",
+            JSON.stringify(ids.filter((item) => item !== id)),
+            this.timestamp(),
+            shoot.id,
+          );
+      }
+    });
   }
   shoots(): Shoot[] {
     return this.db.all(
@@ -396,10 +410,25 @@ export class Repository {
     const s = shootInput.parse(value),
       key = id ? uuid.parse(id) : this.id(),
       at = this.timestamp();
-    for (const e of s.planned_equipment_ids)
-      this.one("SELECT id FROM equipment WHERE id=? AND deleted_at IS NULL", e);
-    if (id)
-      this.one("SELECT id FROM shoots WHERE id=? AND deleted_at IS NULL", id);
+    const previous = id
+      ? this.one<Shoot>(
+          "SELECT * FROM shoots WHERE id=? AND deleted_at IS NULL",
+          id,
+        )
+      : null;
+    const previousIds: string[] = previous
+      ? JSON.parse(previous.planned_equipment_ids)
+      : [];
+    const plannedIds = s.planned_equipment_ids.filter((equipmentId) => {
+      const equipment = this.one<{ deleted_at: string | null }>(
+        "SELECT deleted_at FROM equipment WHERE id=?",
+        equipmentId,
+      );
+      if (!equipment.deleted_at) return true;
+      // Repair packing lists saved before inventory deletion cleared references.
+      if (previousIds.includes(equipmentId)) return false;
+      throw new Error("Selected equipment is no longer available.");
+    });
     this.db.run(
       "INSERT INTO shoots(id,created_at,updated_at,name,category,status,scheduled_at,notes,planned_equipment_ids) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET updated_at=excluded.updated_at,name=excluded.name,category=excluded.category,status=excluded.status,scheduled_at=excluded.scheduled_at,notes=excluded.notes,planned_equipment_ids=excluded.planned_equipment_ids",
       key,
@@ -410,7 +439,7 @@ export class Repository {
       s.status,
       s.scheduled_at,
       s.notes,
-      JSON.stringify([...new Set(s.planned_equipment_ids)]),
+      JSON.stringify([...new Set(plannedIds)]),
     );
     return key;
   }
@@ -488,7 +517,12 @@ export class Repository {
           "SELECT r.* FROM recreations r JOIN setup_versions v ON r.setup_version_id=v.id JOIN setups s ON v.setup_id=s.id WHERE r.deleted_at IS NULL AND s.deleted_at IS NULL ORDER BY r.started_at DESC",
         );
   }
-  saveRecreationProgress(id: string, step: number, notes: string) {
+  saveRecreationProgress(
+    id: string,
+    step: number,
+    notes: string,
+    outcome?: Outcome,
+  ) {
     z.number().int().min(0).max(128).parse(step);
     z.string().max(4000).parse(notes);
     const r = this.recreation(id);
@@ -497,7 +531,15 @@ export class Repository {
     this.db.run(
       "INSERT INTO local_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
       "attempt:" + id,
-      JSON.stringify({ step, notes }),
+      JSON.stringify({
+        step,
+        notes,
+        outcome: outcomeSchema.parse(
+          outcome ??
+            this.setting<{ outcome?: Outcome }>("attempt:" + id, {}).outcome ??
+            "close_enough",
+        ),
+      }),
     );
   }
   completeRecreation(

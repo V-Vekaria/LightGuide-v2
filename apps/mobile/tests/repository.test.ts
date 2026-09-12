@@ -421,3 +421,90 @@ test("permanent setup deletion removes unfinished attempt photo references", () 
     r.db.close();
   }
 });
+
+test("removing inventory equipment clears future shoot references without changing captured evidence", () => {
+  const r = open();
+  try {
+    const gear = r.saveEquipment({
+      kind: "reflector",
+      name: "Silver reflector",
+      manufacturer: null,
+      model: null,
+      details: {},
+      notes: null,
+    });
+    const shootId = r.saveShoot({
+      name: "Portrait session",
+      category: "portrait",
+      status: "planned",
+      scheduled_at: null,
+      notes: null,
+      planned_equipment_ids: [gear],
+    });
+    const saved = r.publish({
+      title: "Portrait",
+      category: "portrait",
+      scene: sceneFromDraft({ ...blankDraft, equipmentIds: [gear] }, r),
+    });
+    r.removeEquipment(gear);
+    const plan = r.shoots().find((s) => s.id === shootId)!;
+    assert.deepEqual(JSON.parse(plan.planned_equipment_ids), []);
+    // Model an existing older-build packing list that still contains a deleted ID.
+    r.db.run(
+      "UPDATE shoots SET planned_equipment_ids=? WHERE id=?",
+      JSON.stringify([gear]),
+      shootId,
+    );
+    r.saveShoot(
+      {
+        name: plan.name,
+        category: plan.category,
+        status: plan.status,
+        scheduled_at: null,
+        notes: null,
+        planned_equipment_ids: [gear],
+      },
+      shootId,
+    );
+    assert.deepEqual(
+      JSON.parse(
+        r.shoots().find((s) => s.id === shootId)!.planned_equipment_ids,
+      ),
+      [],
+    );
+
+    assert.doesNotThrow(() =>
+      r.saveShoot(
+        {
+          name: plan.name,
+          category: plan.category,
+          status: plan.status,
+          scheduled_at: null,
+          notes: null,
+          planned_equipment_ids: JSON.parse(plan.planned_equipment_ids),
+        },
+        shootId,
+      ),
+    );
+    assert.equal(
+      r.scene(saved.versionId).objects.find((o) => o.kind === "light")!
+        .equipment[0]!.name,
+      "Silver reflector",
+    );
+  } finally {
+    r.db.close();
+  }
+});
+
+test("recreation outcome choice survives note and step saves", () => {
+  const r = open();
+  try {
+    const saved = setup(r);
+    const attempt = r.startRecreation(saved.versionId);
+    r.saveRecreationProgress(attempt, 1, "Adjust key", "adapted");
+    r.saveRecreationProgress(attempt, 2, "Adjust fill");
+    assert.equal(r.setting<any>("attempt:" + attempt, {}).outcome, "adapted");
+  } finally {
+    r.db.close();
+  }
+});

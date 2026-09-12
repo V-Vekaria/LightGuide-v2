@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Image,
+  useWindowDimensions,
   Modal,
   Pressable,
   ScrollView,
@@ -196,6 +197,7 @@ export function Choice<T extends string>({
           key={o}
           accessibilityRole="button"
           accessibilityState={{ selected: o === value }}
+          aria-pressed={o === value}
           onPress={() => onChange(o)}
           style={[
             s.chip,
@@ -331,7 +333,7 @@ export function Photo({ id, label }: { id: string; label?: string }) {
     };
   }, [id, repo, revision]);
   return (
-    <View style={{ gap: 6, flex: 1, minWidth: 140 }}>
+    <View style={{ gap: 6, width: "100%" }}>
       {uri ? (
         <Image
           accessibilityLabel={label ?? "Saved photograph"}
@@ -458,3 +460,10 @@ export const s = StyleSheet.create({
   split: { flexDirection: "row", flexWrap: "wrap", gap: 20 },
   column: { flex: 1, minWidth: 270 },
 });
+
+// Wrapped flex rows can mismeasure their height on native narrow screens.
+export function useResponsiveColumns() {
+  const { width, fontScale } = useWindowDimensions();
+  const wide = width >= 760 && fontScale <= 1.3;
+  return { split: wide ? s.split : { gap: 4 }, column: wide ? s.column : {} };
+}

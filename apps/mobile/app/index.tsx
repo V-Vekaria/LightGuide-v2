@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useStore } from "../src/ui/Store";
 import {
   Badge,
@@ -23,6 +23,11 @@ import type { Setup } from "../src/data/repository";
 const tabs = ["Home", "Shoots", "Create", "Setups", "Equipment"] as const;
 export default function Home() {
   const { repo, refresh } = useStore();
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
   const { width, fontScale } = useWindowDimensions();
   const wideLayout = width >= 760 && fontScale <= 1.3;
   const params = useLocalSearchParams<{ tab?: string }>();

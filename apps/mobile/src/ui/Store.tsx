@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { openRepository } from "../data/open";
 import type { Repository } from "../data/repository";
@@ -12,6 +18,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }>({ repo: null, error: null });
   const [revision, setRevision] = useState(0),
     [retry, setRetry] = useState(0);
+  const refresh = useCallback(() => setRevision((v) => v + 1), []);
   useEffect(() => {
     let active = true;
     setResult({ repo: null, error: null });
@@ -73,7 +80,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       value={{
         repo: result.repo,
         revision,
-        refresh: () => setRevision((v) => v + 1),
+        refresh,
       }}
     >
       {children}
