@@ -14,7 +14,7 @@ import {
   type StyleProp,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { colors as c } from "./theme";
 import { photoUri } from "../media/media";
 import { useStore } from "./Store";
@@ -245,6 +245,7 @@ export function Screen({
   back?: boolean;
   footer?: React.ReactNode;
 }) {
+  const pathname = usePathname();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView
@@ -289,7 +290,11 @@ export function Screen({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Settings"
-            onPress={() => router.push("/settings")}
+            accessibilityState={{ disabled: pathname === "/settings" }}
+            disabled={pathname === "/settings"}
+            onPress={() => {
+              if (pathname !== "/settings") router.navigate("/settings");
+            }}
           >
             <Text style={{ color: c.muted }}>Settings ↗</Text>
           </Pressable>

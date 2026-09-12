@@ -66,11 +66,12 @@ export default function Home() {
           key={t}
           accessibilityRole="button"
           accessibilityLabel={t + " tab"}
-          onPress={() =>
-            t === "Create"
-              ? router.push("/capture")
-              : router.replace({ pathname: "/", params: { tab: t } })
-          }
+          accessibilityState={{ selected: tab === t }}
+          onPress={() => {
+            if (t === tab) return;
+            if (t === "Create") router.navigate("/capture");
+            else router.setParams({ tab: t });
+          }}
           style={{ alignItems: "center", gap: 5, padding: 7 }}
         >
           <Text style={{ color: tab === t ? c.accent : c.muted, fontSize: 18 }}>

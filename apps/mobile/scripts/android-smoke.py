@@ -83,8 +83,21 @@ try:
     passed('install')
     adb('logcat','-c')
     launch()
-    tap('Save a setup')
+    find('Save a setup')
     passed('launch')
+    # Repeated Settings presses must not add duplicate native stack entries.
+    for back_control in ('hardware', 'onscreen'):
+        tap('Settings')
+        find('Your workspace. Your data.')
+        for _ in range(4):
+            tap('Settings')
+        if back_control == 'hardware':
+            adb('shell','input','keyevent','KEYCODE_BACK')
+        else:
+            tap('← Back')
+        find('Save a setup')
+        passed('repeated Settings taps: one ' + back_control + ' Back returns Home')
+    tap('Save a setup')
     # The visible label and editable control share an accessibility name.
     # Require the native input, then prove focus and entry before proceeding.
     tap('Setup name', node_class='android.widget.EditText')
