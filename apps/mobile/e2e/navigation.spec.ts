@@ -1,0 +1,30 @@
+import { test, expect } from "@playwright/test";
+for (const tab of ["Home", "Shoots", "Setups", "Equipment"]) {
+  test(`repeated Settings taps return to ${tab} with one Back`, async ({ page }) => {
+    await page.goto(`/?tab=${tab}`);
+    const origin = page.url();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await expect(page).toHaveURL(/\/settings$/);
+    for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Settings", exact: true }).dispatchEvent("click");
+    await page.getByRole("button", { name: "← Back", exact: true }).click();
+    await expect(page).toHaveURL(origin);
+  });
+}
+test("rapid Settings taps preserve an unfinished capture", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Save a setup", exact: true }).click();
+  await page.getByRole("textbox", { name: "Setup name", exact: true }).fill("Navigation draft");
+  await page.getByRole("button", { name: "Settings", exact: true }).evaluate((element) => {
+    for (let i = 0; i < 5; i++) (element as HTMLElement).click();
+  });
+  await expect(page).toHaveURL(/\/settings$/);
+  await page.getByRole("button", { name: "← Back", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Setup name", exact: true })).toHaveValue("Navigation draft");
+});
+test("reselecting inventory tab retains its search", async ({ page }) => {
+  await page.goto("/?tab=Equipment");
+  const search = page.getByRole("textbox", { name: "Search equipment", exact: true });
+  await search.fill("Reflector");
+  for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Equipment tab", exact: true }).click();
+  await expect(search).toHaveValue("Reflector");
+});

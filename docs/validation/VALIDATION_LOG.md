@@ -61,6 +61,30 @@ The implementation was found on branch experiment/phase-0-ar-positioning at 5bc5
 
 Outcome: source/assets located and inspected; no new physical trial or Android build/test pass claimed. VAL-001–004 remain open. Historical marker observations in the recovered printing instructions are retained, not promoted into a complete ±3 cm result.
 
+## 11 September 2026 — independent Codex build
+
+See [CODEX_BUILD_2026-09-11.md](CODEX_BUILD_2026-09-11.md) for executed checks and pending native/physical validation. App IDs and branch are isolated for comparison with Claude.
+
+
+## 11 September 2026 — Codex offline Android APK verification
+
+Workflow run [34612856890](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34612856890)
+at source `27639e4b60dbfb4b82d13915b962db1acdbfbd0f` passed software,
+positioning, APK compilation and emulator smoke jobs. Downloaded same-run APK
+and smoke-evidence artifacts matched package `com.lightguide.codex` and APK
+SHA-256 `58fd3c902f2c1a52f05ea7e6f1d76963a92d045d863578df82d2df8b364fc72b`.
+Install, launch, save, force-close, offline reopen, all four manual recreation
+steps and outcome recording passed. See
+[CODEX_ANDROID_RETRY_2026-09-11.md](CODEX_ANDROID_RETRY_2026-09-11.md).
+
+Outcome: PASS for offline Android phone-evaluation readiness. VAL-001–004 and
+physical camera/AR, BLE, sensor and ±3 cm accuracy validation remain open.
+
 ## Branch and CI reconciliation — 2026-09-14
 
 [BRANCH_STATUS_2026-09-14.md](BRANCH_STATUS_2026-09-14.md) records inspected source commits and GitHub run/job metadata. Codex run 34707182893 at d6110136934b3b78456a90b570d58ce00885145c passed software, positioning build/tests, Android build and emulator smoke jobs. Separate-branch local test reports are attributed rather than rerun. This review reconciles main's stale status with existing branches; it performs no new application or physical tests. Installed APK identity/user retest and VAL-001–004 remain open.
+
+
+## Codex selected and integration prepared — 2026-09-14
+
+The user chose the Codex implementation and authorised merging and branch cleanup. Runtime source is integrated from d6110136934b3b78456a90b570d58ce00885145c with current main documentation preserved. CI now covers main and pull requests. [Cleanup policy and branch inventory](BRANCH_CLEANUP_2026-09-14.md) retain recovery references and require successful integration checks before deletion. This entry records integration work, not a new physical validation result.

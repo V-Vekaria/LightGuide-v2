@@ -3,6 +3,7 @@
 ## Product and immediate milestone
 
 Commercial R&D: **Measure → Save → Recreate** real lighting setups.
+The user selected the Codex implementation on 14 September 2026; continue apps/mobile/ and the hardened harness on main. ADR-017 supersedes the former comparison-only branch restriction. Preserve package IDs and local data. Retired alternative implementations are recovery history, not parallel application targets.
 Reuse the recovered native Android/Kotlin ARCore experiment in [experiments/phase-0-ar-positioning/](experiments/phase-0-ar-positioning/README.md). It was found on experiment/phase-0-ar-positioning at 5bc532b0d1bfd94f8f554867eec94e7403d1a7ce; do not scaffold it again. Follow [the software delivery handoff](docs/engineering/CLAUDE_BUILD_HANDOFF.md) for a full application-build request. Do not extend the old root app as the new mobile application.
 
 Before changing code, read:

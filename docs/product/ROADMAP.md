@@ -2,7 +2,7 @@
 
 ## Current delivery checkpoints
 
-Use [current status](../STATUS.md) to locate existing implementations before starting a milestone. Preserve the separate apps for the user's comparison.
+Use [current status](../STATUS.md) before starting a milestone. The user-selected Codex app and hardened experiment now live on main; the comparison phase is complete.
 
 1. Identify the delivered branch/commit and installed package/version.
 2. Close applicable [app acceptance checks](../engineering/APP_ACCEPTANCE.md) with exact-build evidence; use confirmed CI without treating it as a physical phone retest.
@@ -29,7 +29,7 @@ Exit gate:
 
 ## Parallel software delivery (ADR-015)
 
-Reuse the existing implementation branches and their hardened Android experiments. Address remaining source-audit gaps only after checking the selected branch. While physical validation continues, complete remaining offline application work and release checks for durable storage, photographs, manual recreation and labelled simulated spatial states. Execute available automated checks and prepare the device handover. See [CLAUDE_BUILD_HANDOFF.md](../engineering/CLAUDE_BUILD_HANDOFF.md).
+Reuse the integrated mobile app and hardened Android experiment on main. Address remaining source-audit gaps only after checking the current source. While physical validation continues, complete remaining offline application work and release checks for durable storage, photographs, manual recreation and labelled simulated spatial states. Execute available automated checks and prepare the device handover. See [CLAUDE_BUILD_HANDOFF.md](../engineering/CLAUDE_BUILD_HANDOFF.md).
 
 This parallel track does not pass the positioning gate or advance final electronics decisions.
 

@@ -20,6 +20,25 @@ class ExperimentStore(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("phase0", Context.MODE_PRIVATE)
 
+    init {
+        // Preserve the previous experiment settings as explicit historical data,
+        // but activate the agreed profile once. Later deliberate edits remain.
+        if (prefs.getInt("profileVersion", 0) < 2) {
+            check(prefs.edit()
+                .putFloat("previousPositionCm", prefs.getFloat(KEY_TOL_POS, 4f))
+                .putFloat("previousOrientationDeg", prefs.getFloat(KEY_TOL_ORI, 2.5f))
+                .putFloat(KEY_TOL_POS, Tolerances.DEFAULT_POSITION_CM)
+                .putFloat(KEY_TOL_ORI, Tolerances.DEFAULT_ORIENTATION_DEG)
+                .putInt("profileVersion", 2).commit()) { "Could not save test profile" }
+        }
+    }
+
+    var referenceId: String
+        get() = prefs.getString("referenceId", null) ?: java.util.UUID.randomUUID().toString().also {
+            check(prefs.edit().putString("referenceId", it).commit())
+        }
+        set(value) { check(prefs.edit().putString("referenceId", value).commit()) }
+
     // ------------------------------------------------------------- target --
 
     data class SavedTarget(
@@ -36,6 +55,9 @@ class ExperimentStore(context: Context) {
             put("frameMode", target.frameMode.name)
             put("savedAtMs", target.savedAtMs)
             put("label", target.label)
+            put("referenceId", referenceId)
+            put("standWidthM", markerSizes.standWidthM.toDouble())
+            put("referenceWidthM", markerSizes.referenceWidthM.toDouble())
             put("tx", t.x.toDouble()); put("ty", t.y.toDouble()); put("tz", t.z.toDouble())
             // Store the rotation matrix directly: it is what the maths uses, so
             // there is no quaternion round-trip to get a sign convention wrong.
@@ -43,13 +65,17 @@ class ExperimentStore(context: Context) {
                 for (row in rotation.m) for (v in row) put(v.toDouble())
             })
         }
-        prefs.edit().putString(KEY_TARGET, json.toString()).apply()
+        check(prefs.edit().putString(KEY_TARGET, json.toString()).commit()) { "Target save failed" }
     }
 
     fun loadTarget(): SavedTarget? {
         val raw = prefs.getString(KEY_TARGET, null) ?: return null
         return runCatching {
             val json = JSONObject(raw)
+            // Keep old bytes for recovery, but refuse an unversioned or incompatible target.
+            require(json.optString("referenceId") == referenceId)
+            require(kotlin.math.abs(json.getDouble("standWidthM") - markerSizes.standWidthM) < 1e-6)
+            require(kotlin.math.abs(json.getDouble("referenceWidthM") - markerSizes.referenceWidthM) < 1e-6)
             val r = json.getJSONArray("r")
             val m = Array(3) { i -> FloatArray(3) { j -> r.getDouble(i * 3 + j).toFloat() } }
             SavedTarget(

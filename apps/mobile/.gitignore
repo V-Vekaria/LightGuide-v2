@@ -1,0 +1,16 @@
+node_modules/
+.expo/
+dist/
+android/
+ios/
+*.db
+*.db-shm
+*.db-wal
+.env*
+!.env.example
+artifacts/
+dist-web/
+dist-android/
+playwright-report/
+__pycache__/
+*.pyc

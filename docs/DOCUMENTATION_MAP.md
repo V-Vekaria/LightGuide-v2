@@ -3,6 +3,8 @@
 Use this file to find the authoritative document for each type of decision.
 
 ## Start here
+- [Maintained application](../apps/mobile/README.md) — Codex implementation selected for main.
+- [Consolidation and branch cleanup](validation/BRANCH_CLEANUP_2026-09-14.md) — supersedes active comparison-branch instructions.
 - [README overview](../README.md) — workflow, architecture summary, branch/run entry points and key documents.
 - [Branch/CI evidence](validation/BRANCH_STATUS_2026-09-14.md) — both application implementations and their verification boundaries.
 - [Current build handoff](../CLAUDE.md) — next task and platform/hardware boundaries.
@@ -37,7 +39,7 @@ Use this file to find the authoritative document for each type of decision.
 - [validation/RISK_REGISTER.md](validation/RISK_REGISTER.md) — current product/technical risks and mitigations.
 
 ## Current development priority
-The highest-priority open risk is phone-based spatial positioning. Offline apps and hardened harnesses already exist on separate implementation branches; resolve the selected source and its evidence through [STATUS.md](STATUS.md) before repeating work. Main's missing apps/mobile/ directory must not trigger another scaffold. Per ADR-015, remaining software work may continue alongside physical testing. Keep the two apps separate until the user compares them.
+The highest-priority open risk is phone-based spatial positioning. The selected Codex app and hardened harness now live on main. Resolve evidence through [STATUS.md](STATUS.md) and continue the existing implementation. Per ADR-015, remaining software work may continue alongside physical testing. The user's selection in ADR-017 retires the earlier two-app comparison requirement.
 
 Do not lock the final commercial node electronics until Phase 0 produces sufficient evidence.
 

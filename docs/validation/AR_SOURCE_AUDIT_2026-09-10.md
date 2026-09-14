@@ -43,3 +43,9 @@ These findings are source-review results. Recovery intentionally preserves the s
 - No Android build, JVM test suite, emulator or physical trial ran in this environment: Android SDK/adb, Gradle command and Kotlin compiler were unavailable. Build on the user's existing Android development environment using the wrapper.
 
 Follow [the software delivery handoff](../engineering/CLAUDE_BUILD_HANDOFF.md). Keep test command outputs and environment limitations with the implementation commit.
+
+## Codex implementation branch follow-up — 11 September 2026
+
+On `codex/offline-mobile-app`, the harness now migrates previous defaults to 3 cm / 3 degrees, removes percentage scoring, requires fresh full camera/reference/stand observations, invalidates incompatible targets after reference/marker-width changes, and records unavailable samples explicitly. Capture requires one second of observations within 1 cm / 1 degree of a fixed baseline; this stability check is not an accuracy claim. Pause/reset clears observations. CSV export and append share a lock; formula-like cells are neutralised. Target reset requires confirmation.
+
+This branch uses application ID `com.lightguide.codex.phase0` for side-by-side testing. Native compilation and new JVM tests are pending until the Android toolchain runs. Do not treat these source changes as physical validation or automatically merge them into another implementation.

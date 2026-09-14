@@ -2,7 +2,6 @@ package com.lightguide.phase0.guidance
 
 import com.lightguide.phase0.pose.PoseDelta
 import com.lightguide.phase0.pose.Tolerances
-import com.lightguide.phase0.pose.clamp01
 import kotlin.math.abs
 
 /**
@@ -33,7 +32,6 @@ object Guidance {
         val steps: List<Step>,
         val positionInTolerance: Boolean,
         val orientationInTolerance: Boolean,
-        val matchPercent: Int,
     ) {
         val allInTolerance: Boolean get() = positionInTolerance && orientationInTolerance
     }
@@ -44,12 +42,6 @@ object Guidance {
     // divided across three dimensions.
     private const val AXIS_SHARE = 0.577f // 1/sqrt(3)
 
-    /**
-     * Scale used only for the cosmetic MATCH readout. It is a display aid with
-     * no bearing on pass/fail; validation uses the raw errors in the log.
-     */
-    private const val MATCH_POSITION_SPAN_CM = 50f
-    private const val MATCH_ORIENTATION_SPAN_DEG = 45f
 
     fun compute(delta: PoseDelta, tolerances: Tolerances): Result {
         val posAxisTolCm = tolerances.positionCm * AXIS_SHARE
@@ -70,14 +62,10 @@ object Guidance {
             angularStep("ROLL", delta.rotation.rollDeg, "ROLL CW", "ROLL CCW", oriAxisTolDeg),
         )
 
-        val posScore = clamp01(1f - delta.positionErrorCm / MATCH_POSITION_SPAN_CM)
-        val oriScore = clamp01(1f - delta.orientationErrorDeg / MATCH_ORIENTATION_SPAN_DEG)
-
         return Result(
             steps = steps,
             positionInTolerance = delta.positionErrorCm <= tolerances.positionCm,
             orientationInTolerance = delta.orientationErrorDeg <= tolerances.orientationDeg,
-            matchPercent = Math.round(100f * (0.5f * posScore + 0.5f * oriScore)),
         )
     }
 

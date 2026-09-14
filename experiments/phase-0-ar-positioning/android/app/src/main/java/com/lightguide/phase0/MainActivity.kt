@@ -9,6 +9,7 @@ import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -35,6 +36,7 @@ import com.lightguide.phase0.pose.M_TO_CM
 import com.lightguide.phase0.pose.MarkerSizes
 import com.lightguide.phase0.pose.Reading
 import com.lightguide.phase0.pose.Tolerances
+import com.lightguide.phase0.pose.ObservationGate
 import java.util.Locale
 
 /**
@@ -70,8 +72,8 @@ class MainActivity : Activity(), ArRenderer.Listener {
     private var sessionError: String? = null
 
     /** Latest state from the GL thread; read on the UI thread when refreshing. */
-    @Volatile
-    private var latestState: ArRenderer.ArState? = null
+    @Volatile private var latestState: ArRenderer.ArState? = null
+    private val captureStability = com.lightguide.phase0.pose.CaptureStability()
 
     private var lastSampleLogMs = 0L
 
@@ -113,8 +115,8 @@ class MainActivity : Activity(), ArRenderer.Listener {
         noteField = findViewById(R.id.note)
 
         findViewById<Button>(R.id.saveTarget).setOnClickListener { saveTarget() }
-        findViewById<Button>(R.id.clearTarget).setOnClickListener { clearTarget() }
-        findViewById<Button>(R.id.resetReference).setOnClickListener { resetReference() }
+        findViewById<Button>(R.id.clearTarget).setOnClickListener { confirmReset("Clear the saved target?") { clearTarget() } }
+        findViewById<Button>(R.id.resetReference).setOnClickListener { confirmReset("Reset the reference and clear its target?") { resetReference() } }
         findViewById<Button>(R.id.markTrial).setOnClickListener { markTrial() }
         findViewById<Button>(R.id.logNote).setOnClickListener { logNote() }
         findViewById<Button>(R.id.export).setOnClickListener { exportLog() }
@@ -185,6 +187,9 @@ class MainActivity : Activity(), ArRenderer.Listener {
         displayRotationHelper.onPause()
         surface.onPause()
         session?.pause()
+        renderer.resetReference()
+        latestState = null
+        captureStability.observe(null, 0L)
         main.removeCallbacksAndMessages(null)
     }
 
@@ -277,11 +282,12 @@ class MainActivity : Activity(), ArRenderer.Listener {
 
     override fun onArState(state: ArRenderer.ArState) {
         latestState = state
-        val reading = state.reading ?: return
-        val now = System.currentTimeMillis()
+        val reading = freshReading(state)
+        val now = SystemClock.elapsedRealtime()
+        captureStability.observe(reading?.standPose?.transform, reading?.observedAtMonotonicMs ?: 0L)
         if (now - lastSampleLogMs < SAMPLE_LOG_INTERVAL_MS) return
         lastSampleLogMs = now
-        logger.logSample(reading, state.cameraTracking.name, store.tolerances)
+        logger.logSample(reading, if (reading == null) "UNVERIFIABLE" else state.cameraTracking.name, store.tolerances)
     }
 
     // -------------------------------------------------------------- UI --
@@ -332,7 +338,7 @@ class MainActivity : Activity(), ArRenderer.Listener {
             )
         }
 
-        poseView.text = formatPose(state?.reading)
+        poseView.text = formatPose(freshReading(state))
         guidanceView.text = formatGuidance(state, tolerances)
         verdictView.text = formatVerdict(state, tolerances)
     }
@@ -360,22 +366,21 @@ class MainActivity : Activity(), ArRenderer.Listener {
             return "Target was saved in a different frame than the current one.\n" +
                 "Scan the REF marker again, or clear the target."
         }
-        val delta = state?.reading?.delta ?: return "no target saved / no delta"
+        val delta = freshReading(state)?.delta ?: return "Show both markers to reacquire the reference. No verified guidance."
         return Guidance.compute(delta, tolerances).steps.joinToString("\n") { it.format() }
     }
 
     private fun formatVerdict(state: ArRenderer.ArState?, tolerances: Tolerances): String {
-        val delta = state?.reading?.delta ?: return "---"
+        val delta = freshReading(state)?.delta ?: return "UNVERIFIABLE"
         val result = Guidance.compute(delta, tolerances)
         return String.format(
             Locale.US,
-            "%s   err %.1f cm / %.2f deg   tol %.1f cm / %.1f deg   match %d%%",
+            "%s   err %.1f cm / %.2f deg   tol %.1f cm / %.1f deg",
             if (result.allInTolerance) "IN TOLERANCE" else "OUT OF TOLERANCE",
             delta.positionErrorCm,
             delta.orientationErrorDeg,
             tolerances.positionCm,
             tolerances.orientationDeg,
-            result.matchPercent,
         )
     }
 
@@ -383,7 +388,7 @@ class MainActivity : Activity(), ArRenderer.Listener {
 
     private fun saveTarget() {
         val state = latestState
-        val reading = state?.reading
+        val reading = freshReading(state)
         if (reading == null) {
             toast("No stand marker in view - nothing to save")
             return
@@ -394,13 +399,20 @@ class MainActivity : Activity(), ArRenderer.Listener {
             toast("Scan the REF marker first: an AR-world pose is not reproducible")
             return
         }
+        if (!captureStability.ready(SystemClock.elapsedRealtime())) {
+            toast("Hold both markers in view and keep the pose steady for one second")
+            return
+        }
         val target = ExperimentStore.SavedTarget(
             frameMode = reading.frameMode,
             transform = reading.standPose.transform,
             savedAtMs = System.currentTimeMillis(),
             label = "t${logger.trialCount}",
         )
-        store.saveTarget(target)
+        try { store.saveTarget(target) } catch (_: Exception) {
+            toast("Target could not be saved. Check available storage.")
+            return
+        }
         renderer.target = target
         logger.logEvent(
             MeasurementLogger.EventType.TARGET_SAVED,
@@ -412,13 +424,18 @@ class MainActivity : Activity(), ArRenderer.Listener {
         refreshUi()
     }
 
+    private fun confirmReset(message: String, action: () -> Unit) {
+        android.app.AlertDialog.Builder(this).setMessage(message)
+            .setNegativeButton("Cancel", null).setPositiveButton("Confirm") { _, _ -> action() }.show()
+    }
+
     private fun clearTarget() {
         store.clearTarget()
         renderer.target = null
         logger.logEvent(
             MeasurementLogger.EventType.TARGET_CLEARED,
             "target cleared",
-            latestState?.reading,
+            freshReading(latestState),
             store.tolerances,
         )
         toast("Target cleared")
@@ -426,13 +443,17 @@ class MainActivity : Activity(), ArRenderer.Listener {
     }
 
     private fun resetReference() {
-        renderer.resetReference()
-        toast("Reference origin cleared - rescan the REF marker")
+        clearTarget()
+        store.referenceId = java.util.UUID.randomUUID().toString()
+        latestState = null
+        captureStability.observe(null, 0L)
+        surface.queueEvent { renderer.resetReference() }
+        toast("New reference: old target cleared. Scan both markers and save a new target.")
         refreshUi()
     }
 
     private fun markTrial() {
-        val trial = logger.markTrial(latestState?.reading, store.tolerances, noteField.text.toString())
+        val trial = logger.markTrial(freshReading(latestState), store.tolerances, noteField.text.toString())
         noteField.setText("")
         toast("Trial $trial marked")
         refreshUi()
@@ -452,7 +473,7 @@ class MainActivity : Activity(), ArRenderer.Listener {
         logger.logEvent(
             MeasurementLogger.EventType.NOTE,
             text,
-            latestState?.reading,
+            freshReading(latestState),
             store.tolerances,
         )
         noteField.setText("")
@@ -497,11 +518,11 @@ class MainActivity : Activity(), ArRenderer.Listener {
         val positionCm = positionToleranceField.text.toString().toFloatOrNull()
         val orientationDeg = orientationToleranceField.text.toString().toFloatOrNull()
 
-        if (standCm == null || referenceCm == null || standCm <= 0f || referenceCm <= 0f) {
+        if (standCm == null || referenceCm == null || !standCm.isFinite() || !referenceCm.isFinite() || standCm !in 1f..200f || referenceCm !in 1f..200f) {
             toast("Marker widths must be positive numbers in cm")
             return
         }
-        if (positionCm == null || orientationDeg == null || positionCm <= 0f || orientationDeg <= 0f) {
+        if (positionCm == null || orientationDeg == null || !positionCm.isFinite() || !orientationDeg.isFinite() || positionCm !in 0.1f..100f || orientationDeg !in 0.1f..180f) {
             toast("Tolerances must be positive numbers")
             return
         }
@@ -514,11 +535,17 @@ class MainActivity : Activity(), ArRenderer.Listener {
         if (sizesChanged) {
             // Marker widths are baked into the augmented-image database, so the
             // session has to be rebuilt for a new width to take effect.
+            clearTarget()
+            store.referenceId = java.util.UUID.randomUUID().toString()
+            latestState = null
+        captureStability.observe(null, 0L)
+            surface.onPause()
             renderer.session = null
             session?.close()
             session = null
             renderer.resetReference()
             startOrResumeSession()
+            surface.onResume()
             toast("Marker sizes applied - AR session restarted")
         } else {
             toast("Tolerances applied")
@@ -528,6 +555,16 @@ class MainActivity : Activity(), ArRenderer.Listener {
 
     private fun toast(message: String) =
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+
+    private fun freshReading(state: ArRenderer.ArState?): Reading? {
+        val reading = state?.reading ?: return null
+        return reading.takeIf {
+            state.error == null && !state.targetFrameMismatch &&
+                ObservationGate.permits(state.cameraTracking == TrackingState.TRACKING,
+                    state.standVisible, state.referenceVisible, it.observedAtMonotonicMs,
+                    SystemClock.elapsedRealtime())
+        }
+    }
 
     private fun fmt(value: Float) = String.format(Locale.US, "%.1f", value)
 

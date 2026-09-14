@@ -6,17 +6,15 @@ LightGuide helps photographers record a lighting setup and restore it later. The
 
 ## Current status — 14 September 2026
 
-The offline applications exist on **two separate implementation branches**. This `main` branch contains the common documentation, recovered Android positioning experiment and legacy prototype; it does not yet contain `apps/mobile/`.
+**The user selected the Codex application as the maintained implementation.** Its offline mobile app and hardened positioning harness are now integrated into `main`, alongside the current documentation.
 
-| Track | Source and instructions | Evidence and boundary |
-|---|---|---|
-| Codex evaluation app | [Pinned mobile README](https://github.com/V-Vekaria/LightGuide-v2/blob/d6110136934b3b78456a90b570d58ce00885145c/apps/mobile/README.md); branch `codex/offline-mobile-app` | Source config: 0.1.2 / Android build 3, package `com.lightguide.codex`. [CI run 34707182893](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34707182893) passed software, positioning build/tests, Android build and Android emulator smoke jobs. Live AR in the mobile shell, BLE, cloud and iOS remain unavailable or unvalidated. |
-| Separate application for comparison | [Pinned status](https://github.com/V-Vekaria/LightGuide-v2/blob/7184b71aa9e6d97138021cc44a34a0a05573b6f7/docs/STATUS.md); [mobile instructions](https://github.com/V-Vekaria/LightGuide-v2/blob/7184b71aa9e6d97138021cc44a34a0a05573b6f7/apps/mobile/README.md); branch `feat/offline-app-delivery` | Branch documentation reports local SQLite tests and Android compilation. Its report leaves device runtime and some UI integration open; those checks were not rerun in this documentation review. |
-| Native positioning experiment | [Experiment and marker instructions](experiments/phase-0-ar-positioning/README.md) | Recovered on main; later hardening exists on implementation branches. Physical repeatability and cross-session accuracy still require measured trials. |
+- [Mobile app and run instructions](apps/mobile/README.md): local SQLite, photographs, equipment/shoots, immutable versions, manual recreation and labelled simulation.
+- Android identity remains **LightGuide Codex**, package `com.lightguide.codex`, version 0.1.2 / build 3. Repository consolidation does not rename the installed app or migrate its data.
+- Selected source: `d6110136934b3b78456a90b570d58ce00885145c`. [Its CI run](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34707182893) passed software, native positioning tests/build, Android packaging and emulator smoke checks. The integration also runs CI on main.
+- Claude's alternative and superseded branches are retired from active development. [The cleanup record](docs/validation/BRANCH_CLEANUP_2026-09-14.md) records their exact tips, recovery tags and guarded deletion policy.
+- Physical positioning accuracy, live mobile AR/BLE integration, calibrated sensors, cloud and iOS remain open.
 
-Keep the two application implementations separate until Vishnu compares them. A documentation update does not select or merge an application. The user's installed build must be identified from its version/package before attributing a test result.
-
-Read [current status](docs/STATUS.md) and the [dated branch/CI evidence](docs/validation/BRANCH_STATUS_2026-09-14.md) for scope and limitations.
+Use `main` for new work. Historical comparison reports remain evidence, not instructions to maintain two applications. Read [current status](docs/STATUS.md) for remaining work.
 
 ## Photographer workflow
 
@@ -79,7 +77,7 @@ The [documentation map](docs/DOCUMENTATION_MAP.md) provides the complete ownersh
 
 ## Run and test the correct project
 
-Use the selected implementation branch's mobile README above for installation, prerequisites and commands. **Root npm commands exercise the legacy web prototype**, not the Android application. Do not scaffold another mobile app because its directory is absent on main.
+Use [apps/mobile/README.md](apps/mobile/README.md) for installation, prerequisites and commands. **Root npm commands exercise the legacy web prototype**, not the Android application. Continue the existing mobile app on main; do not scaffold another implementation.
 
 Use the separate [Android experiment instructions](experiments/phase-0-ar-positioning/README.md) for exact registered marker assets and native measurements. Expo Go is not a native AR/BLE test environment. iOS requires future Apple development and test access.
 

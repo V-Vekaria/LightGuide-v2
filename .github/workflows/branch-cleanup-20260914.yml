@@ -1,0 +1,30 @@
+name: Retire reviewed LightGuide branches
+on:
+  workflow_run:
+    workflows: ["Codex application checks"]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: lightguide-branch-cleanup-20260914
+  cancel-in-progress: false
+jobs:
+  retire:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      startsWith(github.event.workflow_run.head_commit.message, 'Merge Codex app as the maintained LightGuide implementation')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Archive exact reviewed tips, then remove redundant branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/cleanup_branches_20260914.py

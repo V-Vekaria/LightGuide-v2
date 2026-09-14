@@ -12,8 +12,8 @@ Planning is sufficient to begin bounded implementation. It is not evidence that 
 
 Use [the software delivery handoff](docs/engineering/CLAUDE_BUILD_HANDOFF.md) for the exact scope, milestones, tests and user handover.
 
-1. Identify the implementation branch and installed version through [current status](docs/STATUS.md) and [branch evidence](docs/validation/BRANCH_STATUS_2026-09-14.md). Both Codex and separate comparison apps already exist; preserve them until the user compares them.
-2. Read that branch's apps/mobile/README.md and validation reports. Main's missing mobile directory and original source-audit findings are not instructions to repeat completed work.
+1. Continue the user-selected Codex implementation now on main. See [current status](docs/STATUS.md) and [the consolidation decision](docs/validation/BRANCH_CLEANUP_2026-09-14.md). The instruction to keep two active comparison apps is superseded by the user's selection.
+2. Read apps/mobile/README.md and validation reports. Reuse the integrated mobile app and hardened native harness rather than repeating completed work.
 3. Run or reuse evidence for the exact revision being delivered. Record package/version, commit, artifact identity and results using [app acceptance criteria](docs/engineering/APP_ACCEPTANCE.md).
 4. Complete remaining phone checks and demonstrated fixes, including repeated navigation, durable local storage, media and manual recreation. Do not attribute emulator results to a physical phone.
 5. Reuse the chosen branch's hardened native experiment for physical trials; keep real AR accuracy, BLE, sensor calibration and iOS checks explicitly pending.

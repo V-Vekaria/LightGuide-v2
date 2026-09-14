@@ -199,3 +199,21 @@ Reuse official ARCore features and manufacturer libraries for BNO086, VL53L5CX a
 The coding agent should complete available automated software checks, report blocked native/toolchain checks and continue independent work. The user performs physical print/pose/relocalisation, BLE and sensor tests. Mock or emulator results cannot establish ±3 cm accuracy, calibrated light measurement or iOS support.
 
 Authoritative task sequence and acceptance criteria: [CLAUDE_BUILD_HANDOFF.md](engineering/CLAUDE_BUILD_HANDOFF.md).
+
+## ADR-016 — Independent Codex comparison build (11 September 2026)
+
+**Historical: active comparison restriction superseded by ADR-017.**
+
+At the user's request, Codex implementation remains on `codex/offline-mobile-app`, with mobile ID `com.lightguide.codex` and harness ID `com.lightguide.codex.phase0`. Do not merge or overwrite Claude's implementation; the user will compare both. This changes distribution identity, not the agreed core scope or physical-validation gates. See the [build evidence](validation/CODEX_BUILD_2026-09-11.md).
+
+
+## ADR-017 — Select Codex implementation and retire redundant branches
+
+**Date:** 2026-09-14
+**Status:** CONFIRMED by the user's choice of the Codex app and explicit request to merge useful work and delete unneeded branches.
+
+Integrate the tested Codex source at d6110136934b3b78456a90b570d58ce00885145c into main while retaining main's current documentation. Keep application/harness package IDs and local data unchanged. Do not combine the alternative Claude app's repositories, navigation or spatial maths with this implementation merely to merge every branch.
+
+Retire already-merged and superseded branches after a passing integration workflow. Preserve each exact old tip with a recovery tag before deletion; skip/fail if a branch moved, is protected, or a backup points elsewhere. This replaces ADR-016's instruction to keep both implementations active. It does not change product scope or physical-validation gates.
+
+See [branch cleanup](validation/BRANCH_CLEANUP_2026-09-14.md) for per-branch findings and recovery references.

@@ -2,6 +2,7 @@ package com.lightguide.phase0.ar
 
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.os.SystemClock
 import com.google.ar.core.AugmentedImage
 import com.google.ar.core.Session
 import com.google.ar.core.TrackingFailureReason
@@ -16,6 +17,7 @@ import com.lightguide.phase0.pose.Reading
 import com.lightguide.phase0.pose.Transform
 import com.lightguide.phase0.pose.Vec3
 import com.lightguide.phase0.pose.markerToStudio
+import com.lightguide.phase0.pose.ObservationGate
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
@@ -65,6 +67,8 @@ class ArRenderer(
     // records how stale it was for every logged sample.
     private var referenceWorld: Transform? = null
     private var referenceSeenAtMs: Long = 0L
+    private var lastFrameTimestamp = 0L
+    private var lastObservedAtMs = 0L
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(0f, 0f, 0f, 1f)
@@ -86,6 +90,10 @@ class ArRenderer(
 
             val frame = session.update()
             background.draw(frame)
+            if (frame.timestamp != lastFrameTimestamp) {
+                lastFrameTimestamp = frame.timestamp
+                lastObservedAtMs = SystemClock.elapsedRealtime()
+            }
 
             listener.onArState(
                 buildState(
@@ -118,6 +126,8 @@ class ArRenderer(
     fun resetReference() {
         referenceWorld = null
         referenceSeenAtMs = 0L
+        lastFrameTimestamp = 0L
+        lastObservedAtMs = 0L
     }
 
     private fun buildState(
@@ -133,6 +143,7 @@ class ArRenderer(
 
         for (image in session.getAllTrackables(AugmentedImage::class.java)) {
             if (image.trackingState != TrackingState.TRACKING) continue
+            if (image.trackingMethod != AugmentedImage.TrackingMethod.FULL_TRACKING) continue
             val pose = image.centerPose.toTransform().markerToStudio()
             when (image.name) {
                 MarkerRole.STAND.imageName -> standWorld = pose
@@ -146,6 +157,8 @@ class ArRenderer(
 
         val reference = referenceWorld
         val frameMode = if (reference != null) FrameMode.REFERENCE else FrameMode.AR_WORLD
+        val usable = ObservationGate.permits(cameraTracking == TrackingState.TRACKING,
+            standWorld != null, referenceVisible, lastObservedAtMs, SystemClock.elapsedRealtime())
 
         val standPose = standWorld?.let {
             Pose6(frameMode, if (reference != null) reference.inverse() * it else it)
@@ -159,9 +172,10 @@ class ArRenderer(
             null
         }
 
-        val reading = standPose?.let { pose ->
+        val reading = standPose?.takeIf { usable }?.let { pose ->
             Reading(
                 timestampMs = now,
+                observedAtMonotonicMs = lastObservedAtMs,
                 frameMode = frameMode,
                 standPose = pose,
                 referenceAgeMs = if (reference != null) now - referenceSeenAtMs else null,
