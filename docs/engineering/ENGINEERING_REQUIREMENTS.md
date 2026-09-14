@@ -51,3 +51,7 @@ Controller evaluation uses ESP32-S3-WROOM-1-N8R8 DevKitC-1-compatible hardware. 
 
 ## Verification
 Each quantitative requirement must eventually link to a repeatable verification test and recorded result. Until validated, numeric values are engineering targets, not marketing claims.
+
+## Application behaviour and release evidence
+
+[APP_ACCEPTANCE.md](APP_ACCEPTANCE.md) defines APP-01–11 for navigation, draft/media recovery, layout, equipment explanations, offline durability, provenance, trustworthy Match, target immutability and truthful actions. Apply the checks to the capability/platform being released and record source/build-specific results. Existing numerical targets and hardware gates above are unchanged.

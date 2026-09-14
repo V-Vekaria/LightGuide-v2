@@ -1,88 +1,101 @@
 # LightGuide v2 — Commercial R&D
 
-**Current V1 objective: Measure → Save → Recreate real photographic lighting setups.**
+**Measure → Save → Recreate real photographic lighting setups.**
 
-LightGuide v2 is the commercial R&D project. The product direction is a smart light-stand system that automatically records the physical state of a lighting setup and later guides the photographer to recreate it.
+LightGuide helps photographers record a lighting setup and restore it later. The commercial direction combines a phone-led experience with candidate depth, spectral and orientation sensing. V1 focuses on recreation; artistic recommendations and subject-aware adaptation are later work.
 
-This repository also contains an earlier commercial prototype that explored a different interaction model: manually entering a target distance/light level and using an ESP32 + ultrasonic/LDR node to guide the stand. That work is preserved because parts of its filtering, guidance, device abstraction, setup storage, testing and mock-device infrastructure may be reusable. It is **not** the current product architecture.
+## Current status — 14 September 2026
 
-## Current V1 baseline
+The offline applications exist on **two separate implementation branches**. This `main` branch contains the common documentation, recovered Android positioning experiment and legacy prototype; it does not yet contain `apps/mobile/`.
 
-The current V1 is designed around:
+| Track | Source and instructions | Evidence and boundary |
+|---|---|---|
+| Codex evaluation app | [Pinned mobile README](https://github.com/V-Vekaria/LightGuide-v2/blob/d6110136934b3b78456a90b570d58ce00885145c/apps/mobile/README.md); branch `codex/offline-mobile-app` | Source config: 0.1.2 / Android build 3, package `com.lightguide.codex`. [CI run 34707182893](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34707182893) passed software, positioning build/tests, Android build and Android emulator smoke jobs. Live AR in the mobile shell, BLE, cloud and iOS remain unavailable or unvalidated. |
+| Separate application for comparison | [Pinned status](https://github.com/V-Vekaria/LightGuide-v2/blob/7184b71aa9e6d97138021cc44a34a0a05573b6f7/docs/STATUS.md); [mobile instructions](https://github.com/V-Vekaria/LightGuide-v2/blob/7184b71aa9e6d97138021cc44a34a0a05573b6f7/apps/mobile/README.md); branch `feat/offline-app-delivery` | Branch documentation reports local SQLite tests and Android compilation. Its report leaves device runtime and some UI integration open; those checks were not rerun in this documentation review. |
+| Native positioning experiment | [Experiment and marker instructions](experiments/phase-0-ar-positioning/README.md) | Recovered on main; later hardening exists on implementation branches. Physical repeatability and cross-session accuracy still require measured trials. |
 
-- a smartphone as the spatial positioning and user-interface layer;
-- phone AR / visual tracking to estimate light-node position and orientation relative to a subject/studio reference;
-- a known visual marker/reference on each LightGuide node for identification and pose tracking;
-- BLE communication between the phone and future LightGuide nodes;
-- local node sensing for distance/depth, illumination/spectrum and orientation;
-- offline core operation;
-- multi-light architecture from day one, while building and validating one node first.
+Keep the two application implementations separate until Vishnu compares them. A documentation update does not select or merge an application. The user's installed build must be identified from its version/package before attributing a test result.
 
-The intended workflow is:
+Read [current status](docs/STATUS.md) and the [dated branch/CI evidence](docs/validation/BRANCH_STATUS_2026-09-14.md) for scope and limitations.
 
-1. **Measure** — scan the studio/subject and observe each LightGuide node.
-2. **Save** — store each light's physical configuration and measured lighting state.
-3. **Recreate** — later scan the scene again and receive live corrections such as move left/right, forward/back, raise/lower, rotate and tilt until the setup is within tolerance.
+## Photographer workflow
 
-## Current engineering milestone
+| Stage | Usable offline application journey | Live measured recreation goal |
+|---|---|---|
+| Capture | Name a setup; optionally add photos, equipment and manual details. Missing measurements stay unknown. | Establish the studio/subject reference and capture a valid light pose. |
+| Save | Store a local setup version; preserve completed work across restart. | Retain reference identity, units, calibration and measurement provenance. |
+| Recreate | Reopen the saved version and follow its photographs/settings; record the outcome. | Re-establish the reference and guide movement, height, direction and tilt from current measurements. |
+| Recover | Preserve drafts, explain errors and provide manual fallback. | Withdraw Match when tracking is lost or stale; reacquire before resuming. |
 
-The next milestone is **Phase 0: AR positioning validation**. Before finalising production electronics or integrating the whole product, we must prove that phone-based spatial positioning is accurate and usable enough in a real studio. The already selected evaluation kit can be checked independently; it does not bypass this gate.
+A manual outcome or simulation is not a measured spatial match. Detailed screen and failure behaviour: [user workflows](docs/product/USER_WORKFLOWS.md). Testable checks: [application acceptance criteria](docs/engineering/APP_ACCEPTANCE.md).
 
-Initial acceptance targets for the experiment are approximately:
+## Architecture at a glance
 
-- normal studio positioning: repeatable error around **3–5 cm**;
-- orientation: approximately **2–3°**;
-- reliable relocalisation after moving the stand;
-- usable marker detection at realistic studio distances and viewing angles.
+This diagram describes the selected architecture and integration boundaries. Dashed connections are planned integrations, not current live capabilities of the evaluation app.
 
-These are broad feasibility-screening targets, not product claims. The application's tighter distance/height matching defaults are ±3 cm; passing a 3–5 cm screen does not establish that capability. See the schema and engineering requirements for the distinction. If phone AR cannot meet the requirement reliably, the positioning architecture will be augmented or replaced, with UWB/sensor fusion as a candidate fallback.
+```mermaid
+flowchart TD
+  UI["Mobile UI: React Native / Expo"]
+  DATA["Local SQLite and photographs"]
+  GUIDE["Guidance and recreation logic"]
+  PORT["Spatial and sensor interfaces"]
+  AR["Separate Kotlin / ARCore harness"]
+  NODE["Future BLE sensor node"]
+  CLOUD["Optional future cloud services"]
+  UI <--> DATA
+  UI <--> GUIDE
+  GUIDE <--> PORT
+  AR -.-> PORT
+  NODE -.-> PORT
+  DATA -.-> CLOUD
+```
 
-Start with [CLAUDE.md](CLAUDE.md), [current status](docs/STATUS.md) and [the documentation map](docs/DOCUMENTATION_MAP.md).
+- **Phone:** primary UI, camera/visual positioning and computation. Android is the first test platform.
+- **Local application:** TypeScript, Expo Development Builds, Expo Router and SQLite; offline capture and manual recreation work independently of the spatial experiment.
+- **Spatial layer:** native Kotlin/ARCore measurement harness; a platform-neutral interface separates it from the app. Simulation/unavailable states must be explicit.
+- **Node evaluation:** ESP32-S3-WROOM-1-N8R8 controller, VL53L5CX-class depth, AS7343 spectral and BNO086 orientation candidates. Exact received hardware, integration and performance require verification.
+- **Later services:** optional authentication/backup/sync and recommendation intelligence. They must not become dependencies of the offline core.
 
-See:
+Full [architecture](docs/V1_ARCHITECTURE.md), [data design](docs/product/DATABASE_DESIGN.md), [schema](docs/product/DATABASE_SCHEMA.md) and [decisions](docs/DECISIONS.md) own the details. Sensor interfaces, BLE and calibrated performance are not proven by this diagram.
 
-- [`docs/V1_PRODUCT_SPEC.md`](docs/V1_PRODUCT_SPEC.md)
-- [`docs/V1_ARCHITECTURE.md`](docs/V1_ARCHITECTURE.md)
-- [`docs/POSITIONING_RESEARCH.md`](docs/POSITIONING_RESEARCH.md)
-- [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md)
-- [`docs/DECISIONS.md`](docs/DECISIONS.md)
-- [`CLAUDE.md`](CLAUDE.md)
-- [`experiments/phase-0-ar-positioning/README.md`](experiments/phase-0-ar-positioning/README.md)
+## Documentation guide
 
-## Application and data specification
+| Need | Authoritative document |
+|---|---|
+| Problem, users, product goals and V1 scope | [PRD](docs/product/PRD.md), [product specification](docs/V1_PRODUCT_SPEC.md) |
+| Screens, navigation, user journeys and recovery | [User workflows](docs/product/USER_WORKFLOWS.md), [application backlog](docs/product/APP_MVP_PLAN.md) |
+| Requirements and acceptance criteria | [Engineering requirements](docs/engineering/ENGINEERING_REQUIREMENTS.md), [app acceptance](docs/engineering/APP_ACCEPTANCE.md) |
+| System components and data flow | [Architecture](docs/V1_ARCHITECTURE.md) |
+| Data relationships, versions and storage | [Database design](docs/product/DATABASE_DESIGN.md), [schema](docs/product/DATABASE_SCHEMA.md) |
+| Offline sync, media, deletion and conflict rules | [Offline-sync specification](docs/product/OFFLINE_SYNC.md) |
+| Hardware, component status and positioning research | [Evaluation BOM](docs/V1_BOM.md), [positioning research](docs/POSITIONING_RESEARCH.md) |
+| Competitors and reuse opportunities | [Landscape](docs/product/COMPETITIVE_LANDSCAPE.md), [reuse research](docs/product/COMPETITOR_REUSE_RESEARCH_2026-09-10.md) |
+| Milestones, priorities and Definition of Done | [Roadmap](docs/product/ROADMAP.md), [delivery handoff](docs/engineering/CLAUDE_BUILD_HANDOFF.md) |
+| Testing, evidence and risks | [Test plan](docs/TEST_PLAN.md), [validation log](docs/validation/VALIDATION_LOG.md), [risk register](docs/validation/RISK_REGISTER.md) |
+| Current branch/build status and remaining work | [Status](docs/STATUS.md), [branch evidence](docs/validation/BRANCH_STATUS_2026-09-14.md) |
+| Contributor instructions and settled decisions | [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md), [decision record](docs/DECISIONS.md) |
 
-The offline application uses React Native/TypeScript with Expo Development Builds and can be implemented alongside physical testing per ADR-015; live positioning remains subject to validation. iOS awaits appropriate development/test hardware.
+The [documentation map](docs/DOCUMENTATION_MAP.md) provides the complete ownership guide. Core planning is sufficient for implementation and testing. Physical results, protocol decisions and release evidence must be updated as work progresses.
 
-The Android source and marker assets have been recovered from branch experiment/phase-0-ar-positioning. Start with the [software delivery handoff](docs/engineering/CLAUDE_BUILD_HANDOFF.md) and [source audit](docs/validation/AR_SOURCE_AUDIT_2026-09-10.md), not another AR scaffold.
+## Run and test the correct project
 
-- [Application scope and backlog](docs/product/APP_MVP_PLAN.md)
-- [Seven-table database design](docs/product/DATABASE_DESIGN.md)
-- [Fields and snapshot format](docs/product/DATABASE_SCHEMA.md)
-- [Offline-sync procedures](docs/product/OFFLINE_SYNC.md)
-- [Exact evaluation-kit status](docs/V1_BOM.md)
+Use the selected implementation branch's mobile README above for installation, prerequisites and commands. **Root npm commands exercise the legacy web prototype**, not the Android application. Do not scaffold another mobile app because its directory is absent on main.
 
-These are implementation plans, not claims of deployed databases, working new-node BLE or validated accuracy.
+Use the separate [Android experiment instructions](experiments/phase-0-ar-positioning/README.md) for exact registered marker assets and native measurements. Expo Go is not a native AR/BLE test environment. iOS requires future Apple development and test access.
 
-## Legacy commercial prototype
+## Release and validation boundaries
 
-Old companion-app plans and dated handovers have been removed from active paths and placed in [the legacy archive](docs/archive/legacy-companion/README.md).
+An installable offline prototype, a physically validated one-light system and a photographer-validated MVP are distinct milestones. Record commit, package/version, artifact identity, test environment and results for each release using [the acceptance record](docs/engineering/APP_ACCEPTANCE.md).
 
-The existing Preact/TypeScript companion app, mock device, guidance logic and `device/` firmware work predate the current architecture. Preserve them as reference unless a later migration decision explicitly replaces them.
+- Configured ±3 cm distance/height and ±3° direction/tilt tolerances are **targets**, not demonstrated accuracy.
+- A 3–5 cm feasibility-screen result does not establish consistent ±3 cm performance.
+- The [test plan](docs/TEST_PLAN.md) calls for repeated physical trials, independent ground truth and failure/outlier reporting.
+- One physical node is validated first; data models anticipate multiple lights.
+- The existing MVP plan requires evidence from five photographers.
+- Production electronics, BLE integration, cloud sync and artistic AI remain subject to their own implementation and validation gates.
 
-Important reusable areas include:
+## Legacy and university boundaries
 
-- `src/guidance/` — arrival, liveness, stability and verdict logic;
-- `src/device/` and `src/contract/` — device abstraction and conformance concepts;
-- `src/store/` — setup/state handling;
-- `src/backup/` — export/import concepts;
-- `mock-device/` — hardware-independent development/testing approach.
+Root `src/`, `mock-device/`, `device/` and their tests are the earlier Preact/manual-target/Nano ESP32 prototype. Preserve their filtering, guidance, storage and conformance evidence; do not treat them as the new phone/BLE architecture. Historical plans are in [the legacy archive](docs/archive/legacy-companion/README.md).
 
-Do not treat the old ultrasonic + LDR + manual target workflow as the baseline for new V1 work.
-
-## Relationship to LightGuide Edge
-
-[`LightGuide-Edge`](https://github.com/V-Vekaria/LightGuide-Edge) is the separate university COM683 academic prototype. It must remain independent and should not be rewritten to match the commercial architecture.
-
-## Development rule
-
-For new work, use the documents above as the source of truth. When architecture changes, update the decision record first so future developers and AI coding agents do not silently revert to an older concept.
+[LightGuide-Edge](https://github.com/V-Vekaria/LightGuide-Edge) is the separate university project and remains independent.

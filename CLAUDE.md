@@ -12,12 +12,12 @@ Planning is sufficient to begin bounded implementation. It is not evidence that 
 
 Use [the software delivery handoff](docs/engineering/CLAUDE_BUILD_HANDOFF.md) for the exact scope, milestones, tests and user handover.
 
-1. Inspect the recovered [Android experiment](experiments/phase-0-ar-positioning/README.md); do not create another scaffold.
-2. Resolve the [source-audit gaps](docs/validation/AR_SOURCE_AUDIT_2026-09-10.md), including 3 cm defaults, arbitrary match percentage, stale tracking and reference/configuration validity.
-3. Run available Android build/unit checks and record actual outputs.
-4. Build the offline React Native/TypeScript application under apps/mobile/ in incremental working milestones, using Expo Development Builds and explicit spatial/transport adapters.
-5. Exercise local saving, restart recovery, version preservation, manual recreation and labelled simulations before handing the app to the user.
-6. Continue independent software work when physical hardware is unavailable. Keep real AR accuracy, BLE, sensor calibration and iOS checks explicitly pending.
+1. Identify the implementation branch and installed version through [current status](docs/STATUS.md) and [branch evidence](docs/validation/BRANCH_STATUS_2026-09-14.md). Both Codex and separate comparison apps already exist; preserve them until the user compares them.
+2. Read that branch's apps/mobile/README.md and validation reports. Main's missing mobile directory and original source-audit findings are not instructions to repeat completed work.
+3. Run or reuse evidence for the exact revision being delivered. Record package/version, commit, artifact identity and results using [app acceptance criteria](docs/engineering/APP_ACCEPTANCE.md).
+4. Complete remaining phone checks and demonstrated fixes, including repeated navigation, durable local storage, media and manual recreation. Do not attribute emulator results to a physical phone.
+5. Reuse the chosen branch's hardened native experiment for physical trials; keep real AR accuracy, BLE, sensor calibration and iOS checks explicitly pending.
+6. Continue independent software or separately requested bench work while preserving the offline core and native harness boundaries.
 
 ADR-015 permits the offline application to proceed alongside Phase 0. It does not pass the positioning gate or authorise the entire cloud/AI roadmap. Preserve the native experiment as a separate measurement harness. See [architecture](docs/V1_ARCHITECTURE.md).
 
@@ -41,7 +41,7 @@ Seven core domain tables with validated scene snapshots:
 - [fields, relationships and snapshot format](docs/product/DATABASE_SCHEMA.md);
 - [offline sync, conflicts, media and deletion](docs/product/OFFLINE_SYNC.md).
 
-These are specifications, not deployed migrations or passed tests. Internal sync records are additional infrastructure. Do not make a full backend a prerequisite for Phase 0.
+These are specifications; branch-specific implementations and evidence are linked from STATUS.md. Local database tests do not prove full cloud sync. Internal sync records are additional infrastructure. Do not make a full backend a prerequisite for Phase 0.
 
 Application distance/height matching defaults are ±3 cm; direction/tilt ±3 degrees; brightness ±10%; spectral comparison experimental. These are tolerances, not proven accuracy. The broader historical 3–5 cm Phase-0 screening range does not prove the tighter application target; evaluate both separately.
 

@@ -1,5 +1,17 @@
 # LightGuide Product Roadmap
 
+## Current delivery checkpoints
+
+Use [current status](../STATUS.md) to locate existing implementations before starting a milestone. Preserve the separate apps for the user's comparison.
+
+1. Identify the delivered branch/commit and installed package/version.
+2. Close applicable [app acceptance checks](../engineering/APP_ACCEPTANCE.md) with exact-build evidence; use confirmed CI without treating it as a physical phone retest.
+3. Complete the native positioning trials below and separately requested sensor bench checks.
+4. Integrate one node only once the spatial direction and actual hardware/protocol are sufficiently established.
+5. Collect the five-photographer evidence required by [APP_MVP_PLAN.md](APP_MVP_PLAN.md) before MVP claims.
+
+These are exit gates, not new promises of calendar duration. Installation, physical validation and MVP validation are distinct milestones.
+
 ## Phase 0 — Spatial feasibility
 **Goal:** prove whether phone-based AR positioning is good enough for V1.
 
@@ -17,7 +29,7 @@ Exit gate:
 
 ## Parallel software delivery (ADR-015)
 
-Reuse the recovered Android experiment and address its source-audit gaps. While the user completes physical validation, implement the offline application shell, durable setup storage, photographs, manual recreation and labelled simulated spatial states. Execute available automated checks and prepare the device handover. See [CLAUDE_BUILD_HANDOFF.md](../engineering/CLAUDE_BUILD_HANDOFF.md).
+Reuse the existing implementation branches and their hardened Android experiments. Address remaining source-audit gaps only after checking the selected branch. While physical validation continues, complete remaining offline application work and release checks for durable storage, photographs, manual recreation and labelled simulated spatial states. Execute available automated checks and prepare the device handover. See [CLAUDE_BUILD_HANDOFF.md](../engineering/CLAUDE_BUILD_HANDOFF.md).
 
 This parallel track does not pass the positioning gate or advance final electronics decisions.
 
