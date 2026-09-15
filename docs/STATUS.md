@@ -14,11 +14,11 @@
 
 [Run 34707182893](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34707182893) passed software/browser checks, native positioning unit tests/build, Android packaging and emulator smoke at the selected source commit. [The navigation report](validation/CODEX_NAVIGATION_2026-09-12.md) records the repeated Settings repair. Its original “pending CI” text predates that successful run.
 
-CI now runs on main and pull requests. The integration run's actual outcome must be consulted; an in-progress run is not a pass. The [consolidation record](validation/BRANCH_CLEANUP_2026-09-14.md) describes the retirement plan and cleanup gate. User phone results must still name the installed package/version.
+CI now runs on main and pull requests. Integration [run 34897024247](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34897024247) at `e6c63bb2cd7e759ae7adf91abe66e9e3aa051050` passed all four jobs: software, positioning, Android build and emulator smoke. Cleanup [run 34900253605](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34900253605) also succeeded. Inspection on 15 September confirmed only `main` remains and all six recovery tags match the reviewed branch tips. See the [completed consolidation record](validation/BRANCH_CLEANUP_2026-09-14.md). User phone results must still name the installed package/version.
 
 ## Retired alternatives
 
-Claude's implementation at `7184b71aa9e6d97138021cc44a34a0a05573b6f7` is not merged into the chosen app. It uses an alternative data/UI/harness implementation; mixing the two would need a separate engineering review. Its source/tests and the older branch tips are preserved with recovery tags before deletion. The dated [branch review](validation/BRANCH_STATUS_2026-09-14.md) remains historical evidence.
+Claude's implementation at `7184b71aa9e6d97138021cc44a34a0a05573b6f7` is not merged into the chosen app. It uses an alternative data/UI/harness implementation; mixing the two would need a separate engineering review. Its source/tests and the older branch tips were preserved with verified recovery tags, and all six retired branches have been deleted. The dated [branch review](validation/BRANCH_STATUS_2026-09-14.md) remains historical evidence.
 
 ## Current requirements
 

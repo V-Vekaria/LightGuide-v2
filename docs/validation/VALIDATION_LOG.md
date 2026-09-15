@@ -88,3 +88,15 @@ physical camera/AR, BLE, sensor and ±3 cm accuracy validation remain open.
 ## Codex selected and integration prepared — 2026-09-14
 
 The user chose the Codex implementation and authorised merging and branch cleanup. Runtime source is integrated from d6110136934b3b78456a90b570d58ce00885145c with current main documentation preserved. CI now covers main and pull requests. [Cleanup policy and branch inventory](BRANCH_CLEANUP_2026-09-14.md) retain recovery references and require successful integration checks before deletion. This entry records integration work, not a new physical validation result.
+
+## Consolidation verified and branches retired — 2026-09-15
+
+**Outcome:** PASS for software integration and repository cleanup.
+
+- Integrated commit: `e6c63bb2cd7e759ae7adf91abe66e9e3aa051050`.
+- [CI run 34897024247](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34897024247) passed software, positioning, Android build and Android emulator smoke jobs. The initial Android SDK setup failure was fixed by requesting platform-tools explicitly; all test gates remained enabled.
+- [Cleanup run 34900253605](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34900253605) succeeded after verifying the integration and reviewed branch tips.
+- Final branch/tag inspection confirmed only main remains and all six archive tags point to their exact reviewed commits. [Inventory and recovery references](BRANCH_CLEANUP_2026-09-14.md).
+- The documentation closeout removes the completed one-time maintenance workflow/script and records these results; application runtime and dependencies are unchanged.
+
+This does not establish physical AR accuracy, BLE/calibration, iOS, cloud or photographer acceptance. Installed-phone acceptance and VAL-001–004 remain open.

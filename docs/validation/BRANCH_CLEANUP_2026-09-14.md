@@ -8,7 +8,7 @@ The user prefers the Codex application and explicitly authorised merging useful 
 
 | Branch | Reviewed tip | Disposition | Recovery tag |
 |---|---|---|---|
-| `codex/offline-mobile-app` | `d6110136934b3b78456a90b570d58ce00885145c` | Merge the selected app/harness source; retire branch after main CI passes. | `archive/2026-09-14/codex/offline-mobile-app` |
+| `codex/offline-mobile-app` | `d6110136934b3b78456a90b570d58ce00885145c` | Selected app/harness merged; branch retired after main CI passed. | `archive/2026-09-14/codex/offline-mobile-app` |
 | `docs/professional-product-stack` | `2b11c43ff3021c88b3ce12e83f4bde86e3b6ed46` | Already an ancestor of main; no unmerged changes. | `archive/2026-09-14/docs/professional-product-stack` |
 | `docs/v1-architecture-freeze` | `30fc99698fa1c1afed4f97bb067a7a1f9ead20fa` | Superseded architecture snapshot; current topic documents retain the evolved decisions. Do not reapply old documents. | `archive/2026-09-14/docs/v1-architecture-freeze` |
 | `experiment/phase-0-ar-positioning` | `5bc532b0d1bfd94f8f554867eec94e7403d1a7ce` | All 39 experiment files already recovered on main; only README differs from that historical snapshot. Selected Codex source adds later hardening. | `archive/2026-09-14/experiment/phase-0-ar-positioning` |
@@ -26,13 +26,15 @@ Keep main. No open pull requests were present during the initial audit. The two 
 - Existing selected-source [CI run 34707182893](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34707182893) is successful. CI is extended to main and pull requests so the integration is verified again.
 - Application identity remains com.lightguide.codex, version 0.1.2/build 3; this repository operation does not reinstall or rename the user's app.
 
-## Guarded retirement
+## Completed verification and retirement — 15 September 2026
 
-The dated maintenance workflow runs only after the successful main push integration workflow with the matching consolidation commit message. It checks all four required jobs, the unchanged tested main tip, default branch, selected-source ancestry, branch protection and each exact reviewed tip.
+The integrated application at `e6c63bb2cd7e759ae7adf91abe66e9e3aa051050` passed all four jobs in [CI run 34897024247](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34897024247): software, positioning, Android build and Android emulator smoke. The initial run failed during Android SDK setup; explicitly requesting platform-tools corrected the obsolete default tools-package installation without removing any test gates.
 
-All recovery tags must be created and verified before any branch deletion. A moved/protected branch or conflicting tag stops cleanup instead of deleting new work. Already-absent branches require the correct recovery tag, making reruns safe. The procedure never deletes main, tags, source files or other repositories.
+[Cleanup run 34900253605](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34900253605) completed successfully. Its dated maintenance workflow checked the successful main push integration run, all four required jobs, the unchanged tested main tip, default branch, selected-source ancestry, branch protection and each exact reviewed tip.
 
-Deletion is pending until the workflow and final branch/tag inspection confirm success. Recovery tags retain the complete old code/history while keeping the active branch list clean. After confirmation the one-time maintenance workflow/script can be removed; this record and recovery tags remain.
+All six recovery tags were created and verified before branch deletion. Final GitHub branch/tag inspection on 15 September confirmed that only `main` remains and that each recovery tag points to the exact reviewed commit in the table above. Claude's alternative source remains recoverable through its tag; it was not merged into the chosen runtime.
+
+The completed one-time maintenance workflow and script are removed in the documentation closeout commit. Their history, this record and the recovery tags remain. No application runtime files are changed by that closeout.
 
 ## Validation limits
 
