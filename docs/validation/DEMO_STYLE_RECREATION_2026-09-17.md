@@ -21,6 +21,12 @@ Implemented:
 - Initial local browser suite could not start: cached Chromium crashed at launch with SIGSEGV, before any app test ran. Do not count those failures as app assertions or a passing browser run. Subsequent results and GitHub CI are recorded in the delivery PR.
 - Added browser journeys for save/move/recreate, all three connection failures, side view, ambient change, 320/390/1024 width checks, manual correction inputs, invalid entries and persisted recreation progress.
 
+## GitHub verification
+
+Initial implementation commit `8054ed92baa79af1e14fe4c6fbddbb246a84148d` passed all four jobs (software, positioning, Android build and Android smoke) in [run 35178674896](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/35178674896). The run produced non-expired APK, software and Android smoke evidence artifacts. Local Chromium remains unavailable; the browser journeys ran in GitHub CI.
+
+Follow-up: allow moving forward from the reference step after returning from a light with an invalid optional reading. Validation only blocks the light step where that input can be corrected. Added a browser regression for this path. This follow-up needs its own CI result; the earlier APK does not include it.
+
 ## Remaining limits
 
 Live AR, BLE and calibrated sensing are still unavailable in the mobile app. All practice inputs are synthetic and cannot assert a measured match. Manual inputs are user-entered, not sensor measurements. 3 cm / 3° is a configured comparison tolerance, not demonstrated accuracy. Subject position, modifiers, power, camera settings and ambient conditions still require checking against actual photographs.

@@ -336,7 +336,7 @@ function RecreationFlow({
                     : "Mark step complete"
                 }
                 primary
-                disabled={step >= steps.length || inputInvalid}
+                disabled={step >= steps.length || (isLightStep && inputInvalid)}
                 onPress={() => advance(step + 1)}
               />
             }

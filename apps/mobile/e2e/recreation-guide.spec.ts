@@ -109,6 +109,12 @@ test("saved setup uses the same guide with manual values, unknown pose and uncha
   await expect(
     page.getByRole("button", { name: "Mark step complete", exact: true }),
   ).toBeDisabled();
+  // An invalid optional reading must not trap navigation on the reference step.
+  await page.getByRole("button", { name: "Previous step", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Mark step complete", exact: true }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Mark step complete", exact: true }).click();
   await page.getByLabel("Height now (cm)", { exact: true }).fill("170");
   await expect(page.getByTestId("guide-cue")).toHaveText(
     "Entered values agree; check the photograph",
