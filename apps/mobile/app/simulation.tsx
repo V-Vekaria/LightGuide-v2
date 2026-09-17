@@ -1,179 +1,240 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Text, View } from "react-native";
+import { Screen } from "../src/ui/components";
+import { RecreationGuide, GuideButton, g } from "../src/ui/RecreationGuide";
 import {
-  Badge,
-  Body,
-  Button,
-  Card,
-  Heading,
-  Label,
-  Screen,
-  useResponsiveColumns,
-  s,
-} from "../src/ui/components";
-import { evaluatePose, type Pose } from "../src/domain/spatial";
-import { colors as c } from "../src/ui/theme";
-const target: Pose = {
-  referenceId: "demo-reference",
-  objectId: "demo-light",
-  position: [0, 1.8, 1.5],
-  quaternion: [0, 0, 0, 1],
-  observedAtMs: 0,
-  source: "simulation",
-  quality: "valid",
-};
+  demoLight,
+  demoConnected,
+  demoPause,
+  demoCue,
+  demoRestored,
+  movedDemo,
+  nextDemoField,
+  unknownLight,
+  type LightState,
+  type DemoConnection,
+} from "../src/domain/recreation-guide";
+
 export default function Simulation() {
-  const columns = useResponsiveColumns();
-  const [position, setPosition] = useState<[number, number, number]>([
-      0.18, 1.68, 1.61,
-    ]),
-    [lost, setLost] = useState(false),
-    [now, setNow] = useState(performance.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(performance.now()), 100);
-    return () => clearInterval(id);
-  }, []);
-  const result = evaluatePose(
-    target,
-    {
-      ...target,
-      position,
-      observedAtMs: now,
-      quality: lost ? "lost" : "valid",
-    },
-    now,
-  );
-  const move = (axis: number, delta: number) =>
-    setPosition(
-      (v) => v.map((n, i) => (i === axis ? n + delta : n)) as typeof position,
-    );
+  const [current, setCurrent] = useState<LightState>({ ...demoLight });
+  const [saved, setSaved] = useState<LightState | null>(null);
+  const [stage, setStage] = useState(0);
+  const [link, setLink] = useState<DemoConnection>({ ...demoConnected });
+  const [ambientChanged, setAmbientChanged] = useState(false);
+  const [details, setDetails] = useState(false);
+  const [how, setHow] = useState(false);
+  const paused = demoPause(link);
+  const restored = !!saved && demoRestored(saved, current, link);
+  const save = () => {
+    if (paused) return;
+    setSaved({ ...current });
+    setStage(1);
+  };
+  const move = () => {
+    if (!saved) return;
+    setCurrent(movedDemo(saved));
+    setStage(2);
+  };
+  const adjust = () => {
+    if (!saved || paused) return;
+    const key = nextDemoField(saved, current);
+    if (key) setCurrent((v) => ({ ...v, [key]: saved[key] }));
+  };
+  const check = () => {
+    if (restored) setStage(4);
+  };
+  const restart = () => {
+    setCurrent({ ...demoLight });
+    setSaved(null);
+    setStage(0);
+    setLink({ ...demoConnected });
+    setAmbientChanged(false);
+  };
+  const toggle = (key: keyof DemoConnection) => {
+    setLink((v) => ({ ...v, [key]: !v[key] }));
+    if (stage === 4) setStage(3);
+  };
+  const shift = (key: "x" | "z" | "height" | "yaw" | "tilt", by: number) => {
+    setCurrent((v) => ({
+      ...v,
+      [key]: Math.max(
+        key === "height" || key === "z" ? 20 : -180,
+        Math.min(key === "height" || key === "z" ? 500 : 180, v[key]! + by),
+      ),
+    }));
+    if (stage === 4) setStage(3);
+  };
+  const title =
+    paused ??
+    (!saved
+      ? "Save a setup you like"
+      : stage === 1
+        ? "Setup saved"
+        : stage === 2
+          ? "The light has moved"
+          : stage === 4
+            ? "Demo complete — check a real test shot"
+            : demoCue(saved, current, link, ambientChanged));
+  const detail = paused
+    ? "Guidance is paused. Saved values remain visible."
+    : stage === 0
+      ? "One portrait light and a softbox. Save the arrangement, move it, then find your way back."
+      : stage === 1
+        ? "Your virtual setup is saved for this session. Now move the light."
+        : stage === 2
+          ? "Open Recreate to compare the current light with the saved arrangement."
+          : ambientChanged && restored
+            ? "The position is restored, but ambient light has changed. Exposure and the photograph still need checking."
+            : "Follow one correction at a time. In a real shoot, the photographer moves the equipment.";
+  const actionTitle = !saved
+    ? "Save setup"
+    : stage === 1
+      ? "Move light"
+      : stage === 2
+        ? "Open Recreate"
+        : stage === 4
+          ? "Restart demo"
+          : restored
+            ? "Check result"
+            : "Simulate adjustment";
+  const action = !saved
+    ? save
+    : stage === 1
+      ? move
+      : stage === 2
+        ? () => setStage(3)
+        : stage === 4
+          ? restart
+          : restored
+            ? check
+            : adjust;
+  const displayed = {
+    ...current,
+    x: link.reference ? current.x : null,
+    z: link.reference ? current.z : null,
+    height: link.reference ? current.height : null,
+    yaw: link.node && link.bluetooth ? current.yaw : null,
+    tilt: link.node && link.bluetooth ? current.tilt : null,
+  };
   return (
     <Screen
       back
-      title="Find the saved position."
-      subtitle="An interactive demonstration of the guidance. No camera or sensor is being read."
+      title="Recreate a setup."
+      subtitle="Practice with the same guidance layout used for your saved setups. Every movement here is simulated."
     >
-      <Badge tone="warning">SIMULATED DATA · NEVER A MEASURED MATCH</Badge>
-      <View style={columns.split}>
-        <Card style={columns.column}>
-          <Label>TOP VIEW</Label>
-          <View
-            style={{
-              height: 240,
-              backgroundColor: c.bg,
-              borderRadius: 12,
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            <View
-              style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                width: 36,
-                height: 36,
-                borderWidth: 2,
-                borderColor: c.accent,
-                borderRadius: 18,
-                transform: [{ translateX: -18 }, { translateY: -18 }],
-              }}
-            />
-            <View
-              style={{
-                position: "absolute",
-                left: `${Math.max(5, Math.min(95, 50 + position[0] * 100))}%`,
-                top: `${Math.max(5, Math.min(95, 50 + (position[2] - 1.5) * 100))}%`,
-                width: 18,
-                height: 18,
-                backgroundColor: c.cyan,
-                borderRadius: 9,
-                transform: [{ translateX: -9 }, { translateY: -9 }],
-              }}
-            />
-            <Text
-              style={{
-                position: "absolute",
-                bottom: 12,
-                left: 12,
-                color: c.muted,
-                fontSize: 11,
-              }}
-            >
-              ○ Saved target ● Simulated light
+      <RecreationGuide
+        mode="simulation"
+        steps={["Save", "Move", "Recreate", "Check"]}
+        stage={stage === 0 ? 0 : stage === 1 ? 1 : stage < 4 ? 2 : 3}
+        title={title}
+        detail={detail}
+        saved={saved ?? unknownLight}
+        current={displayed}
+        action={
+          <GuideButton
+            title={actionTitle}
+            primary
+            disabled={!!paused && stage !== 4}
+            onPress={action}
+          />
+        }
+        secondary={
+          stage > 0 && stage < 4 ? (
+            <GuideButton title="Restart demo" onPress={restart} />
+          ) : undefined
+        }
+      >
+        <GuideButton
+          title={
+            details ? "Hide light controls" : "Adjust light & test connections"
+          }
+          onPress={() => setDetails((v) => !v)}
+        />
+        {details && (
+          <View style={{ gap: 14 }}>
+            <Text style={g.small}>
+              Move the virtual light. These controls do not move real equipment.
+            </Text>
+            {(
+              [
+                ["x", "Left", "Right", 5, "cm"],
+                ["z", "Towards subject", "Away from subject", 5, "cm"],
+                ["height", "Lower", "Raise", 5, "cm"],
+                ["yaw", "Turn left", "Turn right", 5, "°"],
+                ["tilt", "Tilt up", "Tilt down", 5, "°"],
+              ] as const
+            ).map(([key, minus, plus, amount, unit]) => (
+              <View style={g.row} key={key}>
+                <GuideButton
+                  title={`${minus} ${amount}${unit}`}
+                  onPress={() => shift(key, -amount)}
+                />
+                <GuideButton
+                  title={`${plus} ${amount}${unit}`}
+                  onPress={() => shift(key, amount)}
+                />
+              </View>
+            ))}
+            <View style={g.row}>
+              <GuideButton
+                title={link.node ? "Turn node off" : "Turn node on"}
+                onPress={() => toggle("node")}
+              />
+              <GuideButton
+                title={
+                  link.bluetooth
+                    ? "Disconnect Bluetooth"
+                    : "Reconnect Bluetooth"
+                }
+                onPress={() => toggle("bluetooth")}
+              />
+              <GuideButton
+                title={link.reference ? "Lose reference" : "Restore reference"}
+                onPress={() => toggle("reference")}
+              />
+              <GuideButton
+                title={
+                  ambientChanged
+                    ? "Restore ambient light"
+                    : "Change ambient light"
+                }
+                onPress={() => {
+                  setAmbientChanged((v) => !v);
+                  if (stage === 4) setStage(3);
+                }}
+              />
+            </View>
+          </View>
+        )}
+        <GuideButton
+          title={how ? "Hide how it works" : "How it works"}
+          onPress={() => setHow((v) => !v)}
+        />
+        {how && (
+          <View style={{ gap: 12 }}>
+            <Text style={g.title}>Phone + stand module</Text>
+            <Text style={g.text}>
+              Phone reference → light position. Candidate depth, orientation and
+              light sensors → ESP32 → Bluetooth → phone comparison →
+              photographer adjustment.
+            </Text>
+            <Text style={g.text}>
+              Optional stand display / indicator:{" "}
+              {!link.node ? "OFF" : paused ? "PAUSED" : title}
+            </Text>
+            <Text style={g.small}>
+              The diagram is a proposal. Live positioning, BLE and calibrated
+              light measurements are unavailable in this app. A range sensor
+              alone cannot locate the stand.
             </Text>
           </View>
-          <Heading>{result.label}</Heading>
-          {result.delta && (
-            <>
-              <Body>
-                Horizontal: {Math.abs(result.delta[0] * 100).toFixed(1)} cm{" "}
-                {result.delta[0] > 0 ? "left" : "right"}
-              </Body>
-              <Body>
-                Height: {Math.abs(result.delta[1] * 100).toFixed(1)} cm{" "}
-                {result.delta[1] > 0 ? "lower" : "raise"}
-              </Body>
-              <Body>
-                Depth: {Math.abs(result.delta[2] * 100).toFixed(1)} cm{" "}
-                {result.delta[2] > 0 ? "back" : "forward"}
-              </Body>
-            </>
-          )}
-        </Card>
-        <Card style={columns.column}>
-          <Heading>Move the simulated light</Heading>
-          <Body muted>
-            Each control moves 1 cm. Try losing tracking to see guidance
-            disappear.
-          </Body>
-          <View style={s.row}>
-            <Button
-              title="Left 1 cm"
-              kind="secondary"
-              onPress={() => move(0, -0.01)}
-            />
-            <Button
-              title="Right 1 cm"
-              kind="secondary"
-              onPress={() => move(0, 0.01)}
-            />
-            <Button
-              title="Raise 1 cm"
-              kind="secondary"
-              onPress={() => move(1, 0.01)}
-            />
-            <Button
-              title="Lower 1 cm"
-              kind="secondary"
-              onPress={() => move(1, -0.01)}
-            />
-            <Button
-              title="Back 1 cm"
-              kind="secondary"
-              onPress={() => move(2, -0.01)}
-            />
-            <Button
-              title="Forward 1 cm"
-              kind="secondary"
-              onPress={() => move(2, 0.01)}
-            />
-          </View>
-          <Button
-            title={lost ? "Reacquire tracking" : "Simulate tracking loss"}
-            kind="secondary"
-            onPress={() => setLost((v) => !v)}
-          />
-          <Button
-            title="Place at saved target"
-            onPress={() => setPosition([...target.position])}
-          />
-          <Body muted>
-            The real test target is 3 cm and 3°. Meeting it here proves only the
-            demonstration logic.
-          </Body>
-        </Card>
-      </View>
+        )}
+        <Text style={g.small}>
+          Session-only practice. 3 cm position / 3° orientation demo tolerance;
+          no measured match or identical-photo claim. Nothing here changes your
+          saved setups.
+        </Text>
+      </RecreationGuide>
     </Screen>
   );
 }

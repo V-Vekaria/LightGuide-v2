@@ -23,6 +23,19 @@ import {
   type Outcome,
   type Scene,
 } from "../../src/domain/schema";
+import {
+  RecreationGuide,
+  GuideButton,
+  GuideInput,
+  g,
+} from "../../src/ui/RecreationGuide";
+import {
+  manualCue,
+  parseManualCm,
+  savedLight,
+  unknownLight,
+} from "../../src/domain/recreation-guide";
+import { Text } from "react-native";
 import { pickPhoto } from "../../src/media/media";
 
 export default function Recreate() {
@@ -81,6 +94,9 @@ function RecreationFlow({
       () => repo.draft("attempt-photos:" + id)?.data.images ?? [],
     ),
     [elapsed, setElapsed] = useState(repo.setting("timer:" + id, 0));
+  const [manualReadings, setManualReadings] = useState<
+    Record<string, { distance: string; height: string }>
+  >({});
   const clock = useRef({
     elapsed,
     at: performance.now(),
@@ -144,6 +160,38 @@ function RecreationFlow({
       text: "Compare shadows, highlights and the background with your original image. Record any adjustments and your own assessment.",
     },
   ];
+  const lightIndex = Math.max(0, Math.min(lights.length - 1, step - 1));
+  const selectedLight = lights[lightIndex];
+  const savedValues = savedLight(target, selectedLight?.id);
+  const inputs = manualReadings[selectedLight?.id ?? ""] ?? {
+    distance: "",
+    height: "",
+  };
+  const currentValues = {
+    ...unknownLight,
+    distance: parseManualCm(inputs.distance),
+    height: parseManualCm(inputs.height),
+  };
+  const isLightStep = step > 0 && step <= lights.length;
+  const activeStage =
+    step === 0
+      ? 0
+      : step <= lights.length
+        ? 1
+        : step === lights.length + 1
+          ? 2
+          : 3;
+  const currentStep = steps[Math.min(step, steps.length - 1)]!;
+  const inputInvalid = Object.values(inputs).some(
+    (raw) => raw.trim() !== "" && parseManualCm(raw) === null,
+  );
+  const changeReading = (field: "distance" | "height", value: string) => {
+    if (selectedLight)
+      setManualReadings((v) => ({
+        ...v,
+        [selectedLight.id]: { ...inputs, [field]: value },
+      }));
+  };
   const advance = (next: number) => {
     try {
       repo.saveRecreationProgress(id, next, notes);
@@ -260,28 +308,93 @@ function RecreationFlow({
               {Math.floor(elapsed / 60000)}m active · recorded to the second
             </Body>
           </View>
-          <Card>
-            <Heading>{steps[Math.min(step, steps.length - 1)]!.title}</Heading>
-            <Body>{steps[Math.min(step, steps.length - 1)]!.text}</Body>
-            <View style={s.row}>
-              {step > 0 && (
-                <Button
-                  title="Previous step"
-                  kind="secondary"
-                  onPress={() => advance(step - 1)}
-                />
-              )}
-              <Button
+          <RecreationGuide
+            mode="manual"
+            stage={activeStage}
+            steps={["Reference", "Lights", "Camera", "Check"]}
+            title={
+              step >= steps.length
+                ? "Ready to record your result"
+                : isLightStep
+                  ? inputInvalid
+                    ? "Check your entered measurements"
+                    : manualCue(savedValues, currentValues)
+                  : currentStep.title
+            }
+            detail={
+              step >= steps.length
+                ? "Compare your test photograph, add feedback below and record your assessment."
+                : currentStep.text
+            }
+            saved={savedValues}
+            current={currentValues}
+            action={
+              <GuideButton
                 title={
                   step >= steps.length
                     ? "Steps completed"
                     : "Mark step complete"
                 }
-                disabled={step >= steps.length}
+                primary
+                disabled={step >= steps.length || inputInvalid}
                 onPress={() => advance(step + 1)}
               />
-            </View>
-          </Card>
+            }
+            secondary={
+              step > 0 ? (
+                <GuideButton
+                  title="Previous step"
+                  onPress={() => advance(step - 1)}
+                />
+              ) : undefined
+            }
+            controls={
+              isLightStep &&
+              (savedValues.distance !== null ||
+                savedValues.height !== null) && (
+                <>
+                  <View style={g.row}>
+                    {savedValues.distance !== null && (
+                      <GuideInput
+                        label="Distance now (cm)"
+                        value={inputs.distance}
+                        onChange={(v) => changeReading("distance", v)}
+                      />
+                    )}
+                    {savedValues.height !== null && (
+                      <GuideInput
+                        label="Height now (cm)"
+                        value={inputs.height}
+                        onChange={(v) => changeReading("height", v)}
+                      />
+                    )}
+                  </View>
+                  {inputInvalid && (
+                    <Text accessibilityRole="alert" style={g.text}>
+                      Enter a number between 0 and 100,000 cm, or leave it
+                      blank.
+                    </Text>
+                  )}
+                  <Text style={g.small}>
+                    Optional manual checks, for this visit only. Use the same
+                    measurement reference. Agreement within 3 cm is not a
+                    sensor-verified match.
+                  </Text>
+                </>
+              )
+            }
+          >
+            {selectedLight && (
+              <Text style={g.small}>
+                Light {lightIndex + 1} of {lights.length} ·{" "}
+                {selectedLight.role ?? selectedLight.name ?? "Light"}
+              </Text>
+            )}
+            <Text style={g.small}>
+              Missing positions and angles stay unknown. Confirm each step
+              yourself using the saved details and photographs.
+            </Text>
+          </RecreationGuide>
           <View style={columns.split}>
             <Card style={columns.column}>
               <Label>ORIGINAL SETUP</Label>

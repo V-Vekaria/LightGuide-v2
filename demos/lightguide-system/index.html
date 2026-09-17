@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>LightGuide system demonstration</title></head><body style="margin:0;padding:16px">
+<div id="lightguide-sim">
+  <style>
+    #lightguide-sim{--lg-bg:light-dark(#f3f4f1,#111c20);--lg-surface:light-dark(#ffffff,#19282d);--lg-ink:light-dark(#142b31,#f0f5f3);--lg-muted:light-dark(#52686c,#aabdbc);--lg-line:light-dark(#d1dedc,#385056);--lg-accent:light-dark(#117668,#80d9c3);--lg-soft:light-dark(#e0f2ec,#213e39);--lg-warn:light-dark(#925017,#efb776);--lg-danger:light-dark(#a72a36,#ff9ba5);font-family:Arial,sans-serif;color:var(--lg-ink);background:var(--lg-bg);padding:22px;border-radius:16px;color-scheme:light dark;box-sizing:border-box;font-size:15px;line-height:1.45}
+    #lightguide-sim *{box-sizing:border-box}#lightguide-sim h2,#lightguide-sim h3,#lightguide-sim p{margin:0}#lightguide-sim h2{font-size:25px;font-weight:500}#lightguide-sim h3{font-size:16px;font-weight:500}#lightguide-sim .lg-top,#lightguide-sim .lg-inline{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}#lightguide-sim .lg-sub{color:var(--lg-muted);font-size:13px}#lightguide-sim .lg-badge{color:var(--lg-accent);background:var(--lg-soft);padding:5px 10px;border-radius:20px;font-size:12px}#lightguide-sim .lg-steps{display:flex;gap:7px;flex-wrap:wrap;margin:20px 0}#lightguide-sim button{font:inherit;min-height:42px;padding:8px 13px;border:1px solid var(--lg-line);border-radius:8px;background:var(--lg-surface);color:var(--lg-ink)}#lightguide-sim button:disabled{opacity:.45;cursor:not-allowed}#lightguide-sim button[aria-pressed="true"],#lightguide-sim button.lg-primary{background:var(--lg-ink);color:var(--lg-bg);border-color:var(--lg-ink)}#lightguide-sim .lg-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(265px,1fr);gap:22px;align-items:start}#lightguide-sim .lg-scene{min-width:0}#lightguide-sim .lg-viewtabs{display:flex;gap:8px;margin-bottom:12px}#lightguide-sim .lg-viewtabs button{min-height:36px;font-size:13px}#lightguide-sim .lg-svg{display:block;width:100%;height:335px;overflow:hidden}#lightguide-sim .lg-svg text{font-family:Arial,sans-serif;font-size:12px;fill:var(--lg-ink)}#lightguide-sim .lg-legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--lg-muted);margin:8px 0 16px}#lightguide-sim .lg-legend span{display:inline-flex;align-items:center;gap:6px}#lightguide-sim .lg-dot{width:9px;height:9px;border-radius:50%;background:var(--lg-accent)}#lightguide-sim .lg-ring{width:10px;height:10px;border:1px dashed var(--lg-muted);border-radius:50%}#lightguide-sim .lg-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px}#lightguide-sim label{display:block;font-size:13px}#lightguide-sim .lg-read{float:right;font-variant-numeric:tabular-nums;color:var(--lg-muted)}#lightguide-sim input[type="range"]{width:100%;accent-color:var(--lg-accent);min-height:28px;margin:3px 0 0}#lightguide-sim details{margin-top:12px}#lightguide-sim summary{min-height:38px;padding:7px 0;color:var(--lg-muted);font-size:13px}#lightguide-sim .lg-switches{display:flex;gap:12px 20px;flex-wrap:wrap;margin:16px 0 0}#lightguide-sim .lg-switches label{display:flex;gap:7px;align-items:center;min-height:35px}#lightguide-sim input[type="checkbox"]{accent-color:var(--lg-accent);width:17px;height:17px}#lightguide-sim .lg-phone{background:var(--lg-surface);border:2px solid var(--lg-line);border-radius:26px;padding:20px 18px;min-width:0}#lightguide-sim .lg-phone-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:20px}#lightguide-sim .lg-phone-name{font-size:21px;font-weight:500}#lightguide-sim .lg-status{display:flex;align-items:center;gap:7px;color:var(--lg-muted);font-size:12px}#lightguide-sim .lg-status i{display:block;width:8px;height:8px;background:var(--lg-accent);border-radius:50%}#lightguide-sim .lg-mode{color:var(--lg-muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}#lightguide-sim .lg-cue{font-size:22px;font-weight:500;margin:8px 0;min-height:62px;line-height:1.3}#lightguide-sim .lg-phone table{border-collapse:collapse;width:100%;font-size:13px;margin:14px 0}#lightguide-sim .lg-phone td,#lightguide-sim .lg-phone th{border-bottom:1px solid var(--lg-line);padding:8px 0;text-align:right;font-weight:400;font-variant-numeric:tabular-nums}#lightguide-sim .lg-phone td:first-child,#lightguide-sim .lg-phone th:first-child{text-align:left;color:var(--lg-muted)}#lightguide-sim .lg-phone th{color:var(--lg-muted);font-size:12px}#lightguide-sim .lg-phone button{width:100%;margin-top:8px}#lightguide-sim .lg-device{margin-top:16px;padding-top:16px;border-top:1px solid var(--lg-line)}#lightguide-sim .lg-oled{background:var(--lg-ink);color:var(--lg-bg);border-radius:6px;padding:10px 12px;font-family:monospace;font-size:13px;margin-top:8px;min-height:62px}#lightguide-sim .lg-device-value{display:flex;gap:8px;justify-content:space-between;margin:8px 0;font-size:12px;color:var(--lg-muted)}#lightguide-sim .lg-spectral{display:flex;align-items:end;gap:6px;height:29px;margin:8px 0}#lightguide-sim .lg-spectral span{display:block;flex:1;background:var(--lg-accent);opacity:.7;min-height:1px}#lightguide-sim .lg-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--lg-line);margin-top:20px;padding-top:15px}#lightguide-sim .lg-bottom p{flex:1;min-width:200px;font-size:14px}#lightguide-sim .lg-source{font-size:12px;color:var(--lg-muted);margin-top:10px}#lightguide-sim [hidden]{display:none!important}#lightguide-sim button:focus-visible,#lightguide-sim input:focus-visible,#lightguide-sim summary:focus-visible{outline:3px solid var(--lg-accent);outline-offset:3px}@media(max-width:650px){#lightguide-sim{padding:14px}#lightguide-sim .lg-grid{grid-template-columns:1fr}#lightguide-sim .lg-phone{border-radius:20px}#lightguide-sim .lg-steps button{flex:1;min-width:100px}#lightguide-sim .lg-svg{height:300px}}@media(prefers-reduced-motion:reduce){#lightguide-sim *{scroll-behavior:auto}}
+  </style>
+  <header class="lg-top"><div><h2>LightGuide system demo</h2><div class="lg-sub">One light · phone app · candidate sensor module</div></div><span class="lg-badge">Simulation — no hardware connected</span></header>
+  <div class="lg-steps" aria-label="Demonstration steps">
+    <button type="button" class="cursor-interaction" id="lg-save">1. Save setup</button>
+    <button type="button" class="cursor-interaction" id="lg-move" disabled>2. Move light</button>
+    <button type="button" class="cursor-interaction" id="lg-recreate" disabled>3. Recreate</button>
+    <button type="button" class="cursor-interaction" id="lg-check" disabled>4. Check result</button>
+  </div>
+  <div class="lg-grid">
+    <section class="lg-scene" aria-label="Simulated hardware and scene">
+      <div class="lg-viewtabs"><button type="button" id="lg-room-tab" aria-pressed="true" class="cursor-interaction">Top view</button><button type="button" id="lg-side-tab" aria-pressed="false" class="cursor-interaction">Side view</button><button type="button" id="lg-flow-tab" aria-pressed="false" class="cursor-interaction">Signal path</button></div>
+      <svg id="lg-scene-svg" class="lg-svg" role="img" aria-label="Top view of a light, subject and camera, with saved position and light direction"></svg>
+      <svg id="lg-flow-svg" class="lg-svg" role="img" aria-label="Proposed flow from sensors through an ESP32 controller and Bluetooth to the phone, with feedback to the OLED and LED" hidden></svg>
+      <div class="lg-legend"><span><i class="lg-dot"></i>Current light</span><span><i class="lg-ring"></i>Saved position</span><span id="lg-view-label">Top view · direction only</span></div>
+      <div class="lg-controls">
+        <label>Left / right <output class="lg-read" id="lg-x-value"></output><input id="lg-x" type="range" min="-150" max="150" step="1" value="-90" aria-label="Light lateral position in centimetres"></label>
+        <label>Front distance <output class="lg-read" id="lg-y-value"></output><input id="lg-y" type="range" min="80" max="300" step="1" value="170" aria-label="Light front distance in centimetres"></label>
+        <label>Height <output class="lg-read" id="lg-h-value"></output><input id="lg-h" type="range" min="80" max="240" step="1" value="170" aria-label="Light height in centimetres"></label>
+        <label>Direction <output class="lg-read" id="lg-yaw-value"></output><input id="lg-yaw" type="range" min="-90" max="90" step="1" value="28" aria-label="Light horizontal direction in degrees"></label>
+      </div>
+      <details><summary class="cursor-interaction">Tilt, light settings and connection tests</summary>
+        <div class="lg-controls">
+          <label>Tilt down <output class="lg-read" id="lg-tilt-value"></output><input id="lg-tilt" type="range" min="0" max="60" step="1" value="18" aria-label="Downward tilt in degrees"></label>
+          <label>Power setting <output class="lg-read" id="lg-power-value"></output><input id="lg-power" type="range" min="10" max="100" step="1" value="55" aria-label="Manually recorded power percentage"></label>
+          <label>Ambient level <output class="lg-read" id="lg-ambient-value"></output><input id="lg-ambient" type="range" min="0" max="100" step="1" value="25" aria-label="Illustrative ambient light level"></label>
+        </div>
+        <div class="lg-switches">
+          <label><input id="lg-node-on" type="checkbox" checked>Node power</label>
+          <label><input id="lg-ble-on" type="checkbox" checked>Bluetooth link</label>
+          <label><input id="lg-ref-on" type="checkbox" checked>Phone reference visible</label>
+        </div>
+      </details>
+      <div class="lg-source" id="lg-detail">Change the controls to move the simulated light. Camera and subject stay fixed.</div>
+    </section>
+    <section class="lg-phone" aria-label="Interactive concept of the LightGuide phone app">
+      <div class="lg-phone-head"><span class="lg-phone-name">LightGuide</span><span class="lg-status"><i id="lg-link-dot"></i><span id="lg-link-state">Demo link</span></span></div>
+      <div class="lg-mode" id="lg-mode">Capture setup</div>
+      <div class="lg-cue" id="lg-cue">Save a setup you like</div>
+      <div class="lg-sub" id="lg-cue-sub">Portrait · one light and softbox</div>
+      <table aria-label="Simulated current and saved setup values"><thead><tr><th>Setting</th><th>Now</th><th>Saved</th></tr></thead><tbody id="lg-values"></tbody></table>
+      <button id="lg-phone-action" type="button" class="lg-primary cursor-interaction">Save setup</button>
+      <div class="lg-source" id="lg-phone-note">Readings are generated locally for this demo.</div>
+      <div class="lg-device">
+        <div class="lg-inline"><h3>Stand module</h3><span class="lg-status"><i id="lg-led"></i><span id="lg-led-label">Ready</span></span></div>
+        <div class="lg-oled" id="lg-oled">LIGHTGUIDE / DEMO<br>READY TO SAVE</div>
+        <div class="lg-device-value"><span>Depth ray</span><span id="lg-range">—</span></div>
+        <div class="lg-device-value"><span>Orientation</span><span id="lg-orient">—</span></div>
+        <div class="lg-spectral" aria-label="Four illustrative relative spectral channels, not calibrated measurements"><span></span><span></span><span></span><span></span></div>
+        <div class="lg-sub">Relative light-channel proxy · not lux or flash exposure</div>
+      </div>
+    </section>
+  </div>
+  <footer class="lg-bottom"><p id="lg-step-detail" aria-live="polite">Start by saving this setup, or adjust the light first.</p><button id="lg-restart" type="button" class="cursor-interaction">Restart demo</button></footer>
+  <div class="lg-source">Concept workflow. Demo tolerances: 3 cm per coordinate and 3° per angle. No claimed sensor accuracy or identical-photo guarantee.</div>
+  <script>
+  (()=>{
+    const root=document.getElementById('lightguide-sim');
+    const q=id=>root.querySelector('#'+id);
+    const initial={x:-90,y:170,h:170,yaw:28,tilt:18,power:55,ambient:25};
+    let state={...initial},saved=null,mode='capture',stage=0,view='room';
+    const fields=['x','y','h','yaw','tilt','power','ambient'];
+    const names={x:'Left / right',y:'Front distance',h:'Height',yaw:'Direction',tilt:'Tilt',power:'Power'};
+    const unit=k=>['yaw','tilt'].includes(k)?'°':k==='power'?'%':k==='ambient'?' / 100':' cm';
+    const fmt=(v,k)=>(v>0&&k==='x'?'+':'')+Math.round(v)+unit(k);
+    const active=()=>q('lg-node-on').checked;
+    const linked=()=>active()&&q('lg-ble-on').checked;
+    const ref=()=>q('lg-ref-on').checked;
+    const valid=()=>linked()&&ref();
+    const error=k=>saved?state[k]-saved[k]:0;
+    const geometry=()=>saved&&['x','y','h','yaw','tilt'].every(k=>Math.abs(error(k))<=3);
+    const matched=()=>valid()&&geometry()&&state.power===saved.power;
+    const envChanged=()=>saved&&Math.abs(state.ambient-saved.ambient)>5;
+    function cue(){
+      if(!active())return ['Power on the stand module','Node readings are unavailable. Saved details remain visible.'];
+      if(!linked())return ['Reconnect Bluetooth','Live hardware feedback is paused. Saved details remain visible.'];
+      if(!ref())return ['Find the saved reference','Phone position is unavailable. Match cannot be confirmed.'];
+      if(!saved)return ['Save a setup you like','Portrait · one light and softbox'];
+      if(mode==='capture')return ['Setup saved','Move the light to see how recreation would work.'];
+      const keys=['x','y','h','yaw','tilt'];
+      const k=keys.find(k=>Math.abs(error(k))>3);
+      if(k){let move='';const d=Math.round(Math.abs(error(k)));if(k==='x')move=`Move ${error(k)>0?'left':'right'} ${d} cm`;if(k==='y')move=`Move ${error(k)>0?'towards':'away from'} subject ${d} cm`;if(k==='h')move=`${error(k)>0?'Lower':'Raise'} light ${d} cm`;if(k==='yaw')move=`Turn ${error(k)>0?'left':'right'} ${d}°`;if(k==='tilt')move=`Tilt ${error(k)>0?'up':'down'} ${d}°`;return [move,'Guidance compares current values with the saved setup.'];}
+      if(state.power!==saved.power)return [`Set power to ${saved.power}%`,'Manually restore the recorded light setting.'];
+      if(envChanged())return ['Position restored; ambient changed','Recheck the light and exposure with a real test shot.'];
+      return ['Saved settings restored','A real test shot is still needed to judge the photograph.'];
+    }
+    function save(){if(!valid())return;saved={...state};mode='capture';stage=1;announce('Setup saved in this demo session. Now move the light.');render();}
+    function move(){if(!saved)return;state={...state,x:Math.min(150,saved.x+55),y:Math.min(300,saved.y+60),h:Math.min(240,saved.h+30),yaw:Math.max(-90,saved.yaw-25),tilt:Math.min(60,saved.tilt+12),power:Math.min(100,saved.power+15)};mode='capture';stage=2;announce('The light has moved. Open Recreate to compare it with the saved setup.');render();}
+    function recreate(){if(!saved)return;mode='recreate';stage=3;announce('Follow the app cue, or use Simulate adjustment to act on it.');render();}
+    function adjust(){if(!saved||!valid())return;const k=['x','y','h','yaw','tilt'].find(k=>Math.abs(error(k))>3)||(state.power!==saved.power?'power':null);if(k){state[k]=saved[k];announce(`Simulated photographer adjustment: ${names[k].toLowerCase()} restored.`);}render();}
+    function check(){if(!matched())return;stage=4;announce(envChanged()?'Geometry restored, but ambient light differs. A real test shot would require reassessment.':'Demo complete: geometry and recorded power restored. Compare real test shots to judge the result.');render();}
+    function announce(t){q('lg-step-detail').textContent=t;}
+    function restart(){state={...initial};saved=null;mode='capture';stage=0;['lg-node-on','lg-ble-on','lg-ref-on'].forEach(id=>q(id).checked=true);announce('Start by saving this setup, or adjust the light first.');render();}
+    const ns='http://www.w3.org/2000/svg';
+    function el(svg,type,attrs={},text){const n=document.createElementNS(ns,type);for(const[k,v]of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;svg.appendChild(n);return n;}
+    function scene(){
+      const svg=q('lg-scene-svg'),w=Math.max(270,svg.getBoundingClientRect().width),h=svg.getBoundingClientRect().height||335;svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.replaceChildren();
+      const sx=w/2,sy=45,scaleX=(w-90)/360,scaleY=(h-100)/330;
+      const px=v=>sx+v*scaleX,py=v=>sy+v*scaleY;
+      for(const depth of [100,200,300]){const yy=py(depth);el(svg,'line',{x1:26,y1:yy,x2:w-20,y2:yy,stroke:'var(--lg-line)','stroke-width':1});el(svg,'text',{x:4,y:yy-5,fill:'var(--lg-muted)'},String(depth));}
+      el(svg,'text',{x:5,y:h-6},'cm');
+      el(svg,'line',{x1:sx,y1:20,x2:sx,y2:h-28,stroke:'var(--lg-line)','stroke-width':1});
+      el(svg,'circle',{cx:sx,cy:sy,r:12,fill:'var(--lg-ink)'});el(svg,'text',{x:sx+19,y:sy+4},'Subject');
+      el(svg,'rect',{x:sx-15,y:h-29,width:30,height:18,rx:3,fill:'var(--lg-ink)'});el(svg,'text',{x:sx+24,y:h-15},'Camera');
+      if(saved){el(svg,'circle',{cx:px(saved.x),cy:py(saved.y),r:17,fill:'none',stroke:'var(--lg-muted)','stroke-dasharray':'4 3','stroke-width':2});}
+      const lx=px(state.x),ly=py(state.y),a=state.yaw*Math.PI/180;
+      const ray=112,ex=lx+Math.sin(a)*ray,ey=ly-Math.cos(a)*ray;
+      el(svg,'path',{d:`M ${lx} ${ly} L ${lx+Math.sin(a-.22)*ray} ${ly-Math.cos(a-.22)*ray} L ${lx+Math.sin(a+.22)*ray} ${ly-Math.cos(a+.22)*ray} Z`,fill:'var(--lg-accent)',opacity:.10});
+      el(svg,'line',{x1:lx,y1:ly,x2:ex,y2:ey,stroke:'var(--lg-accent)','stroke-width':2});
+      el(svg,'circle',{cx:lx,cy:ly,r:10,fill:'var(--lg-accent)'});
+      el(svg,'text',{x:Math.min(w-85,Math.max(12,lx+17)),y:ly+5},'Light');
+      el(svg,'text',{x:Math.min(w-108,Math.max(12,lx-18)),y:ly+30},`Height ${state.h} cm`);
+      if(ref()){el(svg,'rect',{x:w-30,y:15,width:13,height:13,fill:'var(--lg-ink)'});el(svg,'text',{x:w-37,y:25,'text-anchor':'end'},'Reference');}
+      else el(svg,'text',{x:w-12,y:25,'text-anchor':'end'},'Reference lost');
+    }
+    function flow(){
+      const svg=q('lg-flow-svg'),w=Math.max(270,svg.getBoundingClientRect().width),h=335;svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.replaceChildren();
+      const gap=10,pad=6,cw=(w-pad*2-gap*2)/3;
+      const box=(x,y,bw,bh,lines,on=true)=>{el(svg,'rect',{x,y,width:bw,height:bh,rx:7,fill:on?'var(--lg-soft)':'var(--lg-surface)',stroke:'var(--lg-line)','stroke-width':1});lines.forEach((s,i)=>el(svg,'text',{x:x+bw/2,y:y+20+i*17,'text-anchor':'middle'},s));};
+      const wire=(x1,y1,x2,y2,on=true)=>el(svg,'line',{x1,y1,x2,y2,stroke:on?'var(--lg-accent)':'var(--lg-line)','stroke-width':1.5});
+      const centers=[pad+cw/2,pad+cw+gap+cw/2,pad+2*(cw+gap)+cw/2];
+      [['Depth','Range ray'],['Orientation','Yaw / tilt'],['Spectral','Light proxy']].forEach((t,i)=>{box(pad+i*(cw+gap),12,cw,53,t,active());wire(centers[i],65,centers[i],81,active());wire(centers[i],81,w/2,81,active());});
+      wire(w/2,81,w/2,97,active());box(w/2-90,97,180,53,['ESP32 controller',active()?'Sample + package':'Powered off'],active());
+      wire(w/2,150,w/2,190,linked());el(svg,'text',{x:w/2+9,y:177},linked()?'Bluetooth':'Link unavailable');
+      box(w/2-84,190,168,53,['Phone app',ref()?'Compare saved setup':'Reference missing'],linked()&&ref());
+      box(pad,274,cw,53,['Phone vision','Position reference'],ref());wire(pad+cw/2,274,pad+cw/2,216,ref());wire(pad+cw/2,216,w/2-84,216,ref());
+      box(w-cw-pad,274,cw,53,['OLED + LED',active()?'Show guidance':'Powered off'],linked());wire(w/2+84,216,w-cw/2-pad,216,linked());wire(w-cw/2-pad,216,w-cw/2-pad,274,linked());
+      el(svg,'text',{x:w/2,y:319,'text-anchor':'middle'},'Proposed signal path');
+    }
+    function side(){
+      const svg=q('lg-scene-svg'),w=Math.max(270,svg.getBoundingClientRect().width),h=svg.getBoundingClientRect().height||335;svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.replaceChildren();
+      const bottom=h-38,scale=(h-76)/260,sx=w-38;
+      const lightX=v=>sx-45-(Math.hypot(v.x,v.y)/350)*(w-135),lightY=v=>bottom-v.h*scale;
+      el(svg,'line',{x1:14,y1:bottom,x2:w-10,y2:bottom,stroke:'var(--lg-line)','stroke-width':1});
+      for(const height of [100,200]){const yy=bottom-height*scale;el(svg,'line',{x1:14,y1:yy,x2:w-10,y2:yy,stroke:'var(--lg-line)','stroke-width':1});el(svg,'text',{x:15,y:yy-7},height+' cm');}
+      el(svg,'circle',{cx:sx,cy:bottom-140*scale,r:11,fill:'var(--lg-ink)'});el(svg,'line',{x1:sx,y1:bottom-125*scale,x2:sx,y2:bottom,stroke:'var(--lg-muted)','stroke-width':2});el(svg,'text',{x:sx,y:bottom+22,'text-anchor':'middle'},'Subject');
+      if(saved)el(svg,'circle',{cx:lightX(saved),cy:lightY(saved),r:17,fill:'none',stroke:'var(--lg-muted)','stroke-dasharray':'4 3','stroke-width':2});
+      const lx=lightX(state),ly=lightY(state),a=state.tilt*Math.PI/180;
+      el(svg,'line',{x1:lx,y1:ly,x2:lx,y2:bottom,stroke:'var(--lg-muted)','stroke-width':2});el(svg,'line',{x1:lx-15,y1:bottom,x2:lx+15,y2:bottom,stroke:'var(--lg-muted)','stroke-width':2});
+      el(svg,'line',{x1:lx,y1:ly,x2:Math.min(w-8,lx+115*Math.cos(a)),y2:ly+115*Math.sin(a),stroke:'var(--lg-accent)','stroke-width':2});el(svg,'circle',{cx:lx,cy:ly,r:10,fill:'var(--lg-accent)'});
+      el(svg,'rect',{x:lx-9,y:ly+28,width:18,height:25,rx:3,fill:active()?'var(--lg-soft)':'var(--lg-line)',stroke:'var(--lg-muted)','stroke-width':1});el(svg,'text',{x:lx+15,y:ly+46},'Node');
+      el(svg,'text',{x:Math.max(10,lx-20),y:Math.max(15,ly-23)},state.tilt+'° tilt');el(svg,'text',{x:lx,y:bottom+22,'text-anchor':'middle'},'Stand');
+    }
+    function render(){
+      fields.forEach(k=>{q('lg-'+k).value=state[k];q('lg-'+k+'-value').textContent=fmt(state[k],k);});
+      q('lg-save').disabled=!valid()||!!saved;q('lg-move').disabled=!saved;q('lg-recreate').disabled=!saved;q('lg-check').disabled=!matched();
+      ['save','move','recreate','check'].forEach((k,i)=>q('lg-'+k).setAttribute('aria-pressed',String(stage===i+1)));
+      const [main,sub]=cue();q('lg-cue').textContent=main;q('lg-cue-sub').textContent=sub;
+      q('lg-mode').textContent=mode==='recreate'?'Recreate / saved portrait':saved?'Saved portrait':'Capture setup';
+      q('lg-link-state').textContent=!active()?'Node off':linked()?'Simulated link':'Link lost';q('lg-link-dot').style.background=linked()?'var(--lg-accent)':'var(--lg-danger)';
+      q('lg-values').replaceChildren();
+      for(const k of ['x','y','h','yaw','tilt','power']){const tr=document.createElement('tr');const available=['x','y','h'].includes(k)?ref():k==='power'?true:linked();for(const t of [names[k],available?fmt(state[k],k):'Unavailable',saved?fmt(saved[k],k):'—']){const td=document.createElement('td');td.textContent=t;tr.appendChild(td);}q('lg-values').appendChild(tr);}
+      const action=q('lg-phone-action');action.disabled=!valid();
+      if(!saved){action.textContent='Save setup';action.onclick=save;}else if(mode!=='recreate'){action.textContent='Open Recreate';action.disabled=false;action.onclick=recreate;}else if(matched()){action.textContent='Check result';action.onclick=check;}else{action.textContent='Simulate adjustment';action.onclick=adjust;}
+      q('lg-phone-note').textContent=mode==='recreate'?'Simulate adjustment moves the virtual light; real equipment is moved by the photographer.':'Phone position + node orientation; power is a manual setting. Session-only save.';
+      q('lg-led').style.background=!active()?'var(--lg-line)':!valid()?'var(--lg-danger)':matched()?'var(--lg-accent)':'var(--lg-warn)';
+      q('lg-led-label').textContent=!active()?'Off':!valid()?'Paused':matched()?'Restored':'Adjust / ready';
+      q('lg-oled').textContent=!active()?'DISPLAY OFF':!linked()?'LIGHTGUIDE / DEMO · LINK LOST':!ref()?'LIGHTGUIDE / DEMO · REFERENCE LOST':mode==='recreate'?main.toUpperCase():'LIGHTGUIDE / DEMO · '+(saved?'SETUP SAVED':'READY TO SAVE');
+      const range=Math.sqrt(state.x*state.x+state.y*state.y+(state.h-140)*(state.h-140));
+      const yaw=Math.atan2(-state.x,state.y)*180/Math.PI,tilt=Math.atan2(state.h-140,Math.hypot(state.x,state.y))*180/Math.PI;
+      const hits=Math.abs(state.yaw-yaw)<12&&Math.abs(state.tilt-tilt)<12;
+      q('lg-range').textContent=!active()?'Unavailable':hits?`${Math.round(range)} cm (subject)`:'Ray misses subject';
+      q('lg-orient').textContent=active()?`${state.yaw}° / ${state.tilt}°`:'Unavailable';
+      root.querySelectorAll('.lg-spectral span').forEach((b,i)=>b.style.height=(active()?Math.min(28,4+(.55*state.power+.3*state.ambient)*[.2,.28,.32,.16][i]):1)+'px');
+      q('lg-detail').textContent=view==='flow'?'Position comes from the phone reference; node readings alone do not locate the light.':'Change the controls to move the simulated light. Camera and subject stay fixed.';
+      if(view==='room')scene();else if(view==='side')side();else flow();
+    }
+    fields.forEach(k=>q('lg-'+k).addEventListener('input',e=>{state[k]=Number(e.target.value);if(stage===4)stage=3;render();}));
+    ['lg-node-on','lg-ble-on','lg-ref-on'].forEach(id=>q(id).addEventListener('change',()=>{announce(valid()?'Live comparison resumed.':cue()[1]);render();}));
+    q('lg-save').onclick=save;q('lg-move').onclick=move;q('lg-recreate').onclick=recreate;q('lg-check').onclick=check;q('lg-restart').onclick=restart;
+    function setView(v){view=v;q('lg-scene-svg').toggleAttribute('hidden',v==='flow');q('lg-flow-svg').toggleAttribute('hidden',v!=='flow');['room','side','flow'].forEach(k=>q('lg-'+k+'-tab').setAttribute('aria-pressed',String(v===k)));root.querySelector('.lg-legend').hidden=v==='flow';q('lg-view-label').textContent=v==='side'?'Side projection · tilt only':'Top view · direction only';q('lg-scene-svg').setAttribute('aria-label',v==='side'?'Side projection of light height, tilt and sensor module against subject height':'Top view of light, subject and camera with saved position');render();}
+    q('lg-room-tab').onclick=()=>setView('room');q('lg-side-tab').onclick=()=>setView('side');q('lg-flow-tab').onclick=()=>setView('flow');
+    new ResizeObserver(()=>{if(view==='room')scene();else if(view==='side')side();else flow();}).observe(root.querySelector('.lg-scene'));
+    render();
+  })();
+  </script>
+</div>
+
+</body></html>

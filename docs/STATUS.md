@@ -37,3 +37,7 @@ Claude's implementation at `7184b71aa9e6d97138021cc44a34a0a05573b6f7` is not mer
 5. Collect five-photographer evidence before MVP claims.
 
 The [delivery handoff](engineering/CLAUDE_BUILD_HANDOFF.md) defines milestone criteria; do not restart milestones already evidenced on main. Legacy root web/device tests remain useful historical engineering but do not validate new-node BLE, mobile AR accuracy or production hardware.
+
+## Demo-style recreation update — 17 September 2026
+
+The demo-style recreation branch adds a shared visual workspace for manual recreation and practice, with top/side diagrams, current/saved comparisons and one correction at a time. Proposed package version is 0.1.3 / code 4; package identity and database schema remain unchanged. The existing installed release remains 0.1.2 until an updated APK is built and installed. See [scope, verification and limits](validation/DEMO_STYLE_RECREATION_2026-09-17.md); publication/CI status belongs to the delivery PR. Live AR/BLE remains unavailable.
