@@ -268,6 +268,22 @@ function RecreationFlow({
             setup used for this attempt is unchanged.
           </Body>
         </Card>
+        <PhotoComparison
+          originals={target.images.map((p, i) => ({
+            id: p.image_id,
+            label: `Original ${p.role} ${i + 1}`,
+          }))}
+          results={
+            attempt.actual_snapshot
+              ? JSON.parse(attempt.actual_snapshot).images.map(
+                  (p: Scene["images"][number], i: number) => ({
+                    id: p.image_id,
+                    label: `New result ${i + 1}`,
+                  }),
+                )
+              : []
+          }
+        />
         <View style={s.row}>
           {attempt.actual_snapshot &&
             JSON.parse(attempt.actual_snapshot).images.map(

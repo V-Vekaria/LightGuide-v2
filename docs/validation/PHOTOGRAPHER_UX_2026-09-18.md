@@ -23,4 +23,4 @@ Android smoke includes installation over the previously verified 0.1.3 APK with 
 
 No new physical-phone or photographer trial is claimed. Native gallery/camera permissions, keyboard/large-font usability and actual photo bytes across a physical-phone upgrade remain phone checks. The viewer uses stored optimised images (up to 1600 px), with explicit button zoom and scroll; it is not an original-resolution RAW editor or a pinch-gesture implementation. Real AR/BLE and accuracy remain unavailable. Broader categories and shoot scheduling remain deferred as agreed in the prioritised plan.
 
-Review/build results and artifact identity will be appended after the exact CI run completes.
+Initial implementation `aab6a76338a8046874e22b92450709203ab659ce`: software/browser suite and positioning checks passed in [run 35381205952](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/35381205952). Follow-up separates camera inventory from lighting selections and exposes photo comparison on completed attempts; that revision requires its own full CI result. Final build results/artifact identity are recorded in the delivery PR.

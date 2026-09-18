@@ -25,6 +25,14 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/equipment");
+  await page.getByRole("button", { name: "camera", exact: true }).click();
+  await page
+    .getByLabel("Equipment name", { exact: true })
+    .fill("Portrait camera");
+  await page
+    .getByRole("button", { name: "Save equipment", exact: true })
+    .click();
   await page.goto("/");
   await page.getByRole("button", { name: "Save a setup", exact: true }).click();
   await page.getByLabel("Setup name", { exact: true }).fill("Visual portrait");
@@ -33,6 +41,12 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
       name: "Add camera settings (optional)",
       exact: true,
     })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "＋ Portrait camera", exact: true }),
+  ).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "＋ Portrait camera", exact: true })
     .click();
   await page.getByLabel("Shutter speed", { exact: true }).fill("1/200");
   await page.getByLabel("ISO", { exact: true }).fill("100");

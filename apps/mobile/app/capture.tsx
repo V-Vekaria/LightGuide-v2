@@ -75,6 +75,9 @@ export default function Capture() {
   };
   const setCamera = (patch: Partial<NonNullable<CaptureDraft["camera"]>>) =>
     change({ ...form, camera: { ...cameraFields, ...patch } });
+  const lightingEquipment = repo
+    .equipment()
+    .filter((e) => !["camera", "lens"].includes(e.kind));
   const currentForm = useRef(form);
   currentForm.current = form;
   const change = (next: CaptureDraft) => {
@@ -343,7 +346,7 @@ export default function Capture() {
             )}
           </Card>
           <Card>
-            <Heading>Equipment used</Heading>
+            <Heading>Lighting equipment used</Heading>
             <Button
               title="Add equipment without leaving this draft"
               kind="secondary"
@@ -354,8 +357,8 @@ export default function Capture() {
                 })
               }
             />
-            {repo.equipment().length ? (
-              repo.equipment().map((e) => (
+            {lightingEquipment.length ? (
+              lightingEquipment.map((e) => (
                 <Button
                   key={e.id}
                   kind="secondary"
