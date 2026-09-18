@@ -95,7 +95,7 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
   await expect
     .poll(async () => (await full.boundingBox())!.width)
     .toBeGreaterThan(fit!.width * 1.9);
-  await page.screenshot({ path: "artifacts/ux-photo-zoom.png" });
+  await page.screenshot({ path: "artifacts/ux-photo-zoom.png", animations: "disabled" });
   await page
     .getByRole("button", { name: "Fit whole photo", exact: true })
     .click();
@@ -147,7 +147,7 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
   await expect(landscape).toBeVisible();
   const landscapeBox = await landscape.boundingBox();
   expect(landscapeBox!.width / landscapeBox!.height).toBeCloseTo(5 / 3, 2);
-  await page.screenshot({ path: "artifacts/ux-photo-compare.png" });
+  await page.screenshot({ path: "artifacts/ux-photo-compare.png", animations: "disabled" });
   await page
     .getByRole("button", { name: "Close photo viewer", exact: true })
     .click();
