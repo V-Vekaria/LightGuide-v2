@@ -12,9 +12,9 @@ test("phone Home cards stay above recent setups and resumed recreation", async (
   const box = await workspace.boundingBox();
   const next = await recent.boundingBox();
   expect(box!.y + box!.height).toBeLessThanOrEqual(next!.y);
-  await page
-    .getByRole("button", { name: "Explore a demo", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Save a setup", exact: true }).click();
+  await page.getByLabel("Setup name", { exact: true }).fill("Review setup");
+  await page.getByRole("button", { name: "Save setup", exact: true }).click();
   await page
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();

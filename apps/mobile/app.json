@@ -2,7 +2,7 @@
   "expo": {
     "name": "LightGuide Codex",
     "slug": "lightguide-codex",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "scheme": "lightguide-codex",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -14,7 +14,7 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO"
       ],
-      "versionCode": 4
+      "versionCode": 5
     },
     "ios": {
       "bundleIdentifier": "com.lightguide.codex"

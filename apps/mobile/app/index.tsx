@@ -12,12 +12,11 @@ import {
   Field,
   Heading,
   Label,
+  Photo,
   Screen,
   s,
 } from "../src/ui/components";
 import { colors as c } from "../src/ui/theme";
-import { blankDraft, sceneFromDraft } from "../src/domain/capture";
-import { humanError } from "../src/domain/schema";
 import type { Setup } from "../src/data/repository";
 
 const tabs = ["Home", "Shoots", "Create", "Setups", "Equipment"] as const;
@@ -90,39 +89,6 @@ export default function Home() {
       ))}
     </View>
   );
-  const demo = () => {
-    try {
-      const scene = sceneFromDraft(
-        {
-          ...blankDraft,
-          title: "Soft portrait — demo",
-          notes:
-            "Demonstration setup. These are sample settings, not measured readings.",
-          distance: "150",
-          height: "180",
-          modifier: "Large softbox",
-          power: "1/16",
-        },
-        repo,
-      );
-      for (const o of scene.objects) {
-        if (o.kind === "light") o.device_id = "simulation";
-        for (const m of o.measurements) {
-          m.source = "estimate";
-          m.device_id = "simulation";
-        }
-      }
-      const result = repo.publish({
-        title: "Soft portrait — demo",
-        category: "portrait",
-        scene,
-      });
-      refresh();
-      router.push({ pathname: "/setup/[id]", params: { id: result.id } });
-    } catch (e) {
-      setError(humanError(e));
-    }
-  };
   const setupCard = (item: Setup) => (
     <Card
       key={item.id}
@@ -134,6 +100,20 @@ export default function Home() {
         <Badge tone="muted">{item.category}</Badge>
         <Body muted>↗</Body>
       </View>
+      {(() => {
+        const photos = repo.scene(item.current_version_id).images;
+        const photo = photos.find((p) => p.role === "result") ?? photos[0];
+        return photo ? (
+          <Photo
+            id={photo.image_id}
+            label="Setup preview"
+            compact
+            interactive={false}
+          />
+        ) : (
+          <Body muted>No photo saved</Body>
+        );
+      })()}
       <Heading>{item.title}</Heading>
       <Body muted>
         Saved {new Date(item.updated_at).toLocaleDateString()} · On this device
@@ -190,8 +170,8 @@ export default function Home() {
                   Good lighting deserves{"\n"}a second take.
                 </Text>
                 <Body style={{ color: "#B9D3C8" }}>
-                  Capture a setup with the details you have. Photos and manual
-                  notes remain useful when positioning is unavailable.
+                  Save a photo and your lighting notes. Recreate them with
+                  manual checks; live sensors are not connected.
                 </Body>
                 <View style={s.row}>
                   <Button
@@ -199,9 +179,9 @@ export default function Home() {
                     onPress={() => router.push("/capture")}
                   />
                   <Button
-                    title="Explore a demo"
+                    title="Try a guided demo"
                     kind="secondary"
-                    onPress={demo}
+                    onPress={() => router.push("/simulation")}
                   />
                 </View>
               </Card>

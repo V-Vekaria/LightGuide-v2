@@ -70,6 +70,23 @@ try:
         candidates=list(Path('android/app/build/outputs/apk/release').glob('*.apk'))
         if len(candidates)!=1: raise AssertionError('Expected exactly one evaluation APK')
         apk=candidates[0]
+    baseline = Path('artifacts/upgrade-baseline/app-release.apk')
+    if baseline.is_file():
+        evidence['baseline_apk_sha256'] = hashlib.sha256(baseline.read_bytes()).hexdigest()
+        if b'Success' not in adb('install','-r',str(baseline),timeout=180):
+            raise AssertionError('Baseline installation failed')
+        launch()
+        tap('Save a setup')
+        tap('Setup name',node_class='android.widget.EditText')
+        adb('shell','input','text','LegacyUpgrade')
+        find('LegacyUpgrade',node_class='android.widget.EditText')
+        ime=adb('shell','dumpsys','input_method').decode(errors='replace')
+        if re.search(r'mInputShown=true\b|mIsInputViewShown=true\b',ime):
+            adb('shell','input','keyevent','KEYCODE_BACK')
+        tap('Save setup',scroll=True)
+        find('LegacyUpgrade',contains=True)
+        adb('shell','am','force-stop',PACKAGE)
+        passed('baseline v0.1.3 setup saved before upgrade')
     evidence['apk_sha256'] = hashlib.sha256(apk.read_bytes()).hexdigest()
     # A freshly booted CI emulator may need more than 30 seconds to install
     # the 66 MB universal APK while Android finishes its own first boot work.
@@ -85,6 +102,15 @@ try:
     launch()
     find('Save a setup')
     passed('launch')
+    if baseline.is_file():
+        tap('LegacyUpgrade',scroll=True,contains=True)
+        find('Recreate this version',scroll=True)
+        passed('v0.1.3 to v0.1.4 in-place upgrade retained saved setup')
+        adb('shell','input','keyevent','KEYCODE_BACK')
+        # Home may retain its scroll position; relaunching gives a fresh Home.
+        adb('shell','am','force-stop',PACKAGE)
+        launch()
+        find('Save a setup')
     # Repeated Settings presses must not add duplicate native stack entries.
     for back_control in ('hardware', 'onscreen'):
         tap('Settings')
@@ -134,6 +160,8 @@ try:
         else:
             find('Steps completed')
         passed(f'manual recreation step {step}')
+    tap('not evaluated',scroll=True)
+    passed('explicit unevaluated outcome selected')
     tap('Finish and record outcome',scroll=True)
     find('Recreation recorded.',contains=True)
     passed('manual recreate and record outcome')

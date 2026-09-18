@@ -307,6 +307,7 @@ export function RecreationGuide({
   secondary,
   controls,
   children,
+  reference,
 }: {
   mode: "manual" | "simulation";
   stage: number;
@@ -319,10 +320,12 @@ export function RecreationGuide({
   secondary?: React.ReactNode;
   controls?: React.ReactNode;
   children?: React.ReactNode;
+  reference?: React.ReactNode;
 }) {
-  const [side, setSide] = useState(false);
+  const [details, setDetails] = useState(mode === "simulation");
+  const [side, setSide] = useState(mode === "manual");
   const { width, fontScale } = useWindowDimensions();
-  const wide = width >= 850 && fontScale <= 1.4;
+  const wide = mode === "simulation" && width >= 850 && fontScale <= 1.4;
   const fields = lightFields.filter(([key]) =>
     mode === "manual"
       ? ["height", "distance", "power"].includes(key)
@@ -336,7 +339,7 @@ export function RecreationGuide({
           <Text style={g.badge}>
             {mode === "simulation"
               ? "SIMULATED · NO HARDWARE CONNECTED"
-              : "MANUAL CHECK · LIVE SENSORS UNAVAILABLE"}
+              : "MANUAL MODE · ENTER YOUR OWN READINGS"}
           </Text>
           <Text
             accessibilityRole="header"
@@ -347,62 +350,78 @@ export function RecreationGuide({
             {title}
           </Text>
           <Text style={g.text}>{detail}</Text>
-          {controls}
+          {reference}
+          {mode === "simulation" && controls}
           {action}
           {secondary}
         </View>
-        <View style={{ flex: wide ? 1.15 : undefined, minWidth: 0, gap: 12 }}>
-          <View style={g.row}>
-            <GuideButton
-              title="Top view"
-              selected={!side}
-              onPress={() => setSide(false)}
-            />
-            <GuideButton
-              title="Side view"
-              selected={side}
-              onPress={() => setSide(true)}
-            />
-          </View>
-          <Text style={g.small}>
-            {side
-              ? "Light height & tilt — side view"
-              : "Light position — top view"}
-          </Text>
-          <LightDiagram
-            saved={saved}
-            current={current}
-            side={side}
-            simulated={mode === "simulation"}
+        {mode === "manual" && (
+          <GuideButton
+            title={details ? "Hide measurements" : "Measurements & height view"}
+            onPress={() => setDetails((v) => !v)}
           />
-          <Text style={g.small}>
-            ● {mode === "simulation" ? "Simulated light" : "Entered now"} ◌
-            Saved target
-          </Text>
-        </View>
-      </View>
-      <View style={g.values}>
-        <View style={g.valueRow}>
-          <Text style={[g.small, g.cell]}>Setting</Text>
-          <Text style={[g.small, g.cell]}>Now</Text>
-          <Text style={[g.small, g.cell]}>Saved</Text>
-        </View>
-        {fields.map(([key, label, unit]) => (
-          <View style={g.valueRow} key={key} testID={`guide-value-${key}`}>
-            <Text style={[g.small, g.cell]}>{label}</Text>
-            <Text style={[g.text, g.cell]}>
-              {current[key] === null
+        )}
+        {details && (
+          <View style={{ flex: wide ? 1.15 : undefined, minWidth: 0, gap: 12 }}>
+            {mode === "manual" && controls}
+            {mode === "simulation" && (
+              <View style={g.row}>
+                <GuideButton
+                  title="Top view"
+                  selected={!side}
+                  onPress={() => setSide(false)}
+                />
+                <GuideButton
+                  title="Side view"
+                  selected={side}
+                  onPress={() => setSide(true)}
+                />
+              </View>
+            )}
+            <Text style={g.small}>
+              {side
                 ? mode === "manual"
-                  ? "Not measured"
-                  : "Not recorded"
-                : formatLight(current[key], unit)}
+                  ? "Light height — side view"
+                  : "Light height & tilt — side view"
+                : "Light position — top view"}
             </Text>
-            <Text style={[g.text, g.cell]}>
-              {formatLight(saved[key], unit)}
+            <LightDiagram
+              saved={saved}
+              current={current}
+              side={side}
+              simulated={mode === "simulation"}
+            />
+            <Text style={g.small}>
+              ● {mode === "simulation" ? "Simulated light" : "Entered now"} ◌
+              Saved target
             </Text>
           </View>
-        ))}
+        )}
       </View>
+      {details && (
+        <View style={g.values}>
+          <View style={g.valueRow}>
+            <Text style={[g.small, g.cell]}>Setting</Text>
+            <Text style={[g.small, g.cell]}>Now</Text>
+            <Text style={[g.small, g.cell]}>Saved</Text>
+          </View>
+          {fields.map(([key, label, unit]) => (
+            <View style={g.valueRow} key={key} testID={`guide-value-${key}`}>
+              <Text style={[g.small, g.cell]}>{label}</Text>
+              <Text style={[g.text, g.cell]}>
+                {current[key] === null
+                  ? mode === "manual"
+                    ? "Not measured"
+                    : "Not recorded"
+                  : formatLight(current[key], unit)}
+              </Text>
+              <Text style={[g.text, g.cell]}>
+                {formatLight(saved[key], unit)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
       {children}
     </View>
   );

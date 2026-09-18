@@ -15,7 +15,10 @@ import {
 import { humanError, type EquipmentInput } from "../src/domain/schema";
 export default function Equipment() {
   const { repo, refresh } = useStore(),
-    { id } = useLocalSearchParams<{ id?: string }>(),
+    { id, returnToCapture } = useLocalSearchParams<{
+      id?: string;
+      returnToCapture?: string;
+    }>(),
     old = repo.equipment().find((e) => e.id === id);
   const [form, setForm] = useState<EquipmentInput>({
       kind: (old?.kind as EquipmentInput["kind"]) ?? "light",
@@ -31,7 +34,8 @@ export default function Equipment() {
     try {
       repo.saveEquipment(form, id);
       refresh();
-      router.replace({ pathname: "/", params: { tab: "Equipment" } });
+      if (returnToCapture === "1" && router.canGoBack()) router.back();
+      else router.replace({ pathname: "/", params: { tab: "Equipment" } });
     } catch (e) {
       setError(humanError(e));
     }

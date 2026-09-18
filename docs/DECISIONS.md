@@ -224,3 +224,14 @@ See [branch cleanup](validation/BRANCH_CLEANUP_2026-09-14.md) for per-branch fin
 **Status:** IMPLEMENTED on the demo-style recreation branch; release verification tracked in its PR.
 
 At the user's request, use a shared React Native recreation workspace for the pitch practice flow and manual recreation. Keep one main instruction, current/saved values, and top/side views. Reuse existing storage and immutable target versions. Practice state is local and synthetic; manual current inputs are explicitly session-only and cannot become sensor evidence. Keep missing coordinates unknown rather than inferring position from scalar range. Do not activate or claim AR/BLE integration as a consequence of UI parity. See [implementation and test evidence](validation/DEMO_STYLE_RECREATION_2026-09-17.md).
+
+## ADR-019 — Photographer usability and explicit assessments
+
+**Date:** 2026-09-18
+**Status:** Implemented; exact release checks tracked in the delivery PR.
+
+The approved UX review drives photo-first manual recreation, uncropped expandable photos with button zoom/panning, a direct disposable practice entry, visual library cards, fractional shutter entry and optional camera fields within capture. Camera draft fields are optional for backwards compatibility. Existing package, database filename, scene schema and saved target versions remain unchanged.
+
+SQLite user_version 2 transactionally rebuilds only the leaf recreations table to permit not_evaluated, restoring its index and immutable-evidence trigger. Existing completed records and photos remain unchanged. Unfinished legacy assessment selections are cleared once because the old close_enough default cannot be distinguished from a deliberate choice; step and notes remain. New attempts require explicit selection. Current manual readings remain visit-only and resume explains re-entry.
+
+Live sensing, expanded categories and full shoot scheduling remain outside this usability delivery. See [evidence](validation/PHOTOGRAPHER_UX_2026-09-18.md).

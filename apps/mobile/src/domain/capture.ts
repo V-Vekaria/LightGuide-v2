@@ -1,3 +1,8 @@
+import {
+  parseCameraNumber,
+  parseShutter,
+  formatShutter,
+} from "./camera-settings";
 import { emptyScene, emptySettings, parseScene, type Scene } from "./schema";
 import type { CaptureDraft, Repository } from "../data/repository";
 export const blankDraft: CaptureDraft = {
@@ -27,8 +32,22 @@ export function draftFromScene(
       ? String(Math.round((m.value as number) * 10000) / 100)
       : "";
   };
+  const camera = scene.objects.find((o) => o.kind === "camera");
   return {
     ...blankDraft,
+    ...(camera
+      ? {
+          camera: {
+            focal: String(camera.settings.focal_length_mm ?? ""),
+            aperture: String(camera.settings.aperture_f ?? ""),
+            shutter: formatShutter(camera.settings.exposure_time_s),
+            iso: String(camera.settings.iso ?? ""),
+            equipmentIds: camera.equipment.flatMap((e) =>
+              e.equipment_id ? [e.equipment_id] : [],
+            ),
+          },
+        }
+      : {}),
     title,
     category,
     notes: scene.notes ?? "",
@@ -161,6 +180,48 @@ export function sceneFromDraft(
       reference_frame_id: s.reference_frame.id,
       calibration: null,
       supersedes_measurement_id: old?.id ?? null,
+    });
+  }
+  if (d.camera) {
+    let camera = s.objects.find((o) => o.kind === "camera");
+    if (!camera) {
+      camera = {
+        id: repo.id(),
+        kind: "camera",
+        name: "Camera",
+        role: null,
+        device_id: null,
+        measurements: [],
+        equipment: [],
+        settings: { ...emptySettings },
+        notes: null,
+      };
+      s.objects.push(camera);
+    }
+    camera.settings = {
+      ...camera.settings,
+      focal_length_mm: parseCameraNumber(d.camera.focal, "Focal length", 10000),
+      aperture_f: parseCameraNumber(d.camera.aperture, "Aperture", 256),
+      exposure_time_s: parseShutter(d.camera.shutter),
+      iso: parseCameraNumber(d.camera.iso, "ISO", 10000000),
+    };
+    camera.equipment = d.camera.equipmentIds.map((id) => {
+      const e = repo.equipment().find((e) => e.id === id);
+      if (!e) {
+        const historical = camera!.equipment.find((e) => e.equipment_id === id);
+        if (historical) return historical;
+        throw new Error("Selected camera equipment is no longer available.");
+      }
+      if (e.kind !== "camera" && e.kind !== "lens")
+        throw new Error("Choose a camera or lens for camera settings.");
+      return {
+        equipment_id: e.id,
+        kind: e.kind,
+        name: e.name,
+        manufacturer: e.manufacturer,
+        model: e.model,
+        details: JSON.parse(e.details),
+      };
     });
   }
   return parseScene(s);

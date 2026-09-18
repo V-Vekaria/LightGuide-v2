@@ -239,3 +239,9 @@ Create versioned SQLite and PostgreSQL migrations and matching runtime validator
 ## Sources
 
 Type/constraint implementation should follow [SQLite foreign keys](https://www.sqlite.org/foreignkeys.html), [PostgreSQL JSON](https://www.postgresql.org/docs/current/datatype-json.html) and [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security). The LightGuide fields and procedures above are project design decisions, not vendor-provided automatic functionality.
+
+## Offline implementation revision — 18 September 2026
+
+The mobile SQLite v2 migration adds `not_evaluated` to recreation outcomes. A completed attempt still requires an explicit outcome. No default positive assessment is written. Legacy unfinished assessment selections are cleared once while steps/notes are retained; completed evidence is copied unchanged. The leaf-table migration is atomic and restores the immutable-completed trigger and index. The database filename and SceneSnapshot version remain unchanged. This is not a cloud migration.
+
+Capture drafts optionally include camera focal/aperture/shutter/ISO strings and camera equipment IDs. Saving parses shutter fractions into exposure seconds in the existing camera object. Older drafts remain accepted.

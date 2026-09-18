@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: codex-application-${{ github.ref }}
   cancel-in-progress: false
@@ -92,6 +93,13 @@ jobs:
         with:
           name: lightguide-codex-android
           path: apps/mobile/android/app/build/outputs/apk/release
+      - name: Download previous verified APK for in-place upgrade check
+        uses: actions/download-artifact@v4
+        with:
+          name: lightguide-codex-android
+          run-id: 35259336228
+          github-token: ${{ github.token }}
+          path: apps/mobile/artifacts/upgrade-baseline
       - name: Record tested APK identity and available space
         run: |
           sha256sum apps/mobile/android/app/build/outputs/apk/release/*.apk

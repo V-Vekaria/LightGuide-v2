@@ -41,3 +41,7 @@ The [delivery handoff](engineering/CLAUDE_BUILD_HANDOFF.md) defines milestone cr
 ## Demo-style recreation update — 17 September 2026
 
 The demo-style recreation branch adds a shared visual workspace for manual recreation and practice, with top/side diagrams, current/saved comparisons and one correction at a time. Proposed package version is 0.1.3 / code 4; package identity and database schema remain unchanged. The existing installed release remains 0.1.2 until an updated APK is built and installed. See [scope, verification and limits](validation/DEMO_STYLE_RECREATION_2026-09-17.md); publication/CI status belongs to the delivery PR. Live AR/BLE remains unavailable.
+
+## Photographer usability — 18 September 2026
+
+Approved changes implemented for 0.1.4 / code 5: uncropped expandable/comparable photos, photo-first manual guidance, direct practice entry, library thumbnails, fraction-friendly camera capture, inventory return and explicit outcomes. SQLite v2 upgrade preserves existing records; one-time unfinished assessment reconfirmation replaces the earlier default. Exact CI/APK state is tracked in the delivery PR and [validation report](validation/PHOTOGRAPHER_UX_2026-09-18.md). This entry is implementation status, not a claim that a physical phone or live sensing has passed.

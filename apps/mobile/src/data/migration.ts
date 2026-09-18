@@ -17,3 +17,21 @@ CREATE TRIGGER immutable_versions BEFORE UPDATE ON setup_versions BEGIN SELECT R
 CREATE TRIGGER immutable_completed BEFORE UPDATE ON recreations WHEN OLD.status='completed' AND (NEW.setup_version_id IS NOT OLD.setup_version_id OR NEW.started_at IS NOT OLD.started_at OR NEW.completed_at IS NOT OLD.completed_at OR NEW.duration_ms IS NOT OLD.duration_ms OR NEW.status IS NOT OLD.status OR NEW.outcome IS NOT OLD.outcome OR NEW.actual_snapshot IS NOT OLD.actual_snapshot OR NEW.evaluation IS NOT OLD.evaluation OR NEW.tolerances IS NOT OLD.tolerances) BEGIN SELECT RAISE(ABORT,'Completed evidence is immutable'); END;
 PRAGMA user_version=1;
 `;
+
+// Rebuild only the leaf recreation table to add an honest unevaluated outcome.
+// Every row/column and the immutable-evidence trigger are retained transactionally.
+const recreationTable = migration.match(/CREATE TABLE recreations\([^;]+;/)![0];
+const completedTrigger = migration.match(
+  /CREATE TRIGGER immutable_completed[^\n]+/,
+)![0];
+export const migrationV2 = `
+${recreationTable.replace("CREATE TABLE recreations(", "CREATE TABLE recreations_v2(").replace("'adapted','unsuccessful'", "'adapted','unsuccessful','not_evaluated'")}
+INSERT INTO recreations_v2 SELECT * FROM recreations;
+DROP TABLE recreations;
+ALTER TABLE recreations_v2 RENAME TO recreations;
+CREATE INDEX attempts_by_version ON recreations(setup_version_id,started_at);
+${completedTrigger}
+UPDATE local_settings SET value=json_remove(value,'$.outcome')
+ WHERE key LIKE 'attempt:%' AND json_valid(value);
+PRAGMA user_version=2;
+`;

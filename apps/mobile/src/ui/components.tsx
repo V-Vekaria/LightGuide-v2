@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
-  Image,
   useWindowDimensions,
   Modal,
   Pressable,
@@ -16,8 +15,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, usePathname } from "expo-router";
 import { colors as c } from "./theme";
-import { photoUri } from "../media/media";
-import { useStore } from "./Store";
 
 export function Label({ children }: { children: React.ReactNode }) {
   return <Text style={s.label}>{children}</Text>;
@@ -196,6 +193,7 @@ export function Choice<T extends string>({
         <Pressable
           key={o}
           accessibilityRole="button"
+          accessibilityLabel={o.replaceAll("_", " ")}
           accessibilityState={{ selected: o === value }}
           aria-pressed={o === value}
           onPress={() => onChange(o)}
@@ -321,48 +319,7 @@ export function Screen({
     </SafeAreaView>
   );
 }
-export function Photo({ id, label }: { id: string; label?: string }) {
-  const { repo, revision } = useStore();
-  const [uri, setUri] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    photoUri(repo, id)
-      .then((u) => {
-        if (active) setUri(u);
-      })
-      .catch(() => {
-        if (active) setUri(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, [id, repo, revision]);
-  return (
-    <View style={{ gap: 6, width: "100%" }}>
-      {uri ? (
-        <Image
-          accessibilityLabel={label ?? "Saved photograph"}
-          source={{ uri }}
-          style={{ width: "100%", height: 200, borderRadius: 12 }}
-          resizeMode="cover"
-        />
-      ) : (
-        <View
-          style={{
-            height: 140,
-            backgroundColor: c.raised,
-            borderRadius: 12,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ color: c.muted }}>Photo unavailable</Text>
-        </View>
-      )}
-      {label && <Label>{label}</Label>}
-    </View>
-  );
-}
+export { PhotoPreview as Photo, PhotoComparison } from "./PhotoViewer";
 export function Confirm({
   title,
   message,

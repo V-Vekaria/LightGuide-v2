@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { migration } from "./migration";
+import { migration, migrationV2 } from "./migration";
 import {
   parseScene,
   uuid,
@@ -88,6 +88,16 @@ export const captureDraftSchema = z
     distance: z.string().max(20),
     height: z.string().max(20),
     equipmentIds: z.array(uuid).max(32),
+    camera: z
+      .object({
+        focal: z.string().max(30),
+        aperture: z.string().max(30),
+        shutter: z.string().max(30),
+        iso: z.string().max(30),
+        equipmentIds: z.array(uuid).max(32),
+      })
+      .strict()
+      .optional(),
     images: z
       .array(
         z
@@ -130,11 +140,19 @@ export class Repository {
     );
     const v = db.all<{ user_version: number }>("PRAGMA user_version")[0]!
       .user_version;
-    if (v > 1)
+    if (v > 2)
       throw new Error(
         "This database needs a newer LightGuide app. Your data has been preserved.",
       );
     if (v === 0) this.atomic(() => db.exec(migration));
+    if (v < 2)
+      this.atomic(() => {
+        db.exec(migrationV2);
+        if (db.all("PRAGMA foreign_key_check").length)
+          throw new Error(
+            "Upgrade integrity check failed; existing data preserved.",
+          );
+      });
     if (
       db.all<{ foreign_keys: number }>("PRAGMA foreign_keys")[0]
         ?.foreign_keys !== 1
@@ -534,11 +552,14 @@ export class Repository {
       JSON.stringify({
         step,
         notes,
-        outcome: outcomeSchema.parse(
-          outcome ??
-            this.setting<{ outcome?: Outcome }>("attempt:" + id, {}).outcome ??
-            "close_enough",
-        ),
+        outcome: outcomeSchema
+          .nullable()
+          .parse(
+            outcome ??
+              this.setting<{ outcome?: Outcome | null }>("attempt:" + id, {})
+                .outcome ??
+              null,
+          ),
       }),
     );
   }

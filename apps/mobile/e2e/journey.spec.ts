@@ -50,6 +50,7 @@ test("save, reload, edit immutable versions, recreate, archive and restore", asy
   await page
     .getByLabel("Adjustments and feedback", { exact: true })
     .fill("Moved the key slightly higher.");
+  await page.getByRole("button", { name: "adapted", exact: true }).click();
   await page
     .getByRole("button", { name: "Finish and record outcome", exact: true })
     .click();
@@ -57,7 +58,9 @@ test("save, reload, edit immutable versions, recreate, archive and restore", asy
     page.getByText("Recreation recorded.", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("No measured spatial match was asserted.", { exact: false }),
+    page.getByText("This is your assessment, not a sensor-verified match.", {
+      exact: false,
+    }),
   ).toBeVisible();
   await context.setOffline(false);
   await page.goto(setupURL);
@@ -78,7 +81,11 @@ test("save, reload, edit immutable versions, recreate, archive and restore", asy
   await expect(
     page.getByRole("button", { name: "Unarchive setup", exact: true }),
   ).toBeVisible();
-  await page.evaluate(()=>document.querySelectorAll("div").forEach(e=>{if(e.scrollHeight>e.clientHeight)e.scrollTop=0}));
+  await page.evaluate(() =>
+    document.querySelectorAll("div").forEach((e) => {
+      if (e.scrollHeight > e.clientHeight) e.scrollTop = 0;
+    }),
+  );
   await page.screenshot({
     path: "artifacts/setup-desktop.png",
     fullPage: true,
@@ -90,7 +97,9 @@ test("mobile layout, photographs, simulation and invalid routes", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(page.getByRole("button",{name:"Save a setup",exact:true})).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Save a setup", exact: true }),
+  ).toBeVisible();
   await page.screenshot({ path: "artifacts/home-mobile.png", fullPage: true });
   await page.getByRole("button", { name: "Save a setup", exact: true }).click();
   await page.getByLabel("Setup name", { exact: true }).fill("Photo capture");
@@ -131,38 +140,77 @@ test("mobile layout, photographs, simulation and invalid routes", async ({
   ).toBeVisible();
 });
 
-test('equipment, shoot, multiple lights, camera settings and note export',async({page})=>{
-  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto('/equipment');
-  await page.getByLabel('Equipment name',{exact:true}).fill('Studio key');
-  await page.getByRole('button',{name:'Save equipment',exact:true}).click();
-  await expect(page.getByText('Studio key',{exact:true})).toBeVisible();
-  await page.goto('/shoot');
-  await page.getByLabel('Shoot name',{exact:true}).fill('September portrait');
-  await page.getByRole('button',{name:'Save shoot',exact:true}).click();
-  await expect(page.getByText('September portrait',{exact:true})).toBeVisible();
-  await page.goto('/capture');
-  await page.getByLabel('Setup name',{exact:true}).fill('Two-light portrait');
-  await page.getByRole('button',{name:'＋ Studio key',exact:true}).click();
-  await page.getByRole('button',{name:'Save setup',exact:true}).click();
-  await page.getByRole('button',{name:'Add another light',exact:true}).click();
-  await page.getByLabel('Light role',{exact:true}).fill('Fill');
-  await page.getByLabel('Power (optional)',{exact:true}).fill('1/32');
-  await page.getByRole('button',{name:'Save new version',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Edit Key details',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Edit Fill details',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Camera settings',exact:true}).click();
-  await page.getByLabel('Focal length (mm)',{exact:true}).fill('85');
-  await page.getByLabel('Aperture (f-number)',{exact:true}).fill('4');
-  await page.getByLabel('Exposure time (seconds)',{exact:true}).fill('0.005');
-  await page.getByLabel('ISO',{exact:true}).fill('100');
-  await page.getByRole('button',{name:'Save camera settings',exact:true}).click();
-  await expect(page.getByText('85 mm · f/4 · 0.005 s · ISO 100',{exact:true}).filter({visible:true})).toBeVisible();
-  const download=page.waitForEvent('download');
-  await page.getByRole('button',{name:'Export setup notes',exact:true}).click();
-  expect((await download).suggestedFilename()).toBe('lightguide-setup-notes.json');
-  await page.getByRole('button',{name:'September portrait',exact:true}).click();
-  await page.getByRole('button',{name:'Recreate this version',exact:true}).click();
-  await expect(page.getByText('MANUAL RECREATION',{exact:true})).toBeVisible();
+test("equipment, shoot, multiple lights, camera settings and note export", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/equipment");
+  await page.getByLabel("Equipment name", { exact: true }).fill("Studio key");
+  await page
+    .getByRole("button", { name: "Save equipment", exact: true })
+    .click();
+  await expect(page.getByText("Studio key", { exact: true })).toBeVisible();
+  await page.goto("/shoot");
+  await page
+    .getByLabel("Shoot name", { exact: true })
+    .fill("September portrait");
+  await page.getByRole("button", { name: "Save shoot", exact: true }).click();
+  await expect(
+    page.getByText("September portrait", { exact: true }),
+  ).toBeVisible();
+  await page.goto("/capture");
+  await page
+    .getByLabel("Setup name", { exact: true })
+    .fill("Two-light portrait");
+  await page
+    .getByRole("button", { name: "＋ Studio key", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Save setup", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Add another light", exact: true })
+    .click();
+  await page.getByLabel("Light role", { exact: true }).fill("Fill");
+  await page.getByLabel("Power (optional)", { exact: true }).fill("1/32");
+  await page
+    .getByRole("button", { name: "Save new version", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Edit Key details", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Edit Fill details", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Camera settings", exact: true })
+    .click();
+  await page.getByLabel("Focal length (mm)", { exact: true }).fill("85");
+  await page.getByLabel("Aperture (f-number)", { exact: true }).fill("4");
+  await page.getByLabel("Shutter speed", { exact: true }).fill("1/200");
+  await page.getByLabel("ISO", { exact: true }).fill("100");
+  await page
+    .getByRole("button", { name: "Save camera settings", exact: true })
+    .click();
+  await expect(
+    page
+      .getByText("85 mm · f/4 · 1/200 s · ISO 100", { exact: true })
+      .filter({ visible: true }),
+  ).toBeVisible();
+  const download = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Export setup notes", exact: true })
+    .click();
+  expect((await download).suggestedFilename()).toBe(
+    "lightguide-setup-notes.json",
+  );
+  await page
+    .getByRole("button", { name: "September portrait", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Recreate this version", exact: true })
+    .click();
+  await expect(
+    page.getByText("MANUAL RECREATION", { exact: true }),
+  ).toBeVisible();
   expect(errors).toEqual([]);
 });

@@ -55,19 +55,19 @@ export default function Settings() {
       <Card>
         <Heading>Positioning and sensors</Heading>
         <Body>
-          Manual recreation is available. Live positioning runs in the separate
-          Android measurement app while the mobile adapter is being validated.
+          Use your saved photos and manually entered readings to recreate a
+          setup. This app does not automatically measure or track your light.
         </Body>
         <Body muted>
-          BLE node integration is not enabled. The simulation never reads a real
-          sensor or establishes measured accuracy.
+          The guided demo is practice only. It does not connect to a sensor or
+          measure accuracy.
         </Body>
         <Button
           title="Open Android measurement app instructions"
           kind="secondary"
           onPress={() =>
             Linking.openURL(
-              "https://github.com/V-Vekaria/LightGuide-v2/tree/codex/offline-mobile-app/experiments/phase-0-ar-positioning",
+              "https://github.com/V-Vekaria/LightGuide-v2/tree/main/experiments/phase-0-ar-positioning",
             ).catch(() => setError("Could not open the instructions."))
           }
         />

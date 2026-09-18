@@ -91,9 +91,12 @@ test("saved setup uses the same guide with manual values, unknown pose and uncha
   await page
     .getByRole("button", { name: "Mark step complete", exact: true })
     .click();
-  await expect(page.getByTestId("guide-position-unknown")).toContainText(
-    "Position not recorded",
-  );
+  await expect(
+    page.getByRole("button", { name: "Top view", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Measurements & height view", exact: true })
+    .click();
   await page.getByLabel("Distance now (cm)", { exact: true }).fill("180");
   await page.getByLabel("Height now (cm)", { exact: true }).fill("200");
   await expect(page.getByTestId("guide-cue")).toHaveText(
@@ -101,7 +104,7 @@ test("saved setup uses the same guide with manual values, unknown pose and uncha
   );
   await page.getByLabel("Distance now (cm)", { exact: true }).fill("150");
   await expect(page.getByTestId("guide-cue")).toHaveText("Lower light 30 cm");
-  await page.getByRole("button", { name: "Side view", exact: true }).click();
+
   await expect(
     page.getByRole("img", { name: /Side projection/ }),
   ).toBeVisible();
@@ -110,11 +113,15 @@ test("saved setup uses the same guide with manual values, unknown pose and uncha
     page.getByRole("button", { name: "Mark step complete", exact: true }),
   ).toBeDisabled();
   // An invalid optional reading must not trap navigation on the reference step.
-  await page.getByRole("button", { name: "Previous step", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Previous step", exact: true })
+    .click();
   await expect(
     page.getByRole("button", { name: "Mark step complete", exact: true }),
   ).toBeEnabled();
-  await page.getByRole("button", { name: "Mark step complete", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Mark step complete", exact: true })
+    .click();
   await page.getByLabel("Height now (cm)", { exact: true }).fill("170");
   await expect(page.getByTestId("guide-cue")).toHaveText(
     "Entered values agree; check the photograph",
@@ -126,6 +133,9 @@ test("saved setup uses the same guide with manual values, unknown pose and uncha
   });
   await page.reload();
   await expect(page.getByText("STEP 2 OF 4", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Measurements & height view", exact: true })
+    .click();
   await expect(page.getByLabel("Height now (cm)", { exact: true })).toHaveValue(
     "",
   );
@@ -134,6 +144,15 @@ test("saved setup uses the same guide with manual values, unknown pose and uncha
     await page
       .getByRole("button", { name: "Mark step complete", exact: true })
       .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Finish and record outcome",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "not evaluated", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Finish and record outcome", exact: true })
     .click();
