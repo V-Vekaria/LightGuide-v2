@@ -47,24 +47,55 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check whether the previously built APK has identical application source
+        # Release-scoped reuse for PR #4 while repairing only its test driver.
+        # Other PRs, main and any source change take the normal build path.
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 4
+        id: apk-source
+        run: |
+          if git diff --quiet d7bb97ec25d67ffedb06b6d262342bad329b69f7 HEAD -- . ':!apps/mobile/scripts/android-smoke.py' ':!.github/workflows/codex-application.yml'; then
+            echo 'unchanged=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Reuse the exact APK for smoke-driver-only changes
+        if: steps.apk-source.outputs.unchanged == 'true'
+        id: reuse-apk
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: lightguide-codex-android
+          run-id: 35421252935
+          github-token: ${{ github.token }}
+          path: apps/mobile/android/app/build/outputs/apk/release
+      - name: Verify reused APK identity
+        if: steps.reuse-apk.outcome == 'success'
+        run: echo '3247bea7aa42eed81a217af7a3f6f6726b717fb8519b5bc3136514e4324c563d  apps/mobile/android/app/build/outputs/apk/release/app-release.apk' | sha256sum --check
       - uses: actions/setup-node@v4
+        if: steps.reuse-apk.outcome != 'success'
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
       - uses: actions/setup-java@v4
+        if: steps.reuse-apk.outcome != 'success'
         with:
           distribution: temurin
           java-version: 17
       - uses: android-actions/setup-android@v3
+        if: steps.reuse-apk.outcome != 'success'
         with:
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
+        if: steps.reuse-apk.outcome != 'success'
       - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+        if: steps.reuse-apk.outcome != 'success'
       - run: npm ci && npx expo prebuild --platform android --no-install
+        if: steps.reuse-apk.outcome != 'success'
         working-directory: apps/mobile
       - name: Build standalone evaluation APK with embedded JavaScript
+        if: steps.reuse-apk.outcome != 'success'
         working-directory: apps/mobile/android
         run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon
       - uses: actions/upload-artifact@v4

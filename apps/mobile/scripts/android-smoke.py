@@ -50,7 +50,8 @@ def find(label, scroll=False, contains=False, node_class=None, focused=False):
                     return bounds
         if scroll and attempt > 1:
             width, height = map(int, re.findall(r'\d+', adb('shell', 'wm', 'size').decode())[-2:])
-            adb('shell', 'input', 'swipe', str(width//2), str(height*3//4), str(width//2), str(height//3), '350')
+            start_y, end_y = (height//3, height*3//4) if scroll == 'up' else (height*3//4, height//3)
+            adb('shell', 'input', 'swipe', str(width//2), str(start_y), str(width//2), str(end_y), '350')
         time.sleep(.5)
     raise AssertionError(f'Visible control not found: {label}')
 
@@ -161,12 +162,12 @@ try:
     tap('Recreate this version',scroll=True)
     find('MANUAL RECREATION')
     for step in range(1, 5):
-        find(f'STEP {step} OF 4')
+        find(f'STEP {step} OF 4',scroll='up')
         tap('Mark step complete',scroll=True)
         if step < 4:
-            find(f'STEP {step + 1} OF 4')
+            find(f'STEP {step + 1} OF 4',scroll='up')
         else:
-            find('Steps completed')
+            find('Steps completed',scroll='up')
         passed(f'manual recreation step {step}')
     tap('not evaluated',scroll=True)
     passed('explicit unevaluated outcome selected')
