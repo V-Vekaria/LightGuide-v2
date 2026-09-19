@@ -78,13 +78,21 @@ try:
         launch()
         tap('Save a setup')
         tap('Setup name',node_class='android.widget.EditText')
-        adb('shell','input','text','LegacyUpgrade')
+        find('Setup name',node_class='android.widget.EditText',focused=True)
+        # The old APK can drop characters from a zero-delay ADB key burst
+        # during synchronous draft writes. Seed it at human typing speed,
+        # verifying the exact value before testing the upgrade. The candidate
+        # still receives the existing whole-name input test below.
+        for character in 'LegacyUpgrade':
+            adb('shell','input','text',character)
+            time.sleep(.2)
         find('LegacyUpgrade',node_class='android.widget.EditText')
         ime=adb('shell','dumpsys','input_method').decode(errors='replace')
         if re.search(r'mInputShown=true\b|mIsInputViewShown=true\b',ime):
             adb('shell','input','keyevent','KEYCODE_BACK')
         tap('Save setup',scroll=True)
         find('LegacyUpgrade',contains=True)
+        (OUT/'baseline-saved.png').write_bytes(adb('exec-out','screencap','-p'))
         adb('shell','am','force-stop',PACKAGE)
         passed('baseline v0.1.3 setup saved before upgrade')
     evidence['apk_sha256'] = hashlib.sha256(apk.read_bytes()).hexdigest()
