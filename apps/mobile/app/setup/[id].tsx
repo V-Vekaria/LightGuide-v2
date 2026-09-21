@@ -1,3 +1,4 @@
+import { formatShutter } from "../../src/domain/camera-settings";
 import React, { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -165,7 +166,7 @@ export default function SetupDetail() {
                 <Body>
                   {o.settings.focal_length_mm ?? "—"} mm · f/
                   {o.settings.aperture_f ?? "—"} ·{" "}
-                  {o.settings.exposure_time_s ?? "—"} s · ISO{" "}
+                  {formatShutter(o.settings.exposure_time_s) || "—"} s · ISO{" "}
                   {o.settings.iso ?? "—"}
                 </Body>
                 <Body muted>{o.notes ?? "No framing notes"}</Body>

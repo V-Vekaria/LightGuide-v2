@@ -290,6 +290,7 @@ export const outcomeSchema = z.enum([
   "close_enough",
   "adapted",
   "unsuccessful",
+  "not_evaluated",
 ]);
 export type Outcome = z.infer<typeof outcomeSchema>;
 export const emptySettings: Scene["objects"][number]["settings"] = {

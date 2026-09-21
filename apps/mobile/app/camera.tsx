@@ -1,3 +1,8 @@
+import {
+  parseCameraNumber,
+  parseShutter,
+  formatShutter,
+} from "../src/domain/camera-settings";
 import React, { useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useStore } from "../src/ui/Store";
@@ -30,7 +35,7 @@ export default function Camera() {
   const [values, setValues] = useState({
     focal: String(camera?.settings.focal_length_mm ?? ""),
     aperture: String(camera?.settings.aperture_f ?? ""),
-    shutter: String(camera?.settings.exposure_time_s ?? ""),
+    shutter: formatShutter(camera?.settings.exposure_time_s),
     iso: String(camera?.settings.iso ?? ""),
     notes: camera?.notes ?? "",
   });
@@ -40,15 +45,6 @@ export default function Camera() {
     ) ?? [],
   );
   const [error, setError] = useState<string | null>(initial.error);
-  const number = (raw: string, max: number) => {
-    if (!raw.trim()) return null;
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n <= 0 || n > max)
-      throw new Error(
-        "Use positive numeric camera settings within the supported range.",
-      );
-    return n;
-  };
   const save = () => {
     try {
       if (!initial.scene || !initial.setup)
@@ -71,10 +67,10 @@ export default function Camera() {
       }
       object.settings = {
         ...object.settings,
-        focal_length_mm: number(values.focal, 10000),
-        aperture_f: number(values.aperture, 256),
-        exposure_time_s: number(values.shutter, 86400),
-        iso: number(values.iso, 10000000),
+        focal_length_mm: parseCameraNumber(values.focal, "Focal length", 10000),
+        aperture_f: parseCameraNumber(values.aperture, "Aperture", 256),
+        exposure_time_s: parseShutter(values.shutter),
+        iso: parseCameraNumber(values.iso, "ISO", 10000000),
       };
       object.notes = values.notes.trim() || null;
       object.equipment = gear.map((id) => {
@@ -128,11 +124,10 @@ export default function Camera() {
           onChange={(aperture) => setValues({ ...values, aperture })}
         />
         <Field
-          label="Exposure time (seconds)"
-          numeric
+          label="Shutter speed"
           value={values.shutter}
           onChange={(shutter) => setValues({ ...values, shutter })}
-          placeholder="0.005 for 1/200 second"
+          placeholder="1/200 or 0.005 seconds"
         />
         <Field
           label="ISO"

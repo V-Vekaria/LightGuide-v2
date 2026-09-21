@@ -50,7 +50,8 @@ def find(label, scroll=False, contains=False, node_class=None, focused=False):
                     return bounds
         if scroll and attempt > 1:
             width, height = map(int, re.findall(r'\d+', adb('shell', 'wm', 'size').decode())[-2:])
-            adb('shell', 'input', 'swipe', str(width//2), str(height*3//4), str(width//2), str(height//3), '350')
+            start_y, end_y = (height//3, height*3//4) if scroll == 'up' else (height*3//4, height//3)
+            adb('shell', 'input', 'swipe', str(width//2), str(start_y), str(width//2), str(end_y), '350')
         time.sleep(.5)
     raise AssertionError(f'Visible control not found: {label}')
 
@@ -70,6 +71,31 @@ try:
         candidates=list(Path('android/app/build/outputs/apk/release').glob('*.apk'))
         if len(candidates)!=1: raise AssertionError('Expected exactly one evaluation APK')
         apk=candidates[0]
+    baseline = Path('artifacts/upgrade-baseline/app-release.apk')
+    if baseline.is_file():
+        evidence['baseline_apk_sha256'] = hashlib.sha256(baseline.read_bytes()).hexdigest()
+        if b'Success' not in adb('install','-r',str(baseline),timeout=180):
+            raise AssertionError('Baseline installation failed')
+        launch()
+        tap('Save a setup')
+        tap('Setup name',node_class='android.widget.EditText')
+        find('Setup name',node_class='android.widget.EditText',focused=True)
+        # The old APK can drop characters from a zero-delay ADB key burst
+        # during synchronous draft writes. Seed it at human typing speed,
+        # verifying the exact value before testing the upgrade. The candidate
+        # still receives the existing whole-name input test below.
+        for character in 'LegacyUpgrade':
+            adb('shell','input','text',character)
+            time.sleep(.2)
+        find('LegacyUpgrade',node_class='android.widget.EditText')
+        ime=adb('shell','dumpsys','input_method').decode(errors='replace')
+        if re.search(r'mInputShown=true\b|mIsInputViewShown=true\b',ime):
+            adb('shell','input','keyevent','KEYCODE_BACK')
+        tap('Save setup',scroll=True)
+        find('LegacyUpgrade',contains=True)
+        (OUT/'baseline-saved.png').write_bytes(adb('exec-out','screencap','-p'))
+        adb('shell','am','force-stop',PACKAGE)
+        passed('baseline v0.1.3 setup saved before upgrade')
     evidence['apk_sha256'] = hashlib.sha256(apk.read_bytes()).hexdigest()
     # A freshly booted CI emulator may need more than 30 seconds to install
     # the 66 MB universal APK while Android finishes its own first boot work.
@@ -85,6 +111,15 @@ try:
     launch()
     find('Save a setup')
     passed('launch')
+    if baseline.is_file():
+        tap('LegacyUpgrade',scroll=True,contains=True)
+        find('Recreate this version',scroll=True)
+        passed('v0.1.3 to v0.1.4 in-place upgrade retained saved setup')
+        adb('shell','input','keyevent','KEYCODE_BACK')
+        # Home may retain its scroll position; relaunching gives a fresh Home.
+        adb('shell','am','force-stop',PACKAGE)
+        launch()
+        find('Save a setup')
     # Repeated Settings presses must not add duplicate native stack entries.
     for back_control in ('hardware', 'onscreen'):
         tap('Settings')
@@ -127,13 +162,15 @@ try:
     tap('Recreate this version',scroll=True)
     find('MANUAL RECREATION')
     for step in range(1, 5):
-        find(f'STEP {step} OF 4')
+        find(f'STEP {step} OF 4',scroll='up')
         tap('Mark step complete',scroll=True)
         if step < 4:
-            find(f'STEP {step + 1} OF 4')
+            find(f'STEP {step + 1} OF 4',scroll='up')
         else:
-            find('Steps completed')
+            find('Steps completed',scroll='up')
         passed(f'manual recreation step {step}')
+    tap('not evaluated',scroll=True)
+    passed('explicit unevaluated outcome selected')
     tap('Finish and record outcome',scroll=True)
     find('Recreation recorded.',contains=True)
     passed('manual recreate and record outcome')

@@ -100,3 +100,7 @@ The user chose the Codex implementation and authorised merging and branch cleanu
 - The documentation closeout removes the completed one-time maintenance workflow/script and records these results; application runtime and dependencies are unchanged.
 
 This does not establish physical AR accuracy, BLE/calibration, iOS, cloud or photographer acceptance. Installed-phone acceptance and VAL-001–004 remain open.
+
+## 17 September 2026 — Demo-style recreation
+
+Shared manual/practice guidance implemented from the user-approved interactive demo. [Evidence and limitations](DEMO_STYLE_RECREATION_2026-09-17.md) records software tests, bundle exports, browser-launch blocker and the phone retest. This does not close physical AR/BLE/sensor validation gates.

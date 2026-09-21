@@ -65,6 +65,19 @@ export default function Capture() {
     [precision, setPrecision] = useState(
       Boolean(initial.data.distance || initial.data.height),
     );
+  const [showCamera, setShowCamera] = useState(Boolean(form.camera));
+  const cameraFields = form.camera ?? {
+    focal: "",
+    aperture: "",
+    shutter: "",
+    iso: "",
+    equipmentIds: [],
+  };
+  const setCamera = (patch: Partial<NonNullable<CaptureDraft["camera"]>>) =>
+    change({ ...form, camera: { ...cameraFields, ...patch } });
+  const lightingEquipment = repo
+    .equipment()
+    .filter((e) => !["camera", "lens"].includes(e.kind));
   const currentForm = useRef(form);
   currentForm.current = form;
   const change = (next: CaptureDraft) => {
@@ -235,8 +248,11 @@ export default function Capture() {
             {precision && (
               <>
                 <Body muted>
-                  Manual measurements are your notes, not verified sensor
-                  readings.
+                  Use the same points every time: measure height to the light's
+                  centre above the floor, and distance from the modifier's front
+                  centre to your chosen point on the subject. Record that
+                  subject point and any floor marks in setup notes. These are
+                  manual readings.
                 </Body>
                 <Field
                   label="Distance to subject (cm)"
@@ -254,9 +270,95 @@ export default function Capture() {
             )}
           </Card>
           <Card>
-            <Heading>Equipment used</Heading>
-            {repo.equipment().length ? (
-              repo.equipment().map((e) => (
+            <Button
+              title={
+                showCamera
+                  ? "Hide camera settings"
+                  : "Add camera settings (optional)"
+              }
+              kind="secondary"
+              onPress={() => setShowCamera((v) => !v)}
+            />
+            {showCamera && (
+              <>
+                <Body muted>
+                  Save these with the setup. Leave unknown settings blank.
+                </Body>
+                <Field
+                  label="Focal length (mm)"
+                  numeric
+                  value={cameraFields.focal}
+                  onChange={(focal) => setCamera({ focal })}
+                />
+                <Field
+                  label="Aperture (f-number)"
+                  numeric
+                  value={cameraFields.aperture}
+                  onChange={(aperture) => setCamera({ aperture })}
+                />
+                <Field
+                  label="Shutter speed"
+                  value={cameraFields.shutter}
+                  placeholder="1/200 or 0.005 seconds"
+                  onChange={(shutter) => setCamera({ shutter })}
+                />
+                <View style={s.row}>
+                  {["1/60", "1/125", "1/200", "1/250"].map((shutter) => (
+                    <Button
+                      key={shutter}
+                      title={shutter}
+                      kind="secondary"
+                      onPress={() => setCamera({ shutter })}
+                    />
+                  ))}
+                </View>
+                <Field
+                  label="ISO"
+                  numeric
+                  value={cameraFields.iso}
+                  onChange={(iso) => setCamera({ iso })}
+                />
+                <Body muted>Camera and lens used</Body>
+                {repo
+                  .equipment()
+                  .filter((e) => ["camera", "lens"].includes(e.kind))
+                  .map((e) => (
+                    <Button
+                      key={e.id}
+                      kind="secondary"
+                      title={
+                        (cameraFields.equipmentIds.includes(e.id)
+                          ? "✓ "
+                          : "＋ ") + e.name
+                      }
+                      onPress={() =>
+                        setCamera({
+                          equipmentIds: cameraFields.equipmentIds.includes(e.id)
+                            ? cameraFields.equipmentIds.filter(
+                                (id) => id !== e.id,
+                              )
+                            : [...cameraFields.equipmentIds, e.id],
+                        })
+                      }
+                    />
+                  ))}
+              </>
+            )}
+          </Card>
+          <Card>
+            <Heading>Lighting equipment used</Heading>
+            <Button
+              title="Add equipment without leaving this draft"
+              kind="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: "/equipment",
+                  params: { returnToCapture: "1" },
+                })
+              }
+            />
+            {lightingEquipment.length ? (
+              lightingEquipment.map((e) => (
                 <Button
                   key={e.id}
                   kind="secondary"

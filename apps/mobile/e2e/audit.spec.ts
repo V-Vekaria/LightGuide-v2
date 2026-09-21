@@ -28,9 +28,9 @@ test("recreation choice survives restart and paused guidance is not timed", asyn
 }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "Explore a demo", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Save a setup", exact: true }).click();
+  await page.getByLabel("Setup name", { exact: true }).fill("Review setup");
+  await page.getByRole("button", { name: "Save setup", exact: true }).click();
   await page
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();
