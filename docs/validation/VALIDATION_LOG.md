@@ -104,3 +104,13 @@ This does not establish physical AR accuracy, BLE/calibration, iOS, cloud or pho
 ## 17 September 2026 — Demo-style recreation
 
 Shared manual/practice guidance implemented from the user-approved interactive demo. [Evidence and limitations](DEMO_STYLE_RECREATION_2026-09-17.md) records software tests, bundle exports, browser-launch blocker and the phone retest. This does not close physical AR/BLE/sensor validation gates.
+
+## 20–21 September 2026 — ESP32-S3 evaluation-kit sensor bench
+
+**Outcome:** PASS for received-part identity, the verified pin map and all four devices running together with a save button; FAIL for the BNO085 over I²C on the ESP32-S3.
+
+- Received parts differ from the BOM: the controller is an **N16R8** (16 MB flash / 8 MB PSRAM, verified with esptool) and the IMU is an **Adafruit BNO085**, not a SparkFun BNO086. The VL53L5CX and AS7343 are confirmed by ID register and enumeration.
+- The BNO085 over I²C enumerates but does not stream reliably with the ESP32-S3 (a known BNO08x timing issue); over UART it gives 3/3 clean starts at 50 Hz. Decision: the BNO085 runs on UART and stays off the shared I²C bus.
+- A momentary save button on GPIO4 was added at the user's request; debounced press detection is verified. A press is an event for the phone app, which does the storing.
+
+[Evidence and limitations](ESP32S3_SENSOR_BENCH_2026-09-21.md) · [bench firmware and pin map](../../experiments/esp32s3-sensor-bench/README.md). Sensor accuracy, calibration, power, the RGB LED and the BLE link remain unvalidated; VAL-001–004 are unaffected.

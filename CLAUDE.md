@@ -24,12 +24,12 @@ ADR-015 permits the offline application to proceed alongside Phase 0. It does no
 ## Hardware work
 
 For an explicitly requested hardware task, use [V1_BOM.md](docs/V1_BOM.md):
-- evaluation controller: ESP32-S3-WROOM-1-N8R8 DevKitC-1-compatible board;
-- evaluation sensors: VL53L5CX, BNO086 SEN-22857 and AS7343 ADA6477;
-- only the controller order is screenshot-verified; exact received sensor variants still need verification;
-- verify the exact board, pin map, voltage requirements and each sensor before combined wiring;
+- evaluation controller: ESP32-S3-WROOM-1 DevKitC-1-compatible board (ordered as N8R8; the received part is N16R8);
+- evaluation sensors as received: VL53L5CX, Adafruit BNO085 (instead of the recommended BNO086 SEN-22857) and AS7343;
+- received parts, pin map and combined operation were verified on 2026-09-21 ([sensor bench](experiments/esp32s3-sensor-bench/README.md)); the BNO085 runs over UART because the BNO08x is unreliable on I²C with the ESP32-S3;
+- recheck the pin map and voltage before changing wiring;
 - use the onboard programmable RGB LED if confirmed working; do not add a separate LED by default;
-- do not assume OLED, buzzer, battery measurement or a suitable user-confirmation button exists;
+- a bench save button (GPIO4) now exists at the user's request; do not assume a product OLED, buzzer or battery measurement;
 - keep new-board work separate from the legacy Nano ESP32 firmware and wiring.
 
 Component bench tests can proceed as a separately requested task, but do not replace the phone-positioning gate. BLE behaviour is planned; its implementation-ready GATT/security/message contract and firmware are not finished. Production hardware remains unselected.
