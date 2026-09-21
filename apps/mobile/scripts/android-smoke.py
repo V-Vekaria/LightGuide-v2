@@ -77,7 +77,7 @@ try:
         if b'Success' not in adb('install','-r',str(baseline),timeout=180):
             raise AssertionError('Baseline installation failed')
         launch()
-        tap('Save a setup')
+        tap('Save a setup',scroll=True)
         tap('Setup name',node_class='android.widget.EditText')
         find('Setup name',node_class='android.widget.EditText',focused=True)
         # The old APK can drop characters from a zero-delay ADB key burst
