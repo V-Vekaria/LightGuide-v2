@@ -36,6 +36,7 @@ Use this file to find the authoritative document for each type of decision.
 ## Validation
 - [TEST_PLAN.md](TEST_PLAN.md) — planned verification methodology.
 - [validation/VALIDATION_LOG.md](validation/VALIDATION_LOG.md) — actual evidence and experiment outcomes.
+- [validation/ESP32S3_SENSOR_BENCH_2026-09-21.md](validation/ESP32S3_SENSOR_BENCH_2026-09-21.md) — received evaluation parts, verified pin map and combined-sensor bench results; firmware in [experiments/esp32s3-sensor-bench/](../experiments/esp32s3-sensor-bench/README.md).
 - [validation/RISK_REGISTER.md](validation/RISK_REGISTER.md) — current product/technical risks and mitigations.
 
 ## Current development priority
