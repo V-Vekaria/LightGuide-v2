@@ -199,7 +199,7 @@ export default function Home() {
                 recreations recorded
               </Body>
               <Body muted>
-                Live sensor connection is not enabled in this build.
+                Connect a LightGuide node from Home when you want live readings.
               </Body>
             </Card>
           </View>

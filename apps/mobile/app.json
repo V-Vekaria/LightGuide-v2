@@ -37,7 +37,15 @@
       ],
       "expo-sharing",
       "expo-status-bar",
-      "expo-font"
+      "expo-font",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "neverForLocation": true,
+          "bluetoothAlwaysPermission": false
+        }
+      ]
     ]
   }
 }
