@@ -78,10 +78,10 @@ export function reduceDeviceSession(state: DeviceSessionState, action: SessionAc
 }
 
 export function isMeasurementFresh(state: DeviceSessionState, now: number, maxAgeMs = 1000) {
-  return state.phase === "connected" && state.measurement !== null && state.measurementReceivedAt !== null && now - state.measurementReceivedAt <= maxAgeMs;
+  return state.phase === "connected" && state.measurement !== null && state.measurementReceivedAt !== null && now >= state.measurementReceivedAt && now - state.measurementReceivedAt <= maxAgeMs;
 }
 
-export function shouldHandleSaveEvent(state: DeviceSessionState, event: DeviceEvent) {
-  if (state.phase !== "connected" || !state.sessionId || !isMeasurementFresh(state, Date.now())) return false;
+export function shouldHandleSaveEvent(state: DeviceSessionState, event: DeviceEvent, now: number, maxAgeMs = 1000) {
+  if (!state.sessionId || !isMeasurementFresh(state, now, maxAgeMs)) return false;
   return !state.handledEvents.has(eventKey(state.sessionId, event));
 }
