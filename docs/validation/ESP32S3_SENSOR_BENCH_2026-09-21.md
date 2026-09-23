@@ -70,3 +70,34 @@ bench work.
 **Artifacts:** [experiments/esp32s3-sensor-bench/](../../experiments/esp32s3-sensor-bench/README.md).
 Adafruit I²C troublesome-chip list:
 <https://github.com/adafruit/I2C_Addresses/blob/main/troublesome_chips.md>.
+
+## Follow-up — 2026-09-23 per-sensor checks
+
+The rig was moved onto a light stand next to an LED photo panel, and a CSV logging path,
+AS7343 auto-gain and capture/plot tools were added (see the experiment README).
+
+**Correction to the pin-map section above:** the I²C bus did not actually run at 400 kHz. The
+SSD1306 library resets the clock to 100 kHz after every display update, which silently undid
+`Wire.setClock(400000)`. Found by timing: each VL53L5CX frame read took 138 ms, limiting it to
+about 4 frames/s. Fixed in `AllSensors_Live` (37 ms per read, about 10 frames/s). The earlier
+results are unaffected apart from speed.
+
+| Check | Observation | Outcome |
+|---|---|---|
+| VL53L5CX on a wall | 10 s at a wall: all 64 zones valid in every frame, centre 98.2 cm, sd 3 mm, smooth 95–103 cm gradient across the map (the sensor was slightly tilted). The user compared the display with a tape at 10, 20, 35 and 40 cm and found it correct; those comparisons were not recorded. A recorded 8-distance run was not completed: two attempts ended in USB drops (cable weight on the connector while on the stand), and the third had no button presses because the button had been rewired to `+` instead of GND. | PASS for stable operation; accuracy graph not produced |
+| Save button after rewiring | No presses registered. `Button_PinFinder` showed no pin changing; the wire was on `+` instead of GND. After the user fixed it: 10/10 presses on GPIO4. | PASS after the wiring fix |
+| AS7343 torch check | A phone torch about 5 cm away, on/off twice: the reading rose about 25× (1.9 → about 45) each time and returned to the same 1.9 baseline; auto-gain stepped 2048× → 256× and back, and the settling readings were correctly excluded. | PASS: sensor and auto-gain respond |
+| AS7343 with the LED panel | Two runs (8 brightness/colour steps; and panel on/off) showed no response to the panel: the gain stayed at 2048× and the level drifted slowly with room light. The torch check rules out the sensor, so the panel's light was not reaching the sensor window. | INCONCLUSIVE: aiming; repeat in a controlled room |
+| BNO085 tilt of a light | Not run. The IMU measures only what it is fixed to, and in the bench layout it hangs on wires and the breadboard is clamped to the pole, which does not tilt with the light's ball head. | Deferred until the node is mounted on the light |
+
+**Decision:** brightness, colour-temperature and tilt accuracy need a controlled room or studio,
+with the node fixed to the light and a known reference (a light meter or lux/CCT reference for
+light, and a phone inclinometer for tilt). Home tests stop at "does it respond".
+
+**Protocol note for the BLE work:** `DEVICE_PROTOCOL.md` specifies raw AS7343 channel values. With
+auto-gain, a raw value only has meaning together with the gain that produced it (the same light
+gives values 8× apart at 256× and 2048×). The protocol owner should decide whether to add a gain
+field or send gain-normalised values before the firmware implements the measurement characteristic.
+
+Evidence runs kept in the repository (`git add -f`, the rest stay local): `data/*_tof_diag.csv`,
+`data/*_light_onoff.csv` and `data/*_light_torch.csv` with their trace figures.
