@@ -56,10 +56,10 @@ export default function Settings() {
         <Heading>Positioning and sensors</Heading>
         <Body>
           Use your saved photos and manually entered readings to recreate a
-          setup. This app does not automatically measure or track your light.
+          setup. Connect a Protocol v2 node from Home for live sensor readings. Automatic spatial tracking remains unverified.
         </Body>
         <Body muted>
-          The guided demo is practice only. It does not connect to a sensor or
+          The guided demo is practice only; it does not use the node or
           measure accuracy.
         </Body>
         <Button
