@@ -1,0 +1,5 @@
+# Recordings and figures are local by default: many runs are aborted or
+# mis-aimed. Runs that are cited as evidence are added with `git add -f`.
+data/
+figures/
+__pycache__/
