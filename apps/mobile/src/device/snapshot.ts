@@ -17,6 +17,6 @@ export function applyDeviceSnapshot(scene: Scene, measurement: Measurement, info
   const base = { source: "sensor" as const, captured_at: capturedAt, uncertainty: null, device_id: info.device_id, device_uptime_ms: measurement.uptime_ms, firmware_version: info.fw, target_object_id: null, reference_frame_id: null, calibration: null, supersedes_measurement_id: null };
   light.measurements.push({ ...base, id: repo.id(), kind: "distance", value: measurement.tof_valid ? measurement.distance_mm / 1000 : null, unit: "m", quality: measurement.tof_valid ? "valid" : "unavailable" });
   light.measurements.push({ ...base, id: repo.id(), kind: "orientation", value: null, unit: "unit_quaternion", quality: "unavailable" });
-  light.measurements.push({ ...base, id: repo.id(), kind: "spectral", value: measurement.spectral_valid ? measurement.spectral.map((value, i) => ({ channel: SPECTRAL_CHANNELS[i], value, wavelength_nm: SPECTRAL_WAVELENGTHS[i] })) : null, unit: "counts_per_gain", quality: measurement.spectral_valid ? "valid" : "unavailable" });
+  light.measurements.push({ ...base, id: repo.id(), kind: "spectral", value: measurement.spectral_valid ? measurement.spectral.map((value, i) => ({ channel: SPECTRAL_CHANNELS[i]!, value, wavelength_nm: SPECTRAL_WAVELENGTHS[i]! })) : null, unit: "counts_per_gain", quality: measurement.spectral_valid ? "valid" : "unavailable" });
   return parseScene(next);
 }
