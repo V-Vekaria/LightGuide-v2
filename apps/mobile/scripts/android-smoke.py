@@ -114,7 +114,7 @@ try:
     if baseline.is_file():
         tap('LegacyUpgrade',scroll=True,contains=True)
         find('Recreate this version',scroll=True)
-        passed('v0.1.3 to v0.1.4 in-place upgrade retained saved setup')
+        passed('v0.1.3 to v0.1.5 in-place upgrade retained saved setup')
         adb('shell','input','keyevent','KEYCODE_BACK')
         # Home may retain its scroll position; relaunching gives a fresh Home.
         adb('shell','am','force-stop',PACKAGE)
