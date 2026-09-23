@@ -4,6 +4,7 @@ import {router} from "expo-router";
 import {Badge,Body,Button,Card,ErrorMessage,Heading,Label,Screen,s} from "../src/ui/components";
 import {LightGuideBleTransport,bluetoothError,type DiscoveredNode} from "../src/device/ble";
 import {initialDeviceSession,reduceDeviceSession,shouldHandleSaveEvent} from "../src/device/session";
+import {setPendingDeviceSnapshot} from "../src/device/pending-snapshot";
 import type {DeviceEvent} from "../src/device/protocol";
 
 export default function DeviceScreen(){
@@ -25,7 +26,10 @@ export default function DeviceScreen(){
   const before=stateRef.current;
   const shouldSave=shouldHandleSaveEvent(before,value,Date.now());
   dispatch({type:"event",value});
-  if(shouldSave)setNotice("Save button received with a fresh sensor measurement. Sensor-backed setup capture is ready for the next persistence step.");
+  if(shouldSave&&before.measurement&&before.deviceInfo){
+   setPendingDeviceSnapshot({measurement:before.measurement,info:before.deviceInfo,receivedAt:before.measurementReceivedAt!});
+   setNotice("Save button received. A fresh sensor snapshot is ready in setup capture.");
+  }
  };
  const connect=async(node:DiscoveredNode)=>{
   const sessionId=Date.now().toString(36)+"-"+node.id;dispatch({type:"connecting",sessionId});
@@ -47,7 +51,7 @@ export default function DeviceScreen(){
   {nodes.map(node=><Card key={node.id}><Label>LIGHTGUIDE NODE</Label><Heading>{node.name}</Heading><Body muted>{node.rssi==null?"Signal unknown":`Signal ${node.rssi} dBm`}</Body><Button title="Connect" onPress={()=>connect(node)}/></Card>)}
   {state.phase==="scanning"&&nodes.length===0&&<Card><Heading>Looking for LightGuide…</Heading><Body muted>The app filters by the Device Protocol v1 service UUID, not the BLE address.</Body></Card>}
   {state.phase==="connected"&&<Card><Label>LIVE SENSOR SNAPSHOT</Label><Heading>{state.measurement?.tof_valid?`${state.measurement.distance_mm} mm`:"Distance unavailable"}</Heading><Body>Roll {state.measurement?.imu_valid?state.measurement.roll_deg.toFixed(1)+"°":"—"} · Pitch {state.measurement?.imu_valid?state.measurement.pitch_deg.toFixed(1)+"°":"—"} · Yaw {state.measurement?.imu_valid?state.measurement.yaw_deg.toFixed(1)+"°":"—"}</Body><Body muted>Spectral {state.measurement?.spectral_valid?"18 raw channels received":"unavailable"}</Body><Body muted>Status: {state.status?.state??"unknown"}</Body><View style={s.row}><Button kind="secondary" title="Refresh status" onPress={()=>transport.current?.requestStatus().catch(e=>dispatch({type:"failed",message:bluetoothError(e)}))}/><Button kind="secondary" title="Disconnect" onPress={()=>transport.current?.disconnect().then(()=>dispatch({type:"disconnected"}))}/></View></Card>}
-  {notice&&<Card><Heading>Device event</Heading><Body>{notice}</Body>{state.measurement&&<Button title="Open setup capture" onPress={()=>router.push("/capture")}/>}</Card>}
+  {notice&&<Card><Heading>Device event</Heading><Body>{notice}</Body>{state.measurement&&<Button title="Open setup capture" onPress={()=>router.push("/capture?sensor=1")}/>}</Card>}
   <Card><Body muted>Physical BLE, calibration and ±3 cm accuracy remain unverified until tested with the actual phone and ESP32.</Body></Card>
  </Screen>;
 }
