@@ -120,6 +120,13 @@ try:
         adb('shell','am','force-stop',PACKAGE)
         launch()
         find('Save a setup')
+    # The connection screen must be reachable through a visible Home control.
+    tap('Connect LightGuide device', scroll=True)
+    find('Connect LightGuide')
+    find('Find LightGuide node')
+    passed('Home opens device connection screen')
+    tap('← Back')
+    find('Save a setup')
     # Repeated Settings presses must not add duplicate native stack entries.
     for back_control in ('hardware', 'onscreen'):
         tap('Settings')
