@@ -109,7 +109,7 @@ try:
     passed('install')
     adb('logcat','-c')
     launch()
-    find('Save a setup')
+    find('Connect LightGuide device', scroll='up')
     passed('launch')
     if baseline.is_file():
         tap('LegacyUpgrade',scroll=True,contains=True)
@@ -119,14 +119,14 @@ try:
         # Home may retain its scroll position; relaunching gives a fresh Home.
         adb('shell','am','force-stop',PACKAGE)
         launch()
-        find('Save a setup')
+        find('Connect LightGuide device', scroll='up')
     # The connection screen must be reachable through a visible Home control.
     tap('Connect LightGuide device', scroll=True)
     find('Connect LightGuide')
     find('Find LightGuide node')
     passed('Home opens device connection screen')
     tap('← Back')
-    find('Save a setup')
+    find('Connect LightGuide device', scroll='up')
     # Repeated Settings presses must not add duplicate native stack entries.
     for back_control in ('hardware', 'onscreen'):
         tap('Settings')
@@ -137,7 +137,7 @@ try:
             adb('shell','input','keyevent','KEYCODE_BACK')
         else:
             tap('← Back')
-        find('Save a setup')
+        find('Connect LightGuide device', scroll='up')
         passed('repeated Settings taps: one ' + back_control + ' Back returns Home')
     tap('Save a setup')
     # The visible label and editable control share an accessibility name.
