@@ -28,3 +28,13 @@ test("reselecting inventory tab retains its search", async ({ page }) => {
   for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Equipment tab", exact: true }).click();
   await expect(search).toHaveValue("Reflector");
 });
+
+test("Home opens the device connection screen and returns", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Connect LightGuide device", exact: true }).click();
+  await expect(page).toHaveURL(/\/device$/);
+  await expect(page.getByRole("heading", { name: "Connect LightGuide" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Find LightGuide node" })).toBeVisible();
+  await page.getByRole("button", { name: "← Back", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Connect LightGuide device" })).toBeVisible();
+});
