@@ -114,3 +114,7 @@ Shared manual/practice guidance implemented from the user-approved interactive d
 - A momentary save button on GPIO4 was added at the user's request; debounced press detection is verified. A press is an event for the phone app, which does the storing.
 
 [Evidence and limitations](ESP32S3_SENSOR_BENCH_2026-09-21.md) · [bench firmware and pin map](../../experiments/esp32s3-sensor-bench/README.md). Sensor accuracy, calibration, power, the RGB LED and the BLE link remain unvalidated; VAL-001–004 are unaffected.
+
+## 23 September 2026 — per-sensor bench checks
+
+**Outcome:** PASS for VL53L5CX stable operation (wall: 64/64 zones, sd 3 mm), AS7343 response (phone torch: about 25× rise, same baseline after, auto-gain working) and the save button after a wiring fix; INCONCLUSIVE for the LED-panel light tests (the panel's light was not reaching the sensor); BNO085 tilt deferred until the node is mounted on the light. The I²C bus had been running at 100 kHz, not 400 kHz, because of the SSD1306 library; fixed. Brightness, colour-temperature and tilt accuracy need a controlled room. [Details](ESP32S3_SENSOR_BENCH_2026-09-21.md#follow-up--2026-09-23-per-sensor-checks).
