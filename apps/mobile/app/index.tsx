@@ -149,6 +149,19 @@ export default function Home() {
             <Badge>OFFLINE READY</Badge>
             <Body muted>Saved on this device</Body>
           </View>
+          <Card>
+            <Label>LIGHTGUIDE NODE</Label>
+            <Heading>Connect your device</Heading>
+            <Body muted>
+              Scan for a Protocol v2 ESP32-S3 node to view live readings. The
+              node needs the matching BLE firmware; physical connection is not
+              verified yet.
+            </Body>
+            <Button
+              title="Connect LightGuide device"
+              onPress={() => router.push("/device")}
+            />
+          </Card>
           <View style={wideLayout ? s.split : { gap: 4 }}>
             <View style={wideLayout ? [s.column, { flex: 1.4 }] : {}}>
               <Card
@@ -171,7 +184,7 @@ export default function Home() {
                 </Text>
                 <Body style={{ color: "#B9D3C8" }}>
                   Save a photo and your lighting notes. Recreate them with
-                  manual checks; live sensors are not connected.
+                  manual checks, or connect a Protocol v2 node for live readings.
                 </Body>
                 <View style={s.row}>
                   <Button
@@ -199,7 +212,7 @@ export default function Home() {
                 recreations recorded
               </Body>
               <Body muted>
-                Connect a LightGuide node from Home when you want live readings.
+                Use Connect LightGuide device above to find your node.
               </Body>
             </Card>
           </View>
@@ -308,10 +321,10 @@ export default function Home() {
               Add one record for each item you own. When saving a setup, select
               the equipment used so you can remember it during recreation.
             </Body>
-            <Badge tone="warning">LIVE CONNECTION UNAVAILABLE</Badge>
+            <Badge tone="warning">DEVICE CONNECTION IS SEPARATE</Badge>
             <Body>
-              This build cannot connect to a LightGuide sensor. Equipment below
-              is a manual inventory; adding an item does not pair a device.
+              Connect a node from Home for live readings. Equipment below is a
+              manual inventory; adding an item does not pair a device.
             </Body>
           </Card>
           <Button
