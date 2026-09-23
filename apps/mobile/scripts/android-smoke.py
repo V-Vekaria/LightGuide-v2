@@ -139,7 +139,7 @@ try:
             tap('← Back')
         find('Connect LightGuide device', scroll='up')
         passed('repeated Settings taps: one ' + back_control + ' Back returns Home')
-    tap('Save a setup')
+    tap('Save a setup', scroll=True)
     # The visible label and editable control share an accessibility name.
     # Require the native input, then prove focus and entry before proceeding.
     tap('Setup name', node_class='android.widget.EditText')
