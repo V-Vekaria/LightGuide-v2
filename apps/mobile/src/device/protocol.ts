@@ -1,4 +1,4 @@
-export const LIGHTGUIDE_PROTOCOL_VERSION = 1;
+export const LIGHTGUIDE_PROTOCOL_VERSION = 2;
 export const LIGHTGUIDE_LOCAL_NAME = "LightGuide-Node";
 export const LIGHTGUIDE_UUIDS = {
   service: "7d6f0001-5a6b-4c47-9a41-4c6967687447",
@@ -10,24 +10,25 @@ export const LIGHTGUIDE_UUIDS = {
 } as const;
 
 export type DeviceInfo = {
-  v: 1; type: "device_info"; device_id: string; fw: string; hw: string; cap: string[];
+  v: 2; type: "device_info"; device_id: string; fw: string; hw: string; cap: string[];
 };
 export type Measurement = {
-  v: 1; type: "measurement"; seq: number; uptime_ms: number;
+  v: 2; type: "measurement"; seq: number; uptime_ms: number;
   distance_mm: number; roll_deg: number; pitch_deg: number; yaw_deg: number;
-  tof_valid: boolean; imu_valid: boolean; spectral_valid: boolean; spectral: number[];
+  tof_valid: boolean; imu_valid: boolean; spectral_valid: boolean;
+  spectral_gain: number; spectral: number[];
 };
 export type DeviceEvent = {
-  v: 1; type: "event"; seq: number; uptime_ms: number; event: "save_pressed";
+  v: 2; type: "event"; seq: number; uptime_ms: number; event: "save_pressed";
 };
 export type DeviceStatus = {
-  v: 1; type: "status"; seq: number; uptime_ms: number;
+  v: 2; type: "status"; seq: number; uptime_ms: number;
   state: "booting" | "ready" | "degraded" | "error";
   tof: boolean; imu: boolean; spectral: boolean; error: string | null;
 };
 export type DeviceCommand =
-  | { v: 1; type: "command"; command: "request_status" }
-  | { v: 1; type: "command"; command: "identify" };
+  | { v: 2; type: "command"; command: "request_status" }
+  | { v: 2; type: "command"; command: "identify" };
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Device payload must be a JSON object.");
@@ -38,6 +39,9 @@ function text(o: Record<string, unknown>, k: string) {
 }
 function number(o: Record<string, unknown>, k: string) {
   if (typeof o[k] !== "number" || !Number.isFinite(o[k])) throw new Error(`Missing or invalid ${k}.`); return o[k] as number;
+}
+function positiveNumber(o: Record<string, unknown>, k: string) {
+  const n=number(o,k); if (n <= 0) throw new Error(`Missing or invalid ${k}.`); return n;
 }
 function integer(o: Record<string, unknown>, k: string) {
   const n=number(o,k); if (!Number.isInteger(n) || n < 0) throw new Error(`Missing or invalid ${k}.`); return n;
@@ -52,24 +56,24 @@ function base(o: Record<string, unknown>, expected: string) {
 export function parseDeviceInfo(raw: string): DeviceInfo {
   const o=object(JSON.parse(raw)); base(o,"device_info");
   if (!Array.isArray(o.cap) || !o.cap.every(x=>typeof x==="string")) throw new Error("Missing or invalid cap.");
-  return {v:1,type:"device_info",device_id:text(o,"device_id"),fw:text(o,"fw"),hw:text(o,"hw"),cap:o.cap as string[]};
+  return {v:2,type:"device_info",device_id:text(o,"device_id"),fw:text(o,"fw"),hw:text(o,"hw"),cap:o.cap as string[]};
 }
 export function parseMeasurement(raw: string): Measurement {
   const o=object(JSON.parse(raw)); base(o,"measurement");
-  if (!Array.isArray(o.spectral) || o.spectral.length!==18 || !o.spectral.every(x=>typeof x==="number"&&Number.isFinite(x))) throw new Error("spectral must contain exactly 18 numeric channels.");
-  return {v:1,type:"measurement",seq:integer(o,"seq"),uptime_ms:integer(o,"uptime_ms"),distance_mm:integer(o,"distance_mm"),roll_deg:number(o,"roll_deg"),pitch_deg:number(o,"pitch_deg"),yaw_deg:number(o,"yaw_deg"),tof_valid:bool(o,"tof_valid"),imu_valid:bool(o,"imu_valid"),spectral_valid:bool(o,"spectral_valid"),spectral:o.spectral as number[]};
+  if (!Array.isArray(o.spectral) || o.spectral.length!==13 || !o.spectral.every(x=>typeof x==="number"&&Number.isFinite(x))) throw new Error("spectral must contain exactly 13 numeric gain-normalised channels.");
+  return {v:2,type:"measurement",seq:integer(o,"seq"),uptime_ms:integer(o,"uptime_ms"),distance_mm:integer(o,"distance_mm"),roll_deg:number(o,"roll_deg"),pitch_deg:number(o,"pitch_deg"),yaw_deg:number(o,"yaw_deg"),tof_valid:bool(o,"tof_valid"),imu_valid:bool(o,"imu_valid"),spectral_valid:bool(o,"spectral_valid"),spectral_gain:positiveNumber(o,"spectral_gain"),spectral:o.spectral as number[]};
 }
 export function parseEvent(raw: string): DeviceEvent {
   const o=object(JSON.parse(raw)); base(o,"event"); if(o.event!=="save_pressed") throw new Error("Unsupported device event.");
-  return {v:1,type:"event",seq:integer(o,"seq"),uptime_ms:integer(o,"uptime_ms"),event:"save_pressed"};
+  return {v:2,type:"event",seq:integer(o,"seq"),uptime_ms:integer(o,"uptime_ms"),event:"save_pressed"};
 }
 export function parseStatus(raw: string): DeviceStatus {
   const o=object(JSON.parse(raw)); base(o,"status");
   if (!["booting","ready","degraded","error"].includes(String(o.state))) throw new Error("Invalid device state.");
   if (!(o.error===null || typeof o.error==="string")) throw new Error("Invalid status error.");
-  return {v:1,type:"status",seq:integer(o,"seq"),uptime_ms:integer(o,"uptime_ms"),state:o.state as DeviceStatus["state"],tof:bool(o,"tof"),imu:bool(o,"imu"),spectral:bool(o,"spectral"),error:o.error as string|null};
+  return {v:2,type:"status",seq:integer(o,"seq"),uptime_ms:integer(o,"uptime_ms"),state:o.state as DeviceStatus["state"],tof:bool(o,"tof"),imu:bool(o,"imu"),spectral:bool(o,"spectral"),error:o.error as string|null};
 }
 export function encodeCommand(command: DeviceCommand["command"]) {
-  return JSON.stringify({v:1,type:"command",command} satisfies DeviceCommand);
+  return JSON.stringify({v:2,type:"command",command} satisfies DeviceCommand);
 }
 export function eventKey(session: string, event: DeviceEvent) { return `${session}:${event.seq}`; }
