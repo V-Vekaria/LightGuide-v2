@@ -1,0 +1,2 @@
+# arduino-cli exports binaries next to the sketch; build output is never committed.
+LightGuideNode/build/
