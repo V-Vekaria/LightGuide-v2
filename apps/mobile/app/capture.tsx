@@ -26,11 +26,13 @@ import {
 import { emptyScene, humanError, type Scene } from "../src/domain/schema";
 import type { CaptureDraft } from "../src/data/repository";
 import { pickPhoto } from "../src/media/media";
+import { takePendingDeviceSnapshot } from "../src/device/pending-snapshot";
+import { applyDeviceSnapshot } from "../src/device/snapshot";
 
 export default function Capture() {
   const columns = useResponsiveColumns();
   const { repo, refresh } = useStore(),
-    { id, light } = useLocalSearchParams<{ id?: string; light?: string }>();
+    { id, light, sensor } = useLocalSearchParams<{ id?: string; light?: string; sensor?: string }>();
   const key = id ? "capture:" + id + (light ? ":" + light : "") : "capture:new";
   const [initial] = useState(() => {
     try {
@@ -57,6 +59,9 @@ export default function Capture() {
       };
     }
   });
+  const [sensorSnapshot] = useState(() =>
+    sensor === "1" ? takePendingDeviceSnapshot() : null,
+  );
   const [form, setForm] = useState<CaptureDraft>(initial.data),
     [error, setError] = useState<string | null>(initial.error),
     [busy, setBusy] = useState(false),
@@ -123,7 +128,20 @@ export default function Capture() {
         baseVersion: initial.baseVersion ?? undefined,
         title: form.title,
         category: form.category,
-        scene: sceneFromDraft(form, repo, initial.base, light),
+        scene: sensor === "1"
+          ? sensorSnapshot
+            ? applyDeviceSnapshot(
+                sceneFromDraft(form, repo, initial.base, light),
+                sensorSnapshot.measurement,
+                sensorSnapshot.info,
+                repo,
+              )
+            : (() => {
+                throw new Error(
+                  "The LightGuide sensor snapshot expired. Press the device save button again before saving this setup.",
+                );
+              })()
+          : sceneFromDraft(form, repo, initial.base, light),
         draftKey: key,
       });
       refresh();
