@@ -88,15 +88,32 @@ test("saved setup uses the same guide with manual values, unknown pose and uncha
   await page
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();
+  await expect(
+    page.getByRole("img", { name: /Side projection/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Measurements & height view",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await page.screenshot({ path: "artifacts/recreation-first-view.png" });
+
   await page
     .getByRole("button", { name: "Mark step complete", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "Top view", exact: true }),
   ).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Measurements & height view", exact: true })
-    .click();
+  await expect(
+    page.getByRole("img", { name: /Side projection/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Measurements & height view",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await page.getByLabel("Distance now (cm)", { exact: true }).fill("180");
   await page.getByLabel("Height now (cm)", { exact: true }).fill("200");
   await expect(page.getByTestId("guide-cue")).toHaveText(
@@ -133,9 +150,15 @@ test("saved setup uses the same guide with manual values, unknown pose and uncha
   });
   await page.reload();
   await expect(page.getByText("STEP 2 OF 4", { exact: true })).toBeVisible();
-  await page
-    .getByRole("button", { name: "Measurements & height view", exact: true })
-    .click();
+  await expect(
+    page.getByRole("img", { name: /Side projection/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Measurements & height view",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await expect(page.getByLabel("Height now (cm)", { exact: true })).toHaveValue(
     "",
   );

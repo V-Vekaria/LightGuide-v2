@@ -1,4 +1,5 @@
 import React from "react";
+import { useDevice } from "../device/DeviceProvider";
 import {
   useWindowDimensions,
   Modal,
@@ -244,8 +245,51 @@ export function Screen({
   footer?: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { presentation, canCapture } = useDevice();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingVertical: 10,
+          backgroundColor: c.panel,
+          borderBottomWidth: 1,
+          borderBottomColor: c.border,
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={presentation.label}
+          onPress={() => {
+            if (pathname !== "/device") router.navigate("/device");
+          }}
+          style={{ minHeight: 44, justifyContent: "center", gap: 3 }}
+          testID="device-status"
+        >
+          <Text
+            accessibilityLiveRegion="polite"
+            style={{
+              color: presentation.warning ? c.warning : c.accent,
+              fontSize: 13,
+              fontWeight: "700",
+            }}
+          >
+            {presentation.label}
+          </Text>
+          {presentation.warning && (
+            <Text style={{ color: c.muted, fontSize: 12 }}>
+              {presentation.detail}
+            </Text>
+          )}
+        </Pressable>
+        {canCapture && pathname !== "/device" && pathname !== "/capture" && (
+          <Button
+            title="Save button received · open capture"
+            kind="secondary"
+            onPress={() => router.navigate("/capture?sensor=1")}
+          />
+        )}
+      </View>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{

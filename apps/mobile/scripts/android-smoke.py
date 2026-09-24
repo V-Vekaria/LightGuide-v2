@@ -114,7 +114,7 @@ try:
     if baseline.is_file():
         tap('LegacyUpgrade',scroll=True,contains=True)
         find('Recreate this version',scroll=True)
-        passed('v0.1.3 to v0.1.5 in-place upgrade retained saved setup')
+        passed('v0.1.3 to v0.1.6 in-place upgrade retained saved setup')
         adb('shell','input','keyevent','KEYCODE_BACK')
         # Home may retain its scroll position; relaunching gives a fresh Home.
         adb('shell','am','force-stop',PACKAGE)
@@ -124,6 +124,7 @@ try:
     tap('Connect LightGuide device', scroll=True)
     find('Connect LightGuide')
     find('Find LightGuide node')
+    find('Device not connected')
     passed('Home opens device connection screen')
     tap('← Back')
     find('Connect LightGuide device', scroll='up')
@@ -153,6 +154,14 @@ try:
         adb('shell','input','keyevent','KEYCODE_BACK')
     find('CodexNativeSmoke', node_class='android.widget.EditText')
     (OUT/'setup-entered.png').write_bytes(adb('exec-out','screencap','-p'))
+    tap('Add manual measurements',scroll=True)
+    for label, value in [('Distance to subject (cm)', '150'), ('Light height above floor (cm)', '180')]:
+        tap(label,scroll=True,node_class='android.widget.EditText')
+        adb('shell','input','text',value)
+        find(value,node_class='android.widget.EditText')
+        ime = adb('shell','dumpsys','input_method').decode(errors='replace')
+        if re.search(r'mInputShown=true\b|mIsInputViewShown=true\b', ime):
+            adb('shell','input','keyevent','KEYCODE_BACK')
     tap('Save setup',scroll=True)
     find('CodexNativeSmoke',contains=True)
     passed('save')
@@ -168,6 +177,10 @@ try:
     passed('offline reopen with saved setup')
     tap('Recreate this version',scroll=True)
     find('MANUAL RECREATION')
+    find('Light height — side view',scroll=True)
+    find('Side projection of light height and tilt. Horizontal spacing is illustrative.',scroll=True)
+    find('Device not connected')
+    passed('Recreation shows the saved diagram without an expand button and keeps device status visible')
     for step in range(1, 5):
         find(f'STEP {step} OF 4',scroll='up')
         tap('Mark step complete',scroll=True)
