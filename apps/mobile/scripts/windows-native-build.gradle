@@ -1,0 +1,19 @@
+// Local Windows init script; keeps generated C++ paths below Windows limits.
+// Usage: gradlew.bat ... --init-script ../scripts/windows-native-build.gradle
+def localData = System.getenv('LOCALAPPDATA')
+if (!localData) {
+    throw new GradleException('LOCALAPPDATA is required for the Windows native build')
+}
+gradle.beforeProject { project ->
+    ['com.android.application', 'com.android.library'].each { pluginId ->
+        project.plugins.withId(pluginId) {
+            def android = project.extensions.getByName('android')
+            android.externalNativeBuild.cmake.buildStagingDirectory =
+                new File(localData, 'lg22-cxx/' + project.name)
+            android.defaultConfig.externalNativeBuild.cmake.arguments.addAll([
+                '-DCMAKE_JOB_POOLS=compile_pool=2',
+                '-DCMAKE_JOB_POOL_COMPILE=compile_pool'
+            ])
+        }
+    }
+}
