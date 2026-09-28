@@ -24,6 +24,7 @@ test("phone Home cards stay above recent setups and resumed recreation", async (
 }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto("/");
+  await expect(page.getByRole("button", { name: "Save a setup", exact: true })).toBeVisible();
   const workspace = page.getByRole("button", {
     name: "Try a guided demo",
     exact: true,

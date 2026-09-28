@@ -38,6 +38,7 @@ test("London calendar rejects past and impossible dates, permits today and prese
   assert.equal(todayKey(new Date("2026-09-26T23:05:00Z")), "2026-09-27");
   assert.ok(dateError("20-09-2026", "2026-09-27"));
   assert.ok(dateError("31-09-2026", "2026-09-27"));
+  assert.ok(dateError("2026-09-27Tinvalid", "2026-09-27"));
   assert.equal(dateError("27-09-2026", "2026-09-27"), null);
   assert.equal(
     dateError("20-09-2026", "2026-09-27", scheduledAt("20-09-2026")),

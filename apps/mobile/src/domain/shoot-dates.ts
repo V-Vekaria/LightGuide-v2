@@ -12,7 +12,10 @@ export function todayKey(now = new Date()): string {
 }
 export function dateKey(value: string | null | undefined): string {
   if (!value) return "";
-  if (/^\d{4}-\d{2}-\d{2}T/.test(value)) return todayKey(new Date(value));
+  if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const parsed = new Date(value);
+    return Number.isFinite(parsed.getTime()) ? todayKey(parsed) : value;
+  }
   const uk = /^(\d{2})[-/](\d{2})[-/](\d{4})$/.exec(value);
   return uk ? `${uk[3]}-${uk[2]}-${uk[1]}` : value;
 }

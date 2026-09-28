@@ -50,3 +50,5 @@ Approved changes implemented for 0.1.4 / code 5: uncropped expandable/comparable
 ## Approved Android design — 28 September 2026
 
 Candidate 0.2.0 / code 7 ports the approved design and the user's shoot-date/navigation feedback. Source is on codex/approved-mobile-design. TypeScript and 52 local domain/SQLite tests pass, including historical-data preservation and rollback on invalid backup. APK installation, signing/update compatibility, browser regressions and visual comparison are still pending. Do not distribute as verified until the exact candidate passes. Hardware PRs #20 and #21 are separate and unchanged.
+
+Delivery [PR #22](https://github.com/V-Vekaria/LightGuide-v2/pull/22) remains draft: GitHub Actions failed before assigning runners or running build steps, including after one retry. No APK was produced. See the [validation and blocker record](validation/APPROVED_ANDROID_DESIGN_2026-09-28.md).
