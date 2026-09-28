@@ -52,3 +52,14 @@ Approved changes implemented for 0.1.4 / code 5: uncropped expandable/comparable
 Candidate 0.2.0 / code 7 ports the approved design and the user's shoot-date/navigation feedback. Source is on codex/approved-mobile-design. TypeScript and 52 local domain/SQLite tests pass, including historical-data preservation and rollback on invalid backup. APK installation, signing/update compatibility, browser regressions and visual comparison are still pending. Do not distribute as verified until the exact candidate passes. Hardware PRs #20 and #21 are separate and unchanged.
 
 Delivery [PR #22](https://github.com/V-Vekaria/LightGuide-v2/pull/22) remains draft: GitHub Actions failed before assigning runners or running build steps, including after one retry. No APK was produced. See the [validation and blocker record](validation/APPROVED_ANDROID_DESIGN_2026-09-28.md).
+
+Local continuation on 28 September: the connected phone is already on 0.1.6 /
+code 7, so the candidate advances to 0.2.0 / **code 8**. The installed signer
+matches the existing evaluation key. Local TypeScript, all 52 mobile tests,
+all 21 browser regressions, bundle exports, 412 legacy tests and 23 positioning
+tests pass; both positioning and mobile APKs build. The ARM64 mobile APK passes
+signature, installed-certificate comparison, package/version, bundle and alignment
+checks. The authorized in-place update to code 8 succeeded and a cold launch passed without logged runtime errors. Detailed saved-data and native screen acceptance remains pending.
+Windows test-harness fixes preserve
+application storage behavior. See the [local Android delivery record](validation/LOCAL_ANDROID_DELIVERY_2026-09-28.md)
+for exact artifact status, source identity, signing and remaining phone gates.

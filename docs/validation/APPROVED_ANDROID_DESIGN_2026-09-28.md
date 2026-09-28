@@ -2,6 +2,12 @@
 
 Delivery PR: https://github.com/V-Vekaria/LightGuide-v2/pull/22
 
+Follow-up: [local Android delivery](LOCAL_ANDROID_DELIVERY_2026-09-28.md)
+supersedes the environment/build blockers below where new evidence is recorded.
+The user confirms exhausted Actions minutes/storage. The local candidate is now
+code 8 because the connected phone already has 0.1.6/code 7. Retain this initial
+cloud-attempt record as history.
+
 ## Candidate and compatibility intent
 
 Version 0.2.0, Android versionCode 7, package `com.lightguide.codex`.

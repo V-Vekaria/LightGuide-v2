@@ -1,5 +1,16 @@
 # LightGuide — Validation Log
 
+## 28 September 2026 — Local PR #22 Android delivery
+
+[Local delivery evidence](LOCAL_ANDROID_DELIVERY_2026-09-28.md) records passing
+TypeScript, 52 mobile/SQLite tests, 21 browser regressions, web/Android exports,
+412 legacy tests (one existing skip), and 23 positioning tests plus its APK.
+The installed phone is 0.1.6/code 7; the candidate is advanced to code 8 and its
+evaluation signer matches the installed certificate. The local ARM64 mobile build
+passes signature, package/version, embedded-bundle and alignment verification;
+its checksum is recorded in the delivery report. This records software and
+read-only identity checks, not installation or physical acceptance.
+
 ## Purpose
 This is the evidence record for LightGuide. Product and engineering documents may contain hypotheses; this file records what was actually tested, observed and concluded.
 
