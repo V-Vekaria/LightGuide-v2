@@ -247,3 +247,14 @@ Port the user-approved dark navy/mint design into the existing Expo Android app.
 Shoot dates use Europe/London calendar days. New past dates are rejected in both UI and repository. Existing historical dates remain editable unchanged; elapsed plans appear in Completed as Date passed until the photographer confirms completion. Date-only plans are stored at noon UTC in the existing scheduled_at column. Planning metadata uses local_settings; no destructive database migration is required.
 
 Workspace backup exports domain rows and optimised photographs, with a fixed table allowlist, photo checksums and transactional record restoration after explicit confirmation. It is a native-app backup format separate from the browser design prototype. Size limits and original-resolution exclusion are shown in the UI. No cloud service or new live-sensing claim is introduced.
+
+## ADR-021 — Visible recreation guidance and app-owned device session
+
+**Date:** 2026-09-24
+**Status:** Implemented; Android release verification pending.
+
+Show the existing recreation diagram and saved/current measurements directly, ahead of detailed instructions. Missing pose stays unknown and manual side-view spacing remains illustrative. Keep the large-text fallback and immutable saved targets.
+
+A root DeviceProvider owns one foreground BLE controller; navigating away from the device screen only removes a subscriber. Shared screen chrome distinguishes connected/fresh readings, waiting, stopped readings and disconnection. Freshness uses the existing one-second threshold. Capture reuses the existing validated pending-snapshot path. App backgrounding is not a promise of background BLE support.
+
+No storage migration, protocol revision, dependency or physical-validation claim is introduced. See [implementation evidence](validation/DEVICE_WORKFLOW_UX_2026-09-24.md).

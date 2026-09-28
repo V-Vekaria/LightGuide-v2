@@ -1,57 +1,157 @@
-import React,{useEffect,useReducer,useRef,useState} from "react";
-import {View} from "react-native";
-import {router} from "expo-router";
-import {Badge,Body,Button,Card,ErrorMessage,Heading,Label,Screen,s} from "../src/ui/components";
-import {LightGuideBleTransport,bluetoothError,type DiscoveredNode} from "../src/device/ble";
-import {initialDeviceSession,reduceDeviceSession,shouldHandleSaveEvent} from "../src/device/session";
-import {setPendingDeviceSnapshot} from "../src/device/pending-snapshot";
-import type {DeviceEvent} from "../src/device/protocol";
+import React from "react";
+import { View } from "react-native";
+import { router } from "expo-router";
+import {
+  Badge,
+  Body,
+  Button,
+  Card,
+  ErrorMessage,
+  Heading,
+  Label,
+  Screen,
+  s,
+} from "../src/ui/components";
+import { useDevice } from "../src/device/DeviceProvider";
 
-export default function DeviceScreen(){
- const transport=useRef<LightGuideBleTransport|null>(null);
- const [state,dispatch]=useReducer(reduceDeviceSession,undefined,initialDeviceSession);
- const stateRef=useRef(state); stateRef.current=state;
- const [nodes,setNodes]=useState<DiscoveredNode[]>([]);
- const [notice,setNotice]=useState<string|null>(null);
- useEffect(()=>{transport.current=new LightGuideBleTransport();return()=>transport.current?.destroy();},[]);
- const scan=async()=>{
-  setNotice(null);setNodes([]);
-  try{
-   if(!await transport.current!.requestPermissions()){dispatch({type:"failed",message:"Bluetooth permission is required to find your LightGuide node."});return;}
-   dispatch({type:"scan_started"});
-   transport.current!.scan(node=>setNodes(old=>old.some(x=>x.id===node.id)?old:[...old,node]),message=>dispatch({type:"failed",message}));
-  }catch(e){dispatch({type:"failed",message:bluetoothError(e)});}
- };
- const event=(value:DeviceEvent)=>{
-  const before=stateRef.current;
-  const shouldSave=shouldHandleSaveEvent(before,value,Date.now());
-  dispatch({type:"event",value});
-  if(shouldSave&&before.measurement&&before.deviceInfo){
-   setPendingDeviceSnapshot({measurement:before.measurement,info:before.deviceInfo,receivedAt:before.measurementReceivedAt!});
-   setNotice("Save button received. A fresh sensor snapshot is ready in setup capture.");
-  }
- };
- const connect=async(node:DiscoveredNode)=>{
-  const sessionId=Date.now().toString(36)+"-"+node.id;dispatch({type:"connecting",sessionId});
-  try{
-   dispatch({type:"subscribing"});
-   const result=await transport.current!.connect(node.id,{
-    onMeasurement:value=>dispatch({type:"measurement",value,receivedAt:Date.now()}),
-    onStatus:value=>dispatch({type:"status",value}),
-    onEvent:event,
-    onDisconnected:message=>{dispatch({type:"disconnected"});if(message)setNotice(message);},
-   });
-   dispatch({type:"connected",info:result.info,status:result.status});
-  }catch(e){dispatch({type:"failed",message:bluetoothError(e)});}
- };
- return <Screen back title="Connect LightGuide" subtitle="Find the ESP32-S3 node and view live Device Protocol v2 readings.">
-  <ErrorMessage message={state.error}/>
-  <View style={s.row}><Badge>{state.phase.toUpperCase()}</Badge>{state.deviceInfo&&<Body muted>{state.deviceInfo.device_id} · firmware {state.deviceInfo.fw}</Body>}</View>
-  {state.phase!=="connected"&&<Button title={state.phase==="scanning"?"Scan again":"Find LightGuide node"} onPress={scan}/>}
-  {nodes.map(node=><Card key={node.id}><Label>LIGHTGUIDE NODE</Label><Heading>{node.name}</Heading><Body muted>{node.rssi==null?"Signal unknown":`Signal ${node.rssi} dBm`}</Body><Button title="Connect" onPress={()=>connect(node)}/></Card>)}
-  {state.phase==="scanning"&&nodes.length===0&&<Card><Heading>Looking for LightGuide…</Heading><Body muted>The app filters by the LightGuide service UUID, not the BLE address.</Body></Card>}
-  {state.phase==="connected"&&<Card><Label>LIVE SENSOR SNAPSHOT</Label><Heading>{state.measurement?.tof_valid?`${state.measurement.distance_mm} mm`:"Distance unavailable"}</Heading><Body>Roll {state.measurement?.imu_valid?state.measurement.roll_deg.toFixed(1)+"°":"—"} · Pitch {state.measurement?.imu_valid?state.measurement.pitch_deg.toFixed(1)+"°":"—"} · Yaw {state.measurement?.imu_valid?state.measurement.yaw_deg.toFixed(1)+"°":"—"}</Body><Body muted>Spectral {state.measurement?.spectral_valid?`13 gain-normalised channels · gain ${state.measurement.spectral_gain}×`:"unavailable"}</Body><Body muted>Status: {state.status?.state??"unknown"}</Body><View style={s.row}><Button kind="secondary" title="Refresh status" onPress={()=>transport.current?.requestStatus().catch(e=>dispatch({type:"failed",message:bluetoothError(e)}))}/><Button kind="secondary" title="Disconnect" onPress={()=>transport.current?.disconnect().then(()=>dispatch({type:"disconnected"}))}/></View></Card>}
-  {notice&&<Card><Heading>Device event</Heading><Body>{notice}</Body>{state.measurement&&<Button title="Open setup capture" onPress={()=>router.push("/capture?sensor=1")}/>}</Card>}
-  <Card><Body muted>Physical BLE, calibration and ±3 cm accuracy remain unverified until tested with the actual phone and ESP32.</Body></Card>
- </Screen>;
+export default function DeviceScreen() {
+  const {
+    session: state,
+    nodes,
+    notice,
+    canCapture,
+    controller,
+    presentation,
+  } = useDevice();
+  const busy = state.phase === "connecting" || state.phase === "subscribing";
+  const measurement = presentation.fresh ? state.measurement : null;
+  return (
+    <Screen
+      back
+      title="Connect LightGuide"
+      subtitle="Connect your node to receive sensor readings while you use the app."
+    >
+      <ErrorMessage message={state.error} />
+      <View style={s.row}>
+        <Badge tone={presentation.warning ? "warning" : "accent"}>
+          {state.phase.toUpperCase()}
+        </Badge>
+        {state.deviceInfo && (
+          <Body muted>
+            {state.deviceInfo.device_id} · firmware {state.deviceInfo.fw}
+          </Body>
+        )}
+      </View>
+      {state.phase !== "connected" && (
+        <Button
+          title={
+            state.phase === "scanning" ? "Scan again" : "Find LightGuide node"
+          }
+          disabled={busy}
+          onPress={() => void controller.scan()}
+        />
+      )}
+      {state.phase !== "connected" &&
+        nodes.map((node) => (
+          <Card key={node.id}>
+            <Label>LIGHTGUIDE NODE</Label>
+            <Heading>{node.name}</Heading>
+            <Body muted>
+              {node.rssi == null ? "Signal unknown" : `Signal ${node.rssi} dBm`}
+            </Body>
+            <Button
+              title={busy ? "Connecting…" : "Connect"}
+              disabled={busy}
+              onPress={() => void controller.connect(node)}
+            />
+          </Card>
+        ))}
+      {state.phase === "scanning" && nodes.length === 0 && (
+        <Card>
+          <Heading>Looking for LightGuide…</Heading>
+          <Body muted>
+            Keep your powered-on node nearby. Scanning takes up to 10 seconds.
+          </Body>
+        </Card>
+      )}
+      {state.phase === "connected" && (
+        <Card>
+          <Label>
+            {presentation.fresh
+              ? "LIVE SENSOR SNAPSHOT"
+              : "WAITING FOR FRESH READINGS"}
+          </Label>
+          {!presentation.fresh && <Body>{presentation.detail}</Body>}
+          <Heading>
+            {measurement?.tof_valid
+              ? `${measurement.distance_mm} mm`
+              : "Distance unavailable"}
+          </Heading>
+          <Body>
+            Roll{" "}
+            {measurement?.imu_valid
+              ? measurement.roll_deg.toFixed(1) + "°"
+              : "—"}{" "}
+            · Pitch{" "}
+            {measurement?.imu_valid
+              ? measurement.pitch_deg.toFixed(1) + "°"
+              : "—"}{" "}
+            · Yaw{" "}
+            {measurement?.imu_valid
+              ? measurement.yaw_deg.toFixed(1) + "°"
+              : "—"}
+          </Body>
+          <Body muted>
+            Spectral{" "}
+            {measurement?.spectral_valid
+              ? `13 gain-normalised channels · gain ${measurement.spectral_gain}×`
+              : "unavailable"}
+          </Body>
+          <Body muted>Status: {state.status?.state ?? "unknown"}</Body>
+          {state.status?.error && <Body>{state.status.error}</Body>}
+          <Body muted>
+            You can return Home. The device stays connected while you use the
+            app. Closing the app may end the connection.
+          </Body>
+          <Button
+            title="Capture these readings"
+            disabled={!presentation.fresh}
+            onPress={() => {
+              if (controller.captureSnapshot())
+                router.push("/capture?sensor=1");
+            }}
+          />
+          <View style={s.row}>
+            <Button
+              kind="secondary"
+              title="Refresh status"
+              onPress={() => void controller.refreshStatus()}
+            />
+            <Button
+              kind="secondary"
+              title="Disconnect"
+              onPress={() => void controller.disconnect()}
+            />
+          </View>
+        </Card>
+      )}
+      {notice && (
+        <Card>
+          <Body>{notice}</Body>
+          {canCapture && (
+            <Button
+              title="Open setup capture"
+              onPress={() => router.push("/capture?sensor=1")}
+            />
+          )}
+        </Card>
+      )}
+      <Card>
+        <Body muted>
+          Sensor connection does not establish stand position or calibrated
+          accuracy. Recreation diagrams show saved or manually entered values.
+        </Body>
+      </Card>
+    </Screen>
+  );
 }

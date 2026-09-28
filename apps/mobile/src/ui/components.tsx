@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, usePathname } from "expo-router";
 import { colors as c } from "./theme";
+import { useDevice } from "../device/DeviceProvider";
 
 export function Label({ children }: { children: React.ReactNode }) {
   return <Text style={s.label}>{children}</Text>;
@@ -255,6 +256,7 @@ export function Screen({
   footer?: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { presentation, canCapture } = useDevice();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
       <View
@@ -291,7 +293,11 @@ export function Screen({
           onPress={() => router.navigate("/device")}
           style={{ padding: 10 }}
         >
-          <Feather name="bluetooth" size={21} color={c.muted} />
+          <Feather
+            name="bluetooth"
+            size={21}
+            color={presentation.fresh ? c.accent : c.muted}
+          />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -302,6 +308,48 @@ export function Screen({
         >
           <Feather name="settings" size={21} color={c.muted} />
         </Pressable>
+      </View>
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingBottom: 6,
+          borderBottomWidth: 1,
+          borderColor: c.border,
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={presentation.label}
+          accessibilityHint={presentation.detail}
+          testID="device-status"
+          onPress={() => {
+            if (pathname !== "/device") router.navigate("/device");
+          }}
+          style={{ minHeight: 44, justifyContent: "center", gap: 3 }}
+        >
+          <Text
+            accessibilityLiveRegion="polite"
+            style={{
+              color: presentation.warning ? c.warning : c.accent,
+              fontSize: 13,
+              fontWeight: "700",
+            }}
+          >
+            {presentation.label}
+          </Text>
+          {presentation.warning && (
+            <Text style={{ color: c.muted, fontSize: 12 }}>
+              {presentation.detail}
+            </Text>
+          )}
+        </Pressable>
+        {canCapture && pathname !== "/device" && pathname !== "/capture" && (
+          <Button
+            title="Save button received · open capture"
+            kind="secondary"
+            onPress={() => router.navigate("/capture?sensor=1")}
+          />
+        )}
       </View>
       <ScrollView
         keyboardShouldPersistTaps="handled"

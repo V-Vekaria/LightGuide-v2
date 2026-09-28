@@ -108,6 +108,18 @@ test("manual recreation preserves readings and camera entries across all four st
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();
   await page.getByRole("button", { name: "Lights", exact: true }).click();
+  await expect(
+    page.getByRole("img", { name: /Side projection/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Measurements & height view",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByTestId("device-status").filter({ visible: true }),
+  ).toContainText("Device not connected");
   await page.getByLabel("Distance now (cm)", { exact: true }).fill("180");
   await page.getByLabel("Height now (cm)", { exact: true }).fill("200");
   await expect(page.getByTestId("guide-cue")).toHaveText(

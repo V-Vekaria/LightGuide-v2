@@ -85,3 +85,31 @@ test("Home opens the device connection screen and returns", async ({
     page.getByRole("button", { name: "Connect LightGuide device" }),
   ).toBeVisible();
 });
+
+// The status control stays outside the scrollable content on every screen.
+test("device status remains available through the photographer workflow", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(
+    page.getByTestId("device-status").filter({ visible: true }),
+  ).toContainText("Device not connected");
+  await page.getByRole("button", { name: "Save a setup", exact: true }).click();
+  await page.getByLabel("Setup name", { exact: true }).fill("Keep my draft");
+  await page.getByTestId("device-status").filter({ visible: true }).click();
+  await expect(page).toHaveURL(/\/device$/);
+  await page
+    .getByRole("button", { name: "Find LightGuide node", exact: true })
+    .click();
+  await expect(
+    page.getByTestId("device-status").filter({ visible: true }),
+  ).toContainText("Device connection error");
+  await page.getByRole("button", { name: "← Back", exact: true }).click();
+  await expect(page.getByLabel("Setup name", { exact: true })).toHaveValue(
+    "Keep my draft",
+  );
+  await expect(
+    page.getByTestId("device-status").filter({ visible: true }),
+  ).toContainText("Device connection error");
+});

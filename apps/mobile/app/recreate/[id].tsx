@@ -17,6 +17,7 @@ import {
   Screen,
   s,
 } from "../../src/ui/components";
+import { LightDiagram } from "../../src/ui/RecreationGuide";
 import { StepNav } from "../../src/ui/StepNav";
 import { colors as c } from "../../src/ui/theme";
 import {
@@ -340,6 +341,13 @@ function RecreationFlow({
                 : "No saved light"}
             </Body>
           </View>
+          <Body muted>Light height — side view</Body>
+          <LightDiagram
+            saved={saved}
+            current={current}
+            side
+            simulated={false}
+          />
           <Body muted>Manual readings</Body>
           {pair}
           <View

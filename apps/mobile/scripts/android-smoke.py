@@ -124,6 +124,7 @@ try:
     tap('Connect LightGuide device', scroll=True)
     find('Connect LightGuide')
     find('Find LightGuide node')
+    find('Device not connected')
     passed('Home opens device connection screen')
     tap('← Back')
     find('Connect LightGuide device', scroll='up')
