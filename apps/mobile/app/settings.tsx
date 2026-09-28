@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import React, { useState } from "react";
 import Constants from "expo-constants";
 import { Linking, Platform } from "react-native";
@@ -24,6 +25,10 @@ export default function Settings() {
       subtitle={`LightGuide ${Constants.expoConfig?.version ?? "unknown"} · ${Platform.OS === "web" ? "Browser preview" : "Build " + (Constants.nativeBuildVersion ?? "unknown")} · Offline prototype`}
     >
       <ErrorMessage message={error} />
+      <Button
+        title="Backup and restore"
+        onPress={() => router.push("/backup")}
+      />
       <Card>
         <Badge>LOCAL WORKSPACE</Badge>
         <Heading>Storage and privacy</Heading>
@@ -56,11 +61,12 @@ export default function Settings() {
         <Heading>Positioning and sensors</Heading>
         <Body>
           Use your saved photos and manually entered readings to recreate a
-          setup. Connect a Protocol v2 node from Home for live sensor readings. Automatic spatial tracking remains unverified.
+          setup. Connect a Protocol v2 node from Home for live sensor readings.
+          Automatic spatial tracking remains unverified.
         </Body>
         <Body muted>
-          The guided demo is practice only; it does not use the node or
-          measure accuracy.
+          The guided demo is practice only; it does not use the node or measure
+          accuracy.
         </Body>
         <Button
           title="Open Android measurement app instructions"

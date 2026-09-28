@@ -15,13 +15,13 @@ import {
 
 // Shared by the pitch demonstration and actual manual recreation.
 export const guideColors = {
-  bg: "#F3F4F1",
-  surface: "#FFFFFF",
-  ink: "#142B31",
-  muted: "#52686C",
-  line: "#D1DEDC",
-  accent: "#117668",
-  soft: "#E0F2EC",
+  bg: "#0C131A",
+  surface: "#141F29",
+  ink: "#F0F5F4",
+  muted: "#9EB0BB",
+  line: "#293D4B",
+  accent: "#B5F0D5",
+  soft: "#203B34",
 };
 const c = guideColors;
 export function GuideButton({

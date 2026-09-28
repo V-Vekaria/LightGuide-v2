@@ -1,5 +1,14 @@
-import React, { useState, useCallback } from "react";
-import { Pressable, Text, View, useWindowDimensions } from "react-native";
+import { Welcome } from "../src/ui/Welcome";
+import Feather from "@expo/vector-icons/Feather";
+import { todayKey, shootState, dateKey } from "../src/domain/shoot-dates";
+import React, { useState, useCallback, useEffect } from "react";
+import {
+  Pressable,
+  Text,
+  View,
+  useWindowDimensions,
+  AppState,
+} from "react-native";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useStore } from "../src/ui/Store";
 import {
@@ -19,7 +28,7 @@ import {
 import { colors as c } from "../src/ui/theme";
 import type { Setup } from "../src/data/repository";
 
-const tabs = ["Home", "Shoots", "Create", "Setups", "Equipment"] as const;
+const tabs = ["Home", "Setups", "Shoots", "Equipment"] as const;
 export default function Home() {
   const { repo, refresh } = useStore();
   useFocusEffect(
@@ -31,9 +40,26 @@ export default function Home() {
   const wideLayout = width >= 760 && fontScale <= 1.3;
   const params = useLocalSearchParams<{ tab?: string }>();
   const tab = tabs.find((t) => t === params.tab) ?? "Home";
+  const [welcomed, setWelcomed] = useState(
+    () =>
+      repo.setting("welcome-seen", false) ||
+      repo.setups().length > 0 ||
+      Boolean(repo.draft("capture:new")),
+  );
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState<"active" | "archive" | "trash">("active"),
     [error, setError] = useState<string | null>(null);
+  const [shootFilter, setShootFilter] = useState("Upcoming");
+  const [today, setToday] = useState(todayKey);
+  useEffect(() => {
+    const refreshDate = () => setToday(todayKey());
+    const t = setInterval(refreshDate, 30000);
+    const sub = AppState.addEventListener("change", refreshDate);
+    return () => {
+      clearInterval(t);
+      sub.remove();
+    };
+  }, []);
   const [equipmentQuery, setEquipmentQuery] = useState("");
   const [equipmentType, setEquipmentType] = useState("all");
   const equipment = repo
@@ -68,14 +94,15 @@ export default function Home() {
           accessibilityState={{ selected: tab === t }}
           onPress={() => {
             if (t === tab) return;
-            if (t === "Create") router.navigate("/capture");
-            else router.setParams({ tab: t });
+            router.setParams({ tab: t });
           }}
           style={{ alignItems: "center", gap: 5, padding: 7 }}
         >
-          <Text style={{ color: tab === t ? c.accent : c.muted, fontSize: 18 }}>
-            {["⌂", "▦", "＋", "▤", "◇"][i]}
-          </Text>
+          <Feather
+            name={(["home", "grid", "calendar", "briefcase"] as const)[i]}
+            size={21}
+            color={tab === t ? c.accent : c.muted}
+          />
           <Text
             style={{
               color: tab === t ? c.accent : c.muted,
@@ -120,16 +147,17 @@ export default function Home() {
       </Body>
     </Card>
   );
+  if (!welcomed) return <Welcome onDone={() => setWelcomed(true)} />;
   return (
     <Screen
       title={
         tab === "Home"
-          ? "Your next shoot, remembered."
+          ? "Ready for your next shoot?"
           : tab === "Setups"
-            ? "Your setup library."
+            ? "Saved setups"
             : tab === "Shoots"
-              ? "Make room for the shoot."
-              : "Know your equipment."
+              ? "Shoots"
+              : "Equipment"
       }
       subtitle={
         tab === "Home"
@@ -149,73 +177,17 @@ export default function Home() {
             <Badge>OFFLINE READY</Badge>
             <Body muted>Saved on this device</Body>
           </View>
-          <Card>
-            <Label>LIGHTGUIDE NODE</Label>
-            <Heading>Connect your device</Heading>
-            <Body muted>
-              Scan for a Protocol v2 ESP32-S3 node to view live readings. The
-              node needs the matching BLE firmware; physical connection is not
-              verified yet.
-            </Body>
-            <Button
-              title="Connect LightGuide device"
-              onPress={() => router.push("/device")}
-            />
-          </Card>
-          <View style={wideLayout ? s.split : { gap: 4 }}>
-            <View style={wideLayout ? [s.column, { flex: 1.4 }] : {}}>
-              <Card
-                style={{
-                  backgroundColor: "#183B33",
-                  borderColor: "#326052",
-                  padding: 26,
-                }}
-              >
-                <Label>MEASURE · SAVE · RECREATE</Label>
-                <Text
-                  style={{
-                    fontSize: 29,
-                    color: c.text,
-                    fontWeight: "600",
-                    lineHeight: 35,
-                  }}
-                >
-                  Good lighting deserves{"\n"}a second take.
-                </Text>
-                <Body style={{ color: "#B9D3C8" }}>
-                  Save a photo and your lighting notes. Recreate them with
-                  manual checks, or connect a Protocol v2 node for live readings.
-                </Body>
-                <View style={s.row}>
-                  <Button
-                    title="Save a setup"
-                    onPress={() => router.push("/capture")}
-                  />
-                  <Button
-                    title="Try a guided demo"
-                    kind="secondary"
-                    onPress={() => router.push("/simulation")}
-                  />
-                </View>
-              </Card>
-            </View>
-            <Card
-              style={wideLayout ? [s.column, { justifyContent: "center" }] : {}}
-            >
-              <Label>YOUR WORKSPACE</Label>
-              <Text style={{ fontSize: 44, color: c.text, fontWeight: "600" }}>
-                {setups.length.toString().padStart(2, "0")}
-              </Text>
-              <Body muted>
-                active setups ·{" "}
-                {attempts.filter((a) => a.status === "completed").length}{" "}
-                recreations recorded
-              </Body>
-              <Body muted>
-                Use Connect LightGuide device above to find your node.
-              </Body>
-            </Card>
-          </View>
+          <Button
+            title="Save a setup"
+            onPress={() => router.push("/capture")}
+          />
+          <View style={{ height: 12 }} />
+          <Button
+            title="Try a guided demo"
+            kind="secondary"
+            onPress={() => router.push("/simulation")}
+          />
+          <View style={{ height: 24 }} />
           {draft && (
             <Card>
               <Badge tone="warning">UNFINISHED CAPTURE</Badge>
@@ -316,7 +288,7 @@ export default function Home() {
       {tab === "Equipment" && (
         <>
           <Card>
-            <Heading>How your inventory works</Heading>
+            <Heading>Your equipment, ready to use</Heading>
             <Body>
               Add one record for each item you own. When saving a setup, select
               the equipment used so you can remember it during recreation.
@@ -389,25 +361,45 @@ export default function Home() {
         <>
           <Button title="Plan a shoot" onPress={() => router.push("/shoot")} />
           <View style={{ height: 20 }} />
-          {repo.shoots().map((shoot) => (
-            <Card
-              key={shoot.id}
-              onPress={() =>
-                router.push({ pathname: "/shoot", params: { id: shoot.id } })
-              }
-            >
-              <Badge>{shoot.status}</Badge>
-              <Heading>{shoot.name}</Heading>
-              <Body muted>
-                {shoot.category} ·{" "}
-                {
-                  repo.recreations().filter((a) => a.shoot_id === shoot.id)
-                    .length
-                }{" "}
-                recreation attempts
-              </Body>
-            </Card>
-          ))}
+          <Choice
+            options={["Upcoming", "Completed"]}
+            value={shootFilter}
+            onChange={setShootFilter}
+          />
+          <View style={{ height: 16 }} />
+          {shootFilter === "Completed" && (
+            <Body muted>
+              Past plans appear here as Date passed. Mark a shoot completed when
+              it actually took place.
+            </Body>
+          )}
+          {repo
+            .shoots()
+            .filter(
+              (shoot) =>
+                (shootState(shoot, today) === "Planned") ===
+                (shootFilter === "Upcoming"),
+            )
+            .map((shoot) => (
+              <Card
+                key={shoot.id}
+                onPress={() =>
+                  router.push({ pathname: "/shoot", params: { id: shoot.id } })
+                }
+              >
+                <Badge>{shootState(shoot, today)}</Badge>
+                <Heading>{shoot.name}</Heading>
+                <Body muted>
+                  {shoot.scheduled_at ? dateKey(shoot.scheduled_at) : "No date"}{" "}
+                  · {shoot.category} ·{" "}
+                  {
+                    repo.recreations().filter((a) => a.shoot_id === shoot.id)
+                      .length
+                  }{" "}
+                  recreation attempts
+                </Body>
+              </Card>
+            ))}
           {repo.shoots().length === 0 && (
             <Card>
               <Heading>Space for your next idea.</Heading>

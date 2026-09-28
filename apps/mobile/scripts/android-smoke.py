@@ -114,7 +114,7 @@ try:
     if baseline.is_file():
         tap('LegacyUpgrade',scroll=True,contains=True)
         find('Recreate this version',scroll=True)
-        passed('v0.1.3 to v0.1.5 in-place upgrade retained saved setup')
+        passed('v0.1.3 to v0.2.0 in-place upgrade retained saved setup')
         adb('shell','input','keyevent','KEYCODE_BACK')
         # Home may retain its scroll position; relaunching gives a fresh Home.
         adb('shell','am','force-stop',PACKAGE)
@@ -168,18 +168,22 @@ try:
     passed('offline reopen with saved setup')
     tap('Recreate this version',scroll=True)
     find('MANUAL RECREATION')
-    for step in range(1, 5):
-        find(f'STEP {step} OF 4',scroll='up')
-        tap('Mark step complete',scroll=True)
-        if step < 4:
-            find(f'STEP {step + 1} OF 4',scroll='up')
-        else:
-            find('Steps completed',scroll='up')
-        passed(f'manual recreation step {step}')
-    tap('not evaluated',scroll=True)
+    tap('Lights',scroll='up')
+    tap('Height now (cm)',node_class='android.widget.EditText')
+    adb('shell','input','text','175')
+    ime=adb('shell','dumpsys','input_method').decode(errors='replace')
+    if re.search(r'mInputShown=true\b|mIsInputViewShown=true\b',ime): adb('shell','input','keyevent','KEYCODE_BACK')
+    tap('Camera',scroll='up')
+    tap('Lights',scroll='up')
+    find('175',node_class='android.widget.EditText')
+    passed('Camera to Lights navigation retains manual reading')
+    tap('Reference',scroll='up')
+    find('Use the same reference point',scroll=True)
+    tap('Check',scroll='up')
+    tap('Not evaluated',scroll=True)
     passed('explicit unevaluated outcome selected')
-    tap('Finish and record outcome',scroll=True)
-    find('Recreation recorded.',contains=True)
+    tap('Save assessment',scroll=True)
+    find('Assessment saved',contains=True)
     passed('manual recreate and record outcome')
     (OUT/'completed.png').write_bytes(adb('exec-out','screencap','-p'))
     (OUT/'result.txt').write_text('PASS: install, launch, save, offline force-stop/restart, manual recreation outcome.\n')
@@ -202,3 +206,4 @@ finally:
             adb('shell','svc',service,'enable')
         except Exception as error:
             print(f'Could not restore {service}: {error}', flush=True)
+

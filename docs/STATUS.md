@@ -45,3 +45,8 @@ The demo-style recreation branch adds a shared visual workspace for manual recre
 ## Photographer usability — 18 September 2026
 
 Approved changes implemented for 0.1.4 / code 5: uncropped expandable/comparable photos, photo-first manual guidance, direct practice entry, library thumbnails, fraction-friendly camera capture, inventory return and explicit outcomes. SQLite v2 upgrade preserves existing records; one-time unfinished assessment reconfirmation replaces the earlier default. Exact CI/APK state is tracked in the delivery PR and [validation report](validation/PHOTOGRAPHER_UX_2026-09-18.md). This entry is implementation status, not a claim that a physical phone or live sensing has passed.
+
+
+## Approved Android design — 28 September 2026
+
+Candidate 0.2.0 / code 7 ports the approved design and the user's shoot-date/navigation feedback. Source is on codex/approved-mobile-design. TypeScript and 52 local domain/SQLite tests pass, including historical-data preservation and rollback on invalid backup. APK installation, signing/update compatibility, browser regressions and visual comparison are still pending. Do not distribute as verified until the exact candidate passes. Hardware PRs #20 and #21 are separate and unchanged.

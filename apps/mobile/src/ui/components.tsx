@@ -1,4 +1,5 @@
 import React from "react";
+import Feather from "@expo/vector-icons/Feather";
 import {
   useWindowDimensions,
   Modal,
@@ -32,8 +33,18 @@ export function Body({
     <Text style={[s.body, muted && { color: c.muted }, style]}>{children}</Text>
   );
 }
-export function Heading({ children }: { children: React.ReactNode }) {
-  return <Text style={s.heading}>{children}</Text>;
+export function Heading({
+  children,
+  testID,
+}: {
+  children: React.ReactNode;
+  testID?: string;
+}) {
+  return (
+    <Text accessibilityRole="header" testID={testID} style={s.heading}>
+      {children}
+    </Text>
+  );
 }
 export function Badge({
   children,
@@ -246,68 +257,74 @@ export function Screen({
   const pathname = usePathname();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          padding: 24,
-          paddingBottom: 40,
-          alignSelf: "center",
-          width: "100%",
-          maxWidth: 1080,
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          minHeight: 56,
+          gap: 12,
+          borderBottomWidth: 1,
+          borderColor: c.border,
         }}
       >
         {back && (
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="← Back"
             onPress={() =>
               router.canGoBack() ? router.back() : router.replace("/")
             }
-            style={{ paddingVertical: 12 }}
+            style={{ padding: 10 }}
           >
-            <Text style={{ color: c.accent }}>← Back</Text>
+            <Feather name="arrow-left" size={22} color={c.text} />
           </Pressable>
         )}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 32,
-          }}
+        <Text
+          style={{ color: c.text, fontSize: 18, fontWeight: "700", flex: 1 }}
         >
-          <Text
-            style={{
-              color: c.text,
-              fontSize: 18,
-              fontWeight: "700",
-              letterSpacing: -0.5,
-            }}
-          >
-            ◈ LIGHTGUIDE
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            accessibilityState={{ disabled: pathname === "/settings" }}
-            disabled={pathname === "/settings"}
-            onPress={() => {
-              if (pathname !== "/settings") router.navigate("/settings");
-            }}
-          >
-            <Text style={{ color: c.muted }}>Settings ↗</Text>
-          </Pressable>
-        </View>
-        <Text accessibilityRole="header" style={s.title}>
-          {title}
+          {back ? "LightGuide" : "LightGuide"}
         </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Connect LightGuide device"
+          onPress={() => router.navigate("/device")}
+          style={{ padding: 10 }}
+        >
+          <Feather name="bluetooth" size={21} color={c.muted} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          disabled={pathname === "/settings"}
+          onPress={() => router.navigate("/settings")}
+          style={{ padding: 10 }}
+        >
+          <Feather name="settings" size={21} color={c.muted} />
+        </Pressable>
+      </View>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          padding: 20,
+          paddingBottom: 32,
+          alignSelf: "center",
+          width: "100%",
+          maxWidth: 720,
+        }}
+      >
+        {title ? (
+          <Text accessibilityRole="header" style={s.title}>
+            {title}
+          </Text>
+        ) : null}
         {subtitle && (
           <Text
             style={{
               color: c.muted,
-              lineHeight: 23,
+              lineHeight: 22,
               marginTop: 8,
-              marginBottom: 24,
-              maxWidth: 650,
+              marginBottom: 20,
             }}
           >
             {subtitle}
@@ -319,6 +336,7 @@ export function Screen({
     </SafeAreaView>
   );
 }
+
 export { PhotoPreview as Photo, PhotoComparison } from "./PhotoViewer";
 export function Confirm({
   title,
@@ -356,8 +374,8 @@ export function Confirm({
 }
 export const s = StyleSheet.create({
   title: {
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 28,
+    lineHeight: 34,
     color: c.text,
     fontWeight: "700",
     letterSpacing: -1,
@@ -376,8 +394,8 @@ export const s = StyleSheet.create({
     backgroundColor: c.panel,
     borderColor: c.border,
     borderWidth: 1,
-    borderRadius: 18,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 16,
     gap: 12,
   },
@@ -389,7 +407,7 @@ export const s = StyleSheet.create({
   },
   button: {
     borderRadius: 12,
-    minHeight: 46,
+    minHeight: 48,
     paddingHorizontal: 18,
     paddingVertical: 12,
     alignItems: "center",

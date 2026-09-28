@@ -1,4 +1,23 @@
 import { test, expect } from "@playwright/test";
+// Existing field-level regressions use the full-form accessibility option.
+test.beforeEach(async ({ page }) => {
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Explore workspace", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Explore workspace", exact: true })
+        .click();
+    },
+  );
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Show all fields", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Show all fields", exact: true })
+        .click();
+    },
+  );
+});
 
 test("pitch demo: save, move, six corrections, connection failures and side view", async ({
   page,
@@ -69,7 +88,7 @@ test("pitch demo: save, move, six corrections, connection failures and side view
   expect(errors).toEqual([]);
 });
 
-test("saved setup uses the same guide with manual values, unknown pose and unchanged historical target", async ({
+test("manual recreation preserves readings and camera entries across all four steps and restart", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -88,15 +107,7 @@ test("saved setup uses the same guide with manual values, unknown pose and uncha
   await page
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Mark step complete", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Top view", exact: true }),
-  ).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Measurements & height view", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Lights", exact: true }).click();
   await page.getByLabel("Distance now (cm)", { exact: true }).fill("180");
   await page.getByLabel("Height now (cm)", { exact: true }).fill("200");
   await expect(page.getByTestId("guide-cue")).toHaveText(
@@ -104,59 +115,46 @@ test("saved setup uses the same guide with manual values, unknown pose and uncha
   );
   await page.getByLabel("Distance now (cm)", { exact: true }).fill("150");
   await expect(page.getByTestId("guide-cue")).toHaveText("Lower light 30 cm");
-
-  await expect(
-    page.getByRole("img", { name: /Side projection/ }),
-  ).toBeVisible();
   await page.getByLabel("Height now (cm)", { exact: true }).fill("-1");
   await expect(
-    page.getByRole("button", { name: "Mark step complete", exact: true }),
+    page.getByRole("button", { name: "Next: camera", exact: true }),
   ).toBeDisabled();
-  // An invalid optional reading must not trap navigation on the reference step.
-  await page
-    .getByRole("button", { name: "Previous step", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Mark step complete", exact: true }),
-  ).toBeEnabled();
-  await page
-    .getByRole("button", { name: "Mark step complete", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Reference", exact: true }).click();
+  await page.getByRole("button", { name: "Lights", exact: true }).click();
   await page.getByLabel("Height now (cm)", { exact: true }).fill("170");
-  await expect(page.getByTestId("guide-cue")).toHaveText(
-    "Entered values agree; check the photograph",
-  );
   await expect(page.getByTestId("guide-value-height")).toContainText("170 cm");
-  await page.screenshot({
-    path: "artifacts/demo-style-recreate-mobile.png",
-    fullPage: true,
-  });
-  await page.reload();
-  await expect(page.getByText("STEP 2 OF 4", { exact: true })).toBeVisible();
-  await page
-    .getByRole("button", { name: "Measurements & height view", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Camera", exact: true }).click();
+  await page.getByLabel("ISO now", { exact: true }).fill("640");
+  await page.getByRole("button", { name: "Lights", exact: true }).click();
   await expect(page.getByLabel("Height now (cm)", { exact: true })).toHaveValue(
-    "",
+    "170",
   );
-  await expect(page.getByTestId("guide-value-height")).toContainText("170 cm");
-  for (let i = 0; i < 3; i++)
-    await page
-      .getByRole("button", { name: "Mark step complete", exact: true })
-      .click();
+  await page.reload();
+  await expect(page.getByLabel("Height now (cm)", { exact: true })).toHaveValue(
+    "170",
+  );
+  await expect(page.getByText(/Previous entries are retained/)).toBeVisible();
+  await page.getByRole("button", { name: "Camera", exact: true }).click();
+  await expect(page.getByLabel("ISO now", { exact: true })).toHaveValue("640");
+  await page.getByRole("button", { name: "Check", exact: true }).click();
   await expect(
-    page.getByRole("button", {
-      name: "Finish and record outcome",
-      exact: true,
-    }),
+    page.getByRole("button", { name: "Save assessment", exact: true }),
   ).toBeDisabled();
   await page
-    .getByRole("button", { name: "not evaluated", exact: true })
+    .getByLabel("Adjustments and feedback", { exact: true })
+    .fill("Keep this draft note");
+  await page.getByRole("button", { name: "Reference", exact: true }).click();
+  await page.getByRole("button", { name: "Check", exact: true }).click();
+  await expect(
+    page.getByLabel("Adjustments and feedback", { exact: true }),
+  ).toHaveValue("Keep this draft note");
+  await page
+    .getByRole("button", { name: "Not evaluated", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Finish and record outcome", exact: true })
+    .getByRole("button", { name: "Save assessment", exact: true })
     .click();
   await expect(
-    page.getByText("Recreation recorded.", { exact: true }),
+    page.getByText("Assessment saved", { exact: true }),
   ).toBeVisible();
 });

@@ -1,4 +1,24 @@
 import { test, expect } from "@playwright/test";
+// Existing field-level regressions use the full-form accessibility option.
+test.beforeEach(async ({ page }) => {
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Explore workspace", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Explore workspace", exact: true })
+        .click();
+    },
+  );
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Show all fields", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Show all fields", exact: true })
+        .click();
+    },
+  );
+});
+
 test("save, reload, edit immutable versions, recreate, archive and restore", async ({
   page,
   context,
@@ -6,7 +26,7 @@ test("save, reload, edit immutable versions, recreate, archive and restore", asy
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
-  await expect(page.getByText("Your next shoot, remembered.")).toBeVisible();
+  await expect(page.getByText("Ready for your next shoot?")).toBeVisible();
   await page.getByRole("button", { name: "Save a setup", exact: true }).click();
   await page.getByLabel("Setup name", { exact: true }).fill("Studio portrait");
   await page
@@ -43,22 +63,21 @@ test("save, reload, edit immutable versions, recreate, archive and restore", asy
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();
   await context.setOffline(true);
-  for (let i = 0; i < 4; i++)
-    await page
-      .getByRole("button", { name: "Mark step complete", exact: true })
-      .click();
+  await page.getByRole("button", { name: "Check", exact: true }).click();
   await page
     .getByLabel("Adjustments and feedback", { exact: true })
     .fill("Moved the key slightly higher.");
-  await page.getByRole("button", { name: "adapted", exact: true }).click();
   await page
-    .getByRole("button", { name: "Finish and record outcome", exact: true })
+    .getByRole("button", { name: "Needs adjustment", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Save assessment", exact: true })
     .click();
   await expect(
-    page.getByText("Recreation recorded.", { exact: true }),
+    page.getByText("Assessment saved", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("This is your assessment, not a sensor-verified match.", {
+    page.getByText("This is your judgement, not a sensor-verified match.", {
       exact: false,
     }),
   ).toBeVisible();
