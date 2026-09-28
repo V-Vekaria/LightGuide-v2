@@ -13,7 +13,7 @@ test('first use, four-stage capture, shoot dates and complete backup round trip'
  await page.getByRole('button',{name:'Next: Camera',exact:true}).click();
  await page.getByLabel('ISO',{exact:true}).fill('100');
  await page.getByRole('button',{name:'Save setup',exact:true}).click();
- await expect(page.getByText('Approved workspace',{exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Approved workspace',exact:true})).toBeVisible();
  await page.goto('/shoot');
  await page.getByLabel('Shoot name',{exact:true}).fill('Future portrait');
  await page.getByLabel('Shoot date (optional)',{exact:true}).fill('20-09-2026');

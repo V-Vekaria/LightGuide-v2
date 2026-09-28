@@ -106,7 +106,7 @@ test("deleting equipment leaves an existing shoot editable", async ({
     .fill("Still editable");
   await page.getByRole("button", { name: "Save shoot", exact: true }).click();
   await expect(
-    page.getByText("Shoots", { exact: true }).filter({ visible: true }),
+    page.getByRole("heading", { name: "Shoots", exact: true }),
   ).toBeVisible();
 });
 
