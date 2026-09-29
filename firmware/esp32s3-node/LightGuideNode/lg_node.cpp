@@ -19,11 +19,13 @@
 //   buttonTask    samples GPIO4 every 5 ms (the verified debounce)
 //
 // The node does not store setups: a press is only an event for the phone.
-// The bench OLED is not used.
+// The bench OLED (SSD1306 at 0x3C) shows a status screen, drawn from loop() so
+// it never shares the I2C bus with a sensor read from another task.
 #include <Arduino.h>
 #include <Wire.h>
 #include <SparkFun_VL53L5CX_Library.h>
 #include <Adafruit_AS7343.h>
+#include <Adafruit_SSD1306.h>
 #include <Adafruit_BNO08x.h>
 
 #include <atomic>
@@ -316,6 +318,48 @@ lg::MeasurementSnapshot takeSnapshot() {
   return m;
 }
 
+// --------------------------------------------------------------------- OLED
+
+// (…, -1, 400000, 400000): without the clock arguments the library drops the
+// bus to 100 kHz after every redraw.
+Adafruit_SSD1306 oled(128, 64, &Wire, -1, 400000, 400000);
+bool oledOk = false;
+
+void initOled() {
+  oledOk = oled.begin(SSD1306_SWITCHCAPVCC, LG_OLED_ADDR);
+  Serial.printf("OLED init %s\n", oledOk ? "OK" : "FAILED (screen off, node keeps running)");
+  if (!oledOk) return;
+  oled.setTextSize(1);
+  oled.setTextColor(SSD1306_WHITE);
+  oled.clearDisplay();
+  oled.setCursor(0, 0);
+  oled.print("LightGuide node\nStarting sensors...");  // shown while the sensors initialise
+  oled.display();
+}
+
+// Redraws every LG_OLED_PERIOD_MS. A redraw takes ~25 ms of I2C time.
+void drawOled() {
+  static uint32_t last = 0;
+  if (!oledOk || millis() - last < LG_OLED_PERIOD_MS) return;
+  last = millis();
+
+  Health h = currentHealth();
+  lg::MeasurementSnapshot m = takeSnapshot();
+  oled.clearDisplay();
+  oled.setCursor(0, 0);
+  oled.printf("LightGuide node %s\n", LG_FW_VERSION);
+  oled.printf("State: %s\n", lg::stateName(lg::deriveState(h.initDone, h.tof, h.imu, h.spectral)));
+  if (lgble::connected()) oled.printf("BLE: connected (%u)\n", lgble::mtu());
+  else oled.print("BLE: advertising\n");
+  if (m.tofValid) oled.printf("ToF %4umm  ", m.distanceMm);
+  else oled.print("ToF --      ");
+  oled.printf("IMU %s\n", h.imu ? "ok" : "--");
+  oled.printf("AS %s g%g\n", h.spectral ? "ok" : "--", m.spectralGain);
+  oled.printf("Saves: %lu\n", (unsigned long)btnPresses.load());
+  if (h.error[0]) oled.printf("%.21s", h.error);
+  oled.display();
+}
+
 const char *resultName(lgble::NotifyResult r) {
   switch (r) {
     case lgble::NotifyResult::Sent: return "sent";
@@ -545,6 +589,7 @@ void setup() {
 
   Wire.begin(LG_PIN_I2C_SDA, LG_PIN_I2C_SCL);
   Wire.setClock(LG_I2C_HZ);
+  initOled();
 
   bool tofOk = initTof();
   bool spectralOk = initSpectral();
@@ -604,6 +649,7 @@ void loop() {
     lastSpectral = millis();
   }
 
+  drawOled();
   retryFailedSensors();
   delay(1);
 }

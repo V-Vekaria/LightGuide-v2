@@ -24,14 +24,14 @@ Wiring is exactly the verified bench wiring in the
 
 | ESP32-S3 | Connects to |
 |---|---|
-| GPIO8 / GPIO9 | I²C SDA / SCL at 400 kHz: VL53L5CX `0x29`, AS7343 `0x39` (and the bench OLED `0x3C`, unused) |
+| GPIO8 / GPIO9 | I²C SDA / SCL at 400 kHz: VL53L5CX `0x29`, AS7343 `0x39` and the bench OLED `0x3C` (status screen) |
 | GPIO17 (TX) | BNO085 SCL/RX |
 | GPIO18 (RX) | BNO085 SDA/TX |
 | GPIO10 | BNO085 RST |
 | BNO085 P1 | 3V3 (UART mode) |
 | GPIO4 | Save button to GND (internal pull-up) |
 
-The SSD1306 OLED may stay on the bus; this firmware does not drive it. The onboard RGB LED
+The SSD1306 OLED shows a status screen (state, BLE link, ToF/IMU/spectral health, save count, error text); the node runs normally if it is absent. The onboard RGB LED
 (GPIO38) is not verified and is not touched.
 
 ## Toolchain (as compiled)

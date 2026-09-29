@@ -35,6 +35,8 @@
 // so the identify command is reported as unsupported and GPIO38 is untouched.
 
 // ---- Timing
+#define LG_OLED_ADDR 0x3C             // bench SSD1306 on the shared I2C bus
+#define LG_OLED_PERIOD_MS 250
 #define LG_MEASUREMENT_PERIOD_MS 200  // 5 Hz target (protocol section 5)
 #define LG_COMMS_TICK_MS 10           // event / command latency
 #define LG_BUTTON_SAMPLE_MS 5         // verified bench debounce: 5 ms x 4 samples
