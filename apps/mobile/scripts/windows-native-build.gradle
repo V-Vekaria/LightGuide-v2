@@ -37,3 +37,20 @@ gradle.taskGraph.beforeTask { task ->
         }
     }
 }
+
+// Artifact transforms are generated caches rather than task outputs.
+// Refresh their attributes before dependency resolution as well.
+gradle.projectsEvaluated {
+    gradle.rootProject.allprojects.each { project ->
+        def root = project.layout.buildDirectory.get().asFile.canonicalFile
+        if (root.exists()) {
+            def clear = { file ->
+                if (file.canonicalFile.toPath().startsWith(root.toPath())) {
+                    java.nio.file.Files.setAttribute(file.toPath(), 'dos:readonly', false)
+                }
+            }
+            clear(root)
+            root.eachFileRecurse(clear)
+        }
+    }
+}
