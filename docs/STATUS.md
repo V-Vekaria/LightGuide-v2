@@ -63,3 +63,7 @@ checks. The authorized in-place update to code 8 succeeded and a cold launch pas
 Windows test-harness fixes preserve
 application storage behavior. See the [local Android delivery record](validation/LOCAL_ANDROID_DELIVERY_2026-09-28.md)
 for exact artifact status, source identity, signing and remaining phone gates.
+
+## Combined app integration - 29 September 2026
+
+PR #21 is merged and integrated with #22 in candidate **0.2.1 / code 9**. TypeScript, all **57 mobile tests**, all **22 browser tests**, the local native release build and APK identity/signature/alignment verification pass. Package, database/schema and signing certificate are unchanged. The user chose to finish GitHub now and install build 9 later; the last verified phone installation is build 8. Full native acceptance and physical BLE checks remain pending. Firmware #20 stays open: its published head omits the existing local sensor-loop timing fix and lacks physical acceptance. See [combined evidence](validation/APP_PR_INTEGRATION_2026-09-28.md).
