@@ -5,6 +5,9 @@ if (!localData) {
     throw new GradleException('LOCALAPPDATA is required for the Windows native build')
 }
 gradle.beforeProject { project ->
+    project.plugins.withId('com.facebook.react') {
+        project.extensions.getByName('react').extraPackagerArgs.addAll(['--max-workers', '2'])
+    }
     ['com.android.application', 'com.android.library'].each { pluginId ->
         project.plugins.withId(pluginId) {
             def android = project.extensions.getByName('android')
