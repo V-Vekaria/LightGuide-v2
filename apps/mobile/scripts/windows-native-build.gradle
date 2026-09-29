@@ -20,3 +20,20 @@ gradle.beforeProject { project ->
         }
     }
 }
+
+// OneDrive can restore the read-only DOS attribute on generated directories.
+// Clear it before Gradle refreshes a task's own outputs, within build dirs only.
+gradle.taskGraph.beforeTask { task ->
+    def buildRoot = task.project.layout.buildDirectory.get().asFile.canonicalFile.toPath()
+    task.outputs.files.files.each { output ->
+        if (output.exists() && output.canonicalFile.toPath().startsWith(buildRoot)) {
+            def clearReadOnly = { file ->
+                if (file.canonicalFile.toPath().startsWith(buildRoot)) {
+                    java.nio.file.Files.setAttribute(file.toPath(), 'dos:readonly', false)
+                }
+            }
+            clearReadOnly(output)
+            if (output.isDirectory()) output.eachFileRecurse(clearReadOnly)
+        }
+    }
+}
