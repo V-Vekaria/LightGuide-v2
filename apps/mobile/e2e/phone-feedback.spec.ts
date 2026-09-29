@@ -1,13 +1,34 @@
 import { test, expect } from "@playwright/test";
+// Existing field-level regressions use the full-form accessibility option.
+test.beforeEach(async ({ page }) => {
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Explore workspace", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Explore workspace", exact: true })
+        .click();
+    },
+  );
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Show all fields", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Show all fields", exact: true })
+        .click();
+    },
+  );
+});
 
 test("phone Home cards stay above recent setups and resumed recreation", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto("/");
-  const workspace = page
-    .getByText("YOUR WORKSPACE", { exact: true })
-    .locator("..");
+  await expect(page.getByRole("button", { name: "Save a setup", exact: true })).toBeVisible();
+  const workspace = page.getByRole("button", {
+    name: "Try a guided demo",
+    exact: true,
+  });
   const recent = page.getByText("Recently saved", { exact: true });
   const box = await workspace.boundingBox();
   const next = await recent.boundingBox();
@@ -33,7 +54,7 @@ test("equipment explains names and filters distinct items", async ({
 }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto("/?tab=Equipment");
-  await expect(page.getByText("How your inventory works")).toBeVisible();
+  await expect(page.getByText("Your equipment, ready to use")).toBeVisible();
   for (const name of ["Silver reflector", "White reflector"]) {
     await page
       .getByRole("button", { name: "Add equipment", exact: true })

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { dateError, dateKey, todayKey } from "../domain/shoot-dates";
 import { migration, migrationV2 } from "./migration";
 import {
   parseScene,
@@ -48,6 +49,7 @@ export type Equipment = {
 };
 export type Shoot = {
   id: string;
+  scheduled_at: string | null;
   name: string;
   category: "portrait" | "product";
   status: string;
@@ -434,6 +436,12 @@ export class Repository {
           id,
         )
       : null;
+    const invalidDate = dateError(
+      dateKey(s.scheduled_at),
+      todayKey(this.now()),
+      previous?.scheduled_at,
+    );
+    if (invalidDate) throw new Error(invalidDate);
     const previousIds: string[] = previous
       ? JSON.parse(previous.planned_equipment_ids)
       : [];

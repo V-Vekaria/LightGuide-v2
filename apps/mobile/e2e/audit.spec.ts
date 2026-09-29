@@ -1,4 +1,23 @@
 import { test, expect } from "@playwright/test";
+// Existing field-level regressions use the full-form accessibility option.
+test.beforeEach(async ({ page }) => {
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Explore workspace", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Explore workspace", exact: true })
+        .click();
+    },
+  );
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Show all fields", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Show all fields", exact: true })
+        .click();
+    },
+  );
+});
 
 test("unfinished capture is discoverable after navigating Home", async ({
   page,
@@ -23,7 +42,7 @@ test("unfinished capture is discoverable after navigating Home", async ({
   ).toHaveValue("Interrupted portrait");
 });
 
-test("recreation choice survives restart and paused guidance is not timed", async ({
+test("recreation choice and notes survive restart and leaving the flow", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 360, height: 800 });
@@ -34,25 +53,26 @@ test("recreation choice survives restart and paused guidance is not timed", asyn
   await page
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();
-  await page.getByRole("button", { name: "adapted", exact: true }).click();
+  await page.getByRole("button", { name: "Check", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Needs adjustment", exact: true })
+    .click();
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "adapted", exact: true }),
+    page.getByRole("button", { name: "Needs adjustment", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
-  await page.clock.install();
   await page
-    .getByRole("button", {
-      name: "Try simulated positioning guidance",
-      exact: true,
-    })
+    .getByLabel("Adjustments and feedback", { exact: true })
+    .fill("Retain this assessment");
+  await page
+    .getByRole("button", { name: "Save and exit", exact: true })
     .click();
-  await page.clock.fastForward(120000);
-  await page.getByRole("button", { name: "← Back", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Resume recreation", exact: true })
+    .click();
   await expect(
-    page
-      .getByText("0m active · recorded to the second", { exact: true })
-      .filter({ visible: true }),
-  ).toBeVisible();
+    page.getByLabel("Adjustments and feedback", { exact: true }),
+  ).toHaveValue("Retain this assessment");
 });
 
 test("deleting equipment leaves an existing shoot editable", async ({
@@ -86,9 +106,7 @@ test("deleting equipment leaves an existing shoot editable", async ({
     .fill("Still editable");
   await page.getByRole("button", { name: "Save shoot", exact: true }).click();
   await expect(
-    page
-      .getByText("Make room for the shoot.", { exact: true })
-      .filter({ visible: true }),
+    page.getByRole("heading", { name: "Shoots", exact: true }),
   ).toBeVisible();
 });
 

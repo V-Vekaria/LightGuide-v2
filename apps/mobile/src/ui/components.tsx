@@ -1,5 +1,5 @@
 import React from "react";
-import { useDevice } from "../device/DeviceProvider";
+import Feather from "@expo/vector-icons/Feather";
 import {
   useWindowDimensions,
   Modal,
@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, usePathname } from "expo-router";
 import { colors as c } from "./theme";
+import { useDevice } from "../device/DeviceProvider";
 
 export function Label({ children }: { children: React.ReactNode }) {
   return <Text style={s.label}>{children}</Text>;
@@ -33,8 +34,18 @@ export function Body({
     <Text style={[s.body, muted && { color: c.muted }, style]}>{children}</Text>
   );
 }
-export function Heading({ children }: { children: React.ReactNode }) {
-  return <Text style={s.heading}>{children}</Text>;
+export function Heading({
+  children,
+  testID,
+}: {
+  children: React.ReactNode;
+  testID?: string;
+}) {
+  return (
+    <Text accessibilityRole="header" testID={testID} style={s.heading}>
+      {children}
+    </Text>
+  );
 }
 export function Badge({
   children,
@@ -250,21 +261,71 @@ export function Screen({
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
       <View
         style={{
-          paddingHorizontal: 20,
-          paddingVertical: 10,
-          backgroundColor: c.panel,
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          minHeight: 56,
+          gap: 12,
           borderBottomWidth: 1,
-          borderBottomColor: c.border,
+          borderColor: c.border,
+        }}
+      >
+        {back && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="← Back"
+            onPress={() =>
+              router.canGoBack() ? router.back() : router.replace("/")
+            }
+            style={{ padding: 10 }}
+          >
+            <Feather name="arrow-left" size={22} color={c.text} />
+          </Pressable>
+        )}
+        <Text
+          style={{ color: c.text, fontSize: 18, fontWeight: "700", flex: 1 }}
+        >
+          {back ? "LightGuide" : "LightGuide"}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Connect LightGuide device"
+          onPress={() => router.navigate("/device")}
+          style={{ padding: 10 }}
+        >
+          <Feather
+            name="bluetooth"
+            size={21}
+            color={presentation.fresh ? c.accent : c.muted}
+          />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          disabled={pathname === "/settings"}
+          onPress={() => router.navigate("/settings")}
+          style={{ padding: 10 }}
+        >
+          <Feather name="settings" size={21} color={c.muted} />
+        </Pressable>
+      </View>
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingBottom: 6,
+          borderBottomWidth: 1,
+          borderColor: c.border,
         }}
       >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={presentation.label}
+          accessibilityHint={presentation.detail}
+          testID="device-status"
           onPress={() => {
             if (pathname !== "/device") router.navigate("/device");
           }}
           style={{ minHeight: 44, justifyContent: "center", gap: 3 }}
-          testID="device-status"
         >
           <Text
             accessibilityLiveRegion="polite"
@@ -293,65 +354,25 @@ export function Screen({
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          padding: 24,
-          paddingBottom: 40,
+          padding: 20,
+          paddingBottom: 32,
           alignSelf: "center",
           width: "100%",
-          maxWidth: 1080,
+          maxWidth: 720,
         }}
       >
-        {back && (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() =>
-              router.canGoBack() ? router.back() : router.replace("/")
-            }
-            style={{ paddingVertical: 12 }}
-          >
-            <Text style={{ color: c.accent }}>← Back</Text>
-          </Pressable>
-        )}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 32,
-          }}
-        >
-          <Text
-            style={{
-              color: c.text,
-              fontSize: 18,
-              fontWeight: "700",
-              letterSpacing: -0.5,
-            }}
-          >
-            ◈ LIGHTGUIDE
+        {title ? (
+          <Text accessibilityRole="header" style={s.title}>
+            {title}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            accessibilityState={{ disabled: pathname === "/settings" }}
-            disabled={pathname === "/settings"}
-            onPress={() => {
-              if (pathname !== "/settings") router.navigate("/settings");
-            }}
-          >
-            <Text style={{ color: c.muted }}>Settings ↗</Text>
-          </Pressable>
-        </View>
-        <Text accessibilityRole="header" style={s.title}>
-          {title}
-        </Text>
+        ) : null}
         {subtitle && (
           <Text
             style={{
               color: c.muted,
-              lineHeight: 23,
+              lineHeight: 22,
               marginTop: 8,
-              marginBottom: 24,
-              maxWidth: 650,
+              marginBottom: 20,
             }}
           >
             {subtitle}
@@ -363,6 +384,7 @@ export function Screen({
     </SafeAreaView>
   );
 }
+
 export { PhotoPreview as Photo, PhotoComparison } from "./PhotoViewer";
 export function Confirm({
   title,
@@ -400,8 +422,8 @@ export function Confirm({
 }
 export const s = StyleSheet.create({
   title: {
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 28,
+    lineHeight: 34,
     color: c.text,
     fontWeight: "700",
     letterSpacing: -1,
@@ -420,8 +442,8 @@ export const s = StyleSheet.create({
     backgroundColor: c.panel,
     borderColor: c.border,
     borderWidth: 1,
-    borderRadius: 18,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 16,
     gap: 12,
   },
@@ -433,7 +455,7 @@ export const s = StyleSheet.create({
   },
   button: {
     borderRadius: 12,
-    minHeight: 46,
+    minHeight: 48,
     paddingHorizontal: 18,
     paddingVertical: 12,
     alignItems: "center",

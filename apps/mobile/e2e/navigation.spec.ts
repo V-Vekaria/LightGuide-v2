@@ -1,4 +1,24 @@
 import { test, expect } from "@playwright/test";
+// Existing field-level regressions use the full-form accessibility option.
+test.beforeEach(async ({ page }) => {
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Explore workspace", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Explore workspace", exact: true })
+        .click();
+    },
+  );
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Show all fields", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Show all fields", exact: true })
+        .click();
+    },
+  );
+});
+
 for (const tab of ["Home", "Shoots", "Setups", "Equipment"]) {
   test(`repeated Settings taps return to ${tab} with one Back`, async ({
     page,

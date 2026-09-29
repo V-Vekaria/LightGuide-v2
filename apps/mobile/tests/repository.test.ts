@@ -24,7 +24,12 @@ function open(
     all: <T>(s: string, ...p: SqlValue[]) => sql.prepare(s).all(...p) as T[],
     close: () => sql.close(),
   };
-  return new Repository(db, randomUUID, now);
+  try {
+    return new Repository(db, randomUUID, now);
+  } catch (error) {
+    sql.close();
+    throw error;
+  }
 }
 const setup = (r: Repository, title = "Portrait") =>
   r.publish({ title, category: "portrait", scene: emptyScene() });

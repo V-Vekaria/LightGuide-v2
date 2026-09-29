@@ -120,3 +120,48 @@ export async function shareNotes(repo: Repository, id: string) {
     dialogTitle: "Export setup notes (photos not included)",
   });
 }
+
+export async function backupPhoto(
+  repo: Repository,
+  id: string,
+): Promise<string | null> {
+  const row = repo.image(id);
+  if (!row) return null;
+  const f = photoFile(row.optimised_path);
+  return f.exists ? f.base64() : null;
+}
+export async function restorePhoto(
+  repo: Repository,
+  id: string,
+  path: string,
+  base64: string,
+  hash: string,
+) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  if (bytes.length > 10485760) throw new Error("Backup photo is too large.");
+  const actual = Array.from(
+    new Uint8Array(await digest(CryptoDigestAlgorithm.SHA256, bytes)),
+  )
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  if (actual !== hash)
+    throw new Error("Backup photo failed its integrity check.");
+  const f = photoFile(path);
+  if (f.exists) {
+    const old = Array.from(
+      new Uint8Array(
+        await digest(CryptoDigestAlgorithm.SHA256, await f.bytes()),
+      ),
+    )
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    if (old !== hash)
+      throw new Error(
+        "An existing photo has conflicting content. Nothing was replaced.",
+      );
+    return;
+  }
+  const temp = new File(Paths.cache, id + ".restore");
+  temp.write(bytes);
+  temp.move(f);
+}

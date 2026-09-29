@@ -43,6 +43,7 @@ createServer((req, res) => {
   const stream = createReadStream(path);
   stream.on("error", () => res.destroy());
   stream.pipe(res);
-}).listen(port, "127.0.0.1", () =>
+}).listen(port, "0.0.0.0", () =>
   console.log(`LightGuide preview: http://127.0.0.1:${port}`),
 );
+

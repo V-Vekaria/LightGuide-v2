@@ -236,7 +236,19 @@ SQLite user_version 2 transactionally rebuilds only the leaf recreations table t
 
 Live sensing, expanded categories and full shoot scheduling remain outside this usability delivery. See [evidence](validation/PHOTOGRAPHER_UX_2026-09-18.md).
 
-## ADR-020 — Visible recreation guidance and app-owned device session
+
+## ADR-020 — Approved compact Android workspace
+
+**Date:** 2026-09-28
+**Status:** Implemented on codex/approved-mobile-design; release checks pending.
+
+Port the user-approved dark navy/mint design into the existing Expo Android app. Keep com.lightguide.codex, lightguide-guest-v1.db, SQLite schema v2, immutable setup versions and sensor provenance. The release candidate is 0.2.0 / versionCode 7. Native screens use four main tabs, first-use preferences, staged capture and an independently navigable Reference/Lights/Camera/Check workspace. Reading/camera drafts persist locally and resume explicitly requests rechecking old entries.
+
+Shoot dates use Europe/London calendar days. New past dates are rejected in both UI and repository. Existing historical dates remain editable unchanged; elapsed plans appear in Completed as Date passed until the photographer confirms completion. Date-only plans are stored at noon UTC in the existing scheduled_at column. Planning metadata uses local_settings; no destructive database migration is required.
+
+Workspace backup exports domain rows and optimised photographs, with a fixed table allowlist, photo checksums and transactional record restoration after explicit confirmation. It is a native-app backup format separate from the browser design prototype. Size limits and original-resolution exclusion are shown in the UI. No cloud service or new live-sensing claim is introduced.
+
+## ADR-021 — Visible recreation guidance and app-owned device session
 
 **Date:** 2026-09-24
 **Status:** Implemented; Android release verification pending.

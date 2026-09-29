@@ -1,3 +1,5 @@
+import { ShootCalendar } from "../src/ui/ShootCalendar";
+import { dateKey, dateError, scheduledAt } from "../src/domain/shoot-dates";
 import React, { useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useStore } from "../src/ui/Store";
@@ -20,11 +22,25 @@ export default function Shoot() {
       name: old?.name ?? "",
       category: old?.category ?? "portrait",
       status: (old?.status as ShootInput["status"]) ?? "draft",
-      scheduled_at: null,
+      scheduled_at: old?.scheduled_at ?? null,
       notes: old?.notes ?? "",
       planned_equipment_ids: old ? JSON.parse(old.planned_equipment_ids) : [],
     }),
     [error, setError] = useState<string | null>(null);
+  const [date, setDate] = useState(dateKey(old?.scheduled_at));
+  const [meta, setMeta] = useState(() =>
+    repo.setting("shoot-plan:" + id, { location: "", setupId: "" }),
+  );
+  const save = () =>
+    repo.atomic(() => {
+      const key = repo.saveShoot(
+        { ...form, scheduled_at: scheduledAt(date) },
+        id,
+      );
+      repo.setSetting("shoot-plan:" + key, meta);
+      return key;
+    });
+  const invalidDate = dateError(date, undefined, old?.scheduled_at);
   return (
     <Screen
       back
@@ -38,6 +54,8 @@ export default function Shoot() {
           value={form.name}
           onChange={(name) => setForm({ ...form, name })}
         />
+        <ShootCalendar value={date} onChange={setDate} />
+        <ErrorMessage message={invalidDate} />
         <Choice
           options={["portrait", "product"] as const}
           value={form.category}
@@ -54,6 +72,27 @@ export default function Shoot() {
           value={form.notes ?? ""}
           onChange={(notes) => setForm({ ...form, notes })}
         />
+        <Field
+          label="Location (optional)"
+          value={meta.location}
+          onChange={(location) => setMeta({ ...meta, location })}
+        />
+        <Heading>Linked setup</Heading>
+        <Button
+          title={meta.setupId ? "No linked setup" : "Selected: no linked setup"}
+          kind="secondary"
+          onPress={() => setMeta({ ...meta, setupId: "" })}
+        />
+        {repo.setups().map((setup) => (
+          <Button
+            key={setup.id}
+            title={
+              (meta.setupId === setup.id ? "Selected: " : "") + setup.title
+            }
+            kind="secondary"
+            onPress={() => setMeta({ ...meta, setupId: setup.id })}
+          />
+        ))}
         <Heading>Equipment to bring</Heading>
         {form.planned_equipment_ids.some(
           (item) => !repo.equipment().some((e) => e.id === item),
@@ -83,9 +122,11 @@ export default function Shoot() {
         ))}
         <Button
           title="Save shoot"
+          disabled={Boolean(invalidDate) || !form.name.trim()}
           onPress={() => {
             try {
-              repo.saveShoot(form, id);
+              if (invalidDate) throw new Error(invalidDate);
+              save();
               refresh();
               router.replace({ pathname: "/", params: { tab: "Shoots" } });
             } catch (e) {
@@ -93,6 +134,30 @@ export default function Shoot() {
             }
           }}
         />
+        {meta.setupId && (
+          <Button
+            title="Start recreation"
+            disabled={Boolean(invalidDate) || !form.name.trim()}
+            onPress={() => {
+              try {
+                if (invalidDate) throw new Error(invalidDate);
+                const shootId = save();
+                const setup = repo.setup(meta.setupId);
+                const attempt = repo.startRecreation(
+                  setup.current_version_id,
+                  shootId,
+                );
+                refresh();
+                router.replace({
+                  pathname: "/recreate/[id]",
+                  params: { id: attempt },
+                });
+              } catch (e) {
+                setError(humanError(e));
+              }
+            }}
+          />
+        )}
       </Card>
       {id &&
         repo

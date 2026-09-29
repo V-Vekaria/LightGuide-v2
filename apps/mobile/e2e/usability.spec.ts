@@ -1,4 +1,24 @@
 import { test, expect } from "@playwright/test";
+// Existing field-level regressions use the full-form accessibility option.
+test.beforeEach(async ({ page }) => {
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Explore workspace", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Explore workspace", exact: true })
+        .click();
+    },
+  );
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Show all fields", exact: true }),
+    async () => {
+      await page
+        .getByRole("button", { name: "Show all fields", exact: true })
+        .click();
+    },
+  );
+});
+
 import { resolve } from "node:path";
 
 test("Home opens disposable guided practice without adding library records", async ({
@@ -36,12 +56,7 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
   await page.goto("/");
   await page.getByRole("button", { name: "Save a setup", exact: true }).click();
   await page.getByLabel("Setup name", { exact: true }).fill("Visual portrait");
-  await page
-    .getByRole("button", {
-      name: "Add camera settings (optional)",
-      exact: true,
-    })
-    .click();
+
   await expect(
     page.getByRole("button", { name: "＋ Portrait camera", exact: true }),
   ).toHaveCount(1);
@@ -95,7 +110,10 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
   await expect
     .poll(async () => (await full.boundingBox())!.width)
     .toBeGreaterThan(fit!.width * 1.9);
-  await page.screenshot({ path: "artifacts/ux-photo-zoom.png", animations: "disabled" });
+  await page.screenshot({
+    path: "artifacts/ux-photo-zoom.png",
+    animations: "disabled",
+  });
   await page
     .getByRole("button", { name: "Fit whole photo", exact: true })
     .click();
@@ -106,19 +124,16 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Enlarge Saved reference", exact: true }),
+    page.getByRole("button", { name: "Enlarge Result", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Top view", exact: true }),
   ).toHaveCount(0);
-  await page.getByTestId("guide-cue").scrollIntoViewIfNeeded();
+
   await page.screenshot({ path: "artifacts/ux-manual-reference.png" });
-  for (let i = 0; i < 4; i++)
-    await page
-      .getByRole("button", { name: "Mark step complete", exact: true })
-      .click();
+  await page.getByRole("button", { name: "Check", exact: true }).click();
   const finish = page.getByRole("button", {
-    name: "Finish and record outcome",
+    name: "Save assessment",
     exact: true,
   });
   await expect(finish).toBeDisabled();
@@ -147,14 +162,17 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
   await expect(landscape).toBeVisible();
   const landscapeBox = await landscape.boundingBox();
   expect(landscapeBox!.width / landscapeBox!.height).toBeCloseTo(5 / 3, 2);
-  await page.screenshot({ path: "artifacts/ux-photo-compare.png", animations: "disabled" });
+  await page.screenshot({
+    path: "artifacts/ux-photo-compare.png",
+    animations: "disabled",
+  });
   await page
     .getByRole("button", { name: "Close photo viewer", exact: true })
     .click();
   await page.reload();
   await expect(finish).toBeDisabled();
   await page
-    .getByRole("button", { name: "not evaluated", exact: true })
+    .getByRole("button", { name: "Not evaluated", exact: true })
     .click();
   await finish.click();
   await expect(page.getByText("not evaluated", { exact: true })).toBeVisible();

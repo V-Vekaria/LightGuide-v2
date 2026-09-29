@@ -9,7 +9,7 @@ import { runInNewContext } from "node:vm";
 const source = stripTypeScriptTypes(
   readFileSync(new URL("../src/media/media.ts", import.meta.url), "utf8"),
 )
-  .replace(/^import .*;\n/gm, "")
+  .replace(/^import .*;\r?\n/gm, "")
   .replace(/export /g, "");
 function harness(failMove = false, failCopy = false) {
   const files = new Set(["file:source", "file:resized"]);

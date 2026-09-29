@@ -126,3 +126,47 @@ export async function shareNotes(repo: Repository, id: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+export async function backupPhoto(
+  repo: Repository,
+  id: string,
+): Promise<string | null> {
+  const data = await photoStore<{ optimised: Blob } | undefined>(false, (s) =>
+    s.get(id),
+  );
+  if (!data) return null;
+  const bytes = new Uint8Array(await data.optimised.arrayBuffer());
+  let raw = "";
+  for (let i = 0; i < bytes.length; i += 8192)
+    raw += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  return btoa(raw);
+}
+export async function restorePhoto(
+  repo: Repository,
+  id: string,
+  path: string,
+  base64: string,
+  hash: string,
+) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  if (bytes.length > 10485760) throw new Error("Backup photo is too large.");
+  const digest = async (b: Uint8Array) =>
+    Array.from(
+      new Uint8Array(await crypto.subtle.digest("SHA-256", b as BufferSource)),
+    )
+      .map((v) => v.toString(16).padStart(2, "0"))
+      .join("");
+  if ((await digest(bytes)) !== hash)
+    throw new Error("Backup photo failed its integrity check.");
+  const old = await photoStore<{ optimised: Blob } | undefined>(false, (s) =>
+    s.get(id),
+  );
+  if (
+    old &&
+    (await digest(new Uint8Array(await old.optimised.arrayBuffer()))) !== hash
+  )
+    throw new Error("An existing photo has conflicting content.");
+  await photoStore(true, (s) =>
+    s.put({ optimised: new Blob([bytes]), original: null }, id),
+  );
+}

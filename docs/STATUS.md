@@ -45,3 +45,25 @@ The demo-style recreation branch adds a shared visual workspace for manual recre
 ## Photographer usability — 18 September 2026
 
 Approved changes implemented for 0.1.4 / code 5: uncropped expandable/comparable photos, photo-first manual guidance, direct practice entry, library thumbnails, fraction-friendly camera capture, inventory return and explicit outcomes. SQLite v2 upgrade preserves existing records; one-time unfinished assessment reconfirmation replaces the earlier default. Exact CI/APK state is tracked in the delivery PR and [validation report](validation/PHOTOGRAPHER_UX_2026-09-18.md). This entry is implementation status, not a claim that a physical phone or live sensing has passed.
+
+
+## Approved Android design — 28 September 2026
+
+Candidate 0.2.0 / code 7 ports the approved design and the user's shoot-date/navigation feedback. Source is on codex/approved-mobile-design. TypeScript and 52 local domain/SQLite tests pass, including historical-data preservation and rollback on invalid backup. APK installation, signing/update compatibility, browser regressions and visual comparison are still pending. Do not distribute as verified until the exact candidate passes. Hardware PRs #20 and #21 are separate and unchanged.
+
+Delivery [PR #22](https://github.com/V-Vekaria/LightGuide-v2/pull/22) remains draft: GitHub Actions failed before assigning runners or running build steps, including after one retry. No APK was produced. See the [validation and blocker record](validation/APPROVED_ANDROID_DESIGN_2026-09-28.md).
+
+Local continuation on 28 September: the connected phone is already on 0.1.6 /
+code 7, so the candidate advances to 0.2.0 / **code 8**. The installed signer
+matches the existing evaluation key. Local TypeScript, all 52 mobile tests,
+all 21 browser regressions, bundle exports, 412 legacy tests and 23 positioning
+tests pass; both positioning and mobile APKs build. The ARM64 mobile APK passes
+signature, installed-certificate comparison, package/version, bundle and alignment
+checks. The authorized in-place update to code 8 succeeded and a cold launch passed without logged runtime errors. Detailed saved-data and native screen acceptance remains pending.
+Windows test-harness fixes preserve
+application storage behavior. See the [local Android delivery record](validation/LOCAL_ANDROID_DELIVERY_2026-09-28.md)
+for exact artifact status, source identity, signing and remaining phone gates.
+
+## Combined app integration - 29 September 2026
+
+PR #21 is merged and integrated with #22 in candidate **0.2.1 / code 9**. TypeScript, all **57 mobile tests**, all **22 browser tests**, the local native release build and APK identity/signature/alignment verification pass. Package, database/schema and signing certificate are unchanged. The user chose to finish GitHub now and install build 9 later; the last verified phone installation is build 8. Full native acceptance and physical BLE checks remain pending. Firmware #20 stays open: its published head omits the existing local sensor-loop timing fix and lacks physical acceptance. See [combined evidence](validation/APP_PR_INTEGRATION_2026-09-28.md).

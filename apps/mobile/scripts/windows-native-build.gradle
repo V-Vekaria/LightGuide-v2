@@ -1,0 +1,56 @@
+// Local Windows init script; keeps generated C++ paths below Windows limits.
+// Usage: gradlew.bat ... --init-script ../scripts/windows-native-build.gradle
+def localData = System.getenv('LOCALAPPDATA')
+if (!localData) {
+    throw new GradleException('LOCALAPPDATA is required for the Windows native build')
+}
+gradle.beforeProject { project ->
+    project.plugins.withId('com.facebook.react') {
+        project.extensions.getByName('react').extraPackagerArgs.addAll(['--max-workers', '2'])
+    }
+    ['com.android.application', 'com.android.library'].each { pluginId ->
+        project.plugins.withId(pluginId) {
+            def android = project.extensions.getByName('android')
+            android.externalNativeBuild.cmake.buildStagingDirectory =
+                new File(localData, 'lg22-cxx/' + project.name)
+            android.defaultConfig.externalNativeBuild.cmake.arguments.addAll([
+                '-DCMAKE_JOB_POOLS=compile_pool=2',
+                '-DCMAKE_JOB_POOL_COMPILE=compile_pool'
+            ])
+        }
+    }
+}
+
+// OneDrive can restore the read-only DOS attribute on generated directories.
+// Clear it before Gradle refreshes a task's own outputs, within build dirs only.
+gradle.taskGraph.beforeTask { task ->
+    def buildRoot = task.project.layout.buildDirectory.get().asFile.canonicalFile.toPath()
+    task.outputs.files.files.each { output ->
+        if (output.exists() && output.canonicalFile.toPath().startsWith(buildRoot)) {
+            def clearReadOnly = { file ->
+                if (file.canonicalFile.toPath().startsWith(buildRoot)) {
+                    java.nio.file.Files.setAttribute(file.toPath(), 'dos:readonly', false)
+                }
+            }
+            clearReadOnly(output)
+            if (output.isDirectory()) output.eachFileRecurse(clearReadOnly)
+        }
+    }
+}
+
+// Artifact transforms are generated caches rather than task outputs.
+// Refresh their attributes before dependency resolution as well.
+gradle.projectsEvaluated {
+    gradle.rootProject.allprojects.each { project ->
+        def root = project.layout.buildDirectory.get().asFile.canonicalFile
+        if (root.exists()) {
+            def clear = { file ->
+                if (file.canonicalFile.toPath().startsWith(root.toPath())) {
+                    java.nio.file.Files.setAttribute(file.toPath(), 'dos:readonly', false)
+                }
+            }
+            clear(root)
+            root.eachFileRecurse(clear)
+        }
+    }
+}
