@@ -235,3 +235,14 @@ The approved UX review drives photo-first manual recreation, uncropped expandabl
 SQLite user_version 2 transactionally rebuilds only the leaf recreations table to permit not_evaluated, restoring its index and immutable-evidence trigger. Existing completed records and photos remain unchanged. Unfinished legacy assessment selections are cleared once because the old close_enough default cannot be distinguished from a deliberate choice; step and notes remain. New attempts require explicit selection. Current manual readings remain visit-only and resume explains re-entry.
 
 Live sensing, expanded categories and full shoot scheduling remain outside this usability delivery. See [evidence](validation/PHOTOGRAPHER_UX_2026-09-18.md).
+
+## ADR-020 — Visible recreation guidance and app-owned device session
+
+**Date:** 2026-09-24
+**Status:** Implemented; Android release verification pending.
+
+Show the existing recreation diagram and saved/current measurements directly, ahead of detailed instructions. Missing pose stays unknown and manual side-view spacing remains illustrative. Keep the large-text fallback and immutable saved targets.
+
+A root DeviceProvider owns one foreground BLE controller; navigating away from the device screen only removes a subscriber. Shared screen chrome distinguishes connected/fresh readings, waiting, stopped readings and disconnection. Freshness uses the existing one-second threshold. Capture reuses the existing validated pending-snapshot path. App backgrounding is not a promise of background BLE support.
+
+No storage migration, protocol revision, dependency or physical-validation claim is introduced. See [implementation evidence](validation/DEVICE_WORKFLOW_UX_2026-09-24.md).

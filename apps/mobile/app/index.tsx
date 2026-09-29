@@ -153,9 +153,8 @@ export default function Home() {
             <Label>LIGHTGUIDE NODE</Label>
             <Heading>Connect your device</Heading>
             <Body muted>
-              Scan for a Protocol v2 ESP32-S3 node to view live readings. The
-              node needs the matching BLE firmware; physical connection is not
-              verified yet.
+              Connect once, then use the app. Device status stays visible at the
+              top of each screen.
             </Body>
             <Button
               title="Connect LightGuide device"
@@ -184,7 +183,8 @@ export default function Home() {
                 </Text>
                 <Body style={{ color: "#B9D3C8" }}>
                   Save a photo and your lighting notes. Recreate them with
-                  manual checks, or connect a Protocol v2 node for live readings.
+                  manual checks, or connect a Protocol v2 node for live
+                  readings.
                 </Body>
                 <View style={s.row}>
                   <Button

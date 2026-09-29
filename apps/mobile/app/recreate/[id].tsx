@@ -148,7 +148,7 @@ function RecreationFlow({
     },
     ...lights.map((o) => ({
       title: `Position your ${o.role?.toLowerCase() ?? "main"} light`,
-      text: `${o.settings.modifier_description ?? "Use your recorded modifier"}. Power: ${o.settings.power_label ?? "not recorded"}. Check the saved photo. Open measurements if you want to compare distance and height.`,
+      text: `${o.settings.modifier_description ?? "Use your recorded modifier"}. Power: ${o.settings.power_label ?? "not recorded"}. Match the saved height and distance shown above.`,
     })),
     {
       title: "Set your camera",
@@ -305,7 +305,7 @@ function RecreationFlow({
       </Screen>
     );
   return (
-    <Screen back title="Recreate, one step at a time." subtitle={title}>
+    <Screen back title="Recreate your setup" subtitle={title}>
       <Badge tone="warning">MANUAL RECREATION</Badge>
       <ErrorMessage message={error} />
       {deleted ? (
@@ -389,8 +389,8 @@ function RecreationFlow({
                     />
                   ) : (
                     <Text style={g.small}>
-                      No reference photo saved. Use the original notes below;
-                      add a setup photo next time to make recreation easier.
+                      No reference photo saved. Use your saved diagram and
+                      notes.
                     </Text>
                   );
                 })()}
