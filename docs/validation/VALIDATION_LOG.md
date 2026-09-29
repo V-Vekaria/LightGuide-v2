@@ -118,3 +118,7 @@ Shared manual/practice guidance implemented from the user-approved interactive d
 ## 23 September 2026 — per-sensor bench checks
 
 **Outcome:** PASS for VL53L5CX stable operation (wall: 64/64 zones, sd 3 mm), AS7343 response (phone torch: about 25× rise, same baseline after, auto-gain working) and the save button after a wiring fix; INCONCLUSIVE for the LED-panel light tests (the panel's light was not reaching the sensor); BNO085 tilt deferred until the node is mounted on the light. The I²C bus had been running at 100 kHz, not 400 kHz, because of the SSD1306 library; fixed. Brightness, colour-temperature and tilt accuracy need a controlled room. [Details](ESP32S3_SENSOR_BENCH_2026-09-21.md#follow-up--2026-09-23-per-sensor-checks).
+
+## 23 September 2026 — ESP32-S3 Protocol v2 node firmware (software only)
+
+**Outcome:** PASS for compilation for the exact ESP32-S3 N16R8 target, host unit tests and conformance with the Android app's Protocol v2 parsers. NOT RUN on hardware: the BLE link, live values, save event over BLE and reconnect remain unverified until the physical acceptance test is recorded. [Evidence and limitations](ESP32S3_NODE_FIRMWARE_2026-09-23.md) · [firmware](../../firmware/esp32s3-node/README.md).

@@ -32,7 +32,7 @@ Claude's implementation at `7184b71aa9e6d97138021cc44a34a0a05573b6f7` is not mer
 
 1. Record the installed APK's package/version and phone acceptance results; preserve data when upgrading.
 2. Run exact-marker physical positioning/relocalisation trials with independent ground truth. VAL-001–004 remain open.
-3. Sensor bench bring-up is done: received parts identified, pin map verified, and all sensors plus a save button run together ([evidence](validation/ESP32S3_SENSOR_BENCH_2026-09-21.md)). Next: define and validate the live BLE link and calibration before integration.
+3. Sensor bench bring-up is done: received parts identified, pin map verified, and all sensors plus a save button run together ([evidence](validation/ESP32S3_SENSOR_BENCH_2026-09-21.md)). Protocol v2 node firmware ([firmware/esp32s3-node/](../firmware/esp32s3-node/README.md)) compiles and passes host/conformance tests but has not run on hardware ([evidence](validation/ESP32S3_NODE_FIRMWARE_2026-09-23.md)). Next: the physical Android ↔ ESP32 acceptance test, then calibration before integration.
 4. Complete mobile native AR integration, iOS, cloud or other deferred features only when their own scope/evidence supports them.
 5. Collect five-photographer evidence before MVP claims.
 

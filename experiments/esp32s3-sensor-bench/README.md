@@ -147,6 +147,7 @@ matters against a ±10% brightness tolerance and belongs in the calibration sess
 ## Not established
 
 Distance, orientation or spectral **accuracy and calibration**; magnetometer calibration and
-magnetic interference; power draw; the onboard RGB LED. The BLE contract is now defined in
-`docs/engineering/DEVICE_PROTOCOL.md`, but no firmware implements it yet, so a save press is
-still reported only on the serial link and the OLED.
+magnetic interference; power draw; the onboard RGB LED. The BLE contract is defined in
+`docs/engineering/DEVICE_PROTOCOL.md` and implemented by the node firmware in
+[`firmware/esp32s3-node/`](../../firmware/esp32s3-node/README.md), which reuses this bench's
+drivers; these bench sketches still report a save press only on the serial link and the OLED.
