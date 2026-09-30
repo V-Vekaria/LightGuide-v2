@@ -73,6 +73,32 @@ test("repository enforces shoot date validation independently of the screen", ()
     r.db.close();
   }
 });
+test("shoots remain planned after noon until the London calendar day ends", () => {
+  const plan = shoot(scheduledAt("27-09-2026"));
+  assert.equal(shootState(plan, todayKey(new Date("2026-09-27T22:59:00Z"))), "Planned");
+  assert.equal(shootState(plan, todayKey(new Date("2026-09-27T23:00:00Z"))), "Date passed");
+  assert.equal(shootState({ ...plan, status: "completed" }, "2026-09-27"), "Completed");
+});
+test("legacy recreation readings migrate without overwriting newer values or claiming freshness", () => {
+  const r = open();
+  try {
+    const setup = r.publish({ title: "Upgrade", category: "portrait", scene: emptyScene() });
+    const attempt = r.startRecreation(setup.versionId);
+    const legacy = { readings: { first: { height: "160", distance: "150" }, second: { height: "180", distance: "200" } }, camera: { iso: "640" } };
+    r.setSetting("workspace:" + attempt, legacy);
+    const migrated = r.recreationReadings(attempt);
+    assert.deepEqual(migrated.first, { height: "160", distance: "150", updatedAt: "" });
+    assert.deepEqual(migrated.second, { height: "180", distance: "200", updatedAt: "" });
+    assert.deepEqual(r.setting("workspace:" + attempt, null), legacy);
+    const newer = { first: { height: "175", distance: "150", updatedAt: "2026-09-27T12:00:00Z" } };
+    r.setSetting("attempt-readings:" + attempt, newer);
+    assert.deepEqual(r.recreationReadings(attempt), newer);
+    r.abandonRecreation(attempt);
+    assert.deepEqual(r.recreationReadings(attempt), {});
+    assert.equal(r.setting("workspace:" + attempt, null), null);
+    assert.equal(r.setting("attempt-readings:" + attempt, null), null);
+  } finally { r.db.close(); }
+});
 test("workspace backup restores versions and attempt drafts without changing their identity", () => {
   const r = open();
   try {

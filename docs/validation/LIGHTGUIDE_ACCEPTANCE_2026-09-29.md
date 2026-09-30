@@ -82,3 +82,14 @@ Release artifact verified on 30 September 2026: `LightGuide-0.2.1-code9-acceptan
 - `design-qa-home-comparison.png`
 
 The APK source commit and pull request are reported in the final handoff so that this checksum can be tied to the exact committed tree.
+
+## PR #24 review fixes — 30 September 2026
+
+- Migrated unfinished manual readings from the prior `workspace:<id>` record to `attempt-readings:<id>` without replacing newer readings or removing the old camera draft. Legacy readings have no invented timestamp and require explicit rechecking before guidance uses them. Discard/purge also removes legacy workspace state.
+- Restored Europe/London calendar-day shoot grouping and the `Date passed` label. Today's noon-UTC plan remains Upcoming until London midnight.
+- Publish the native repository singleton only after first-run seeding succeeds. A seed failure closes SQLite; a later concurrent-safe retry opens a fresh connection.
+- Discarded attempts open as read-only terminal records rather than exposing controls that cannot save.
+
+Local verification: TypeScript passed; 62/62 Node tests passed; 25/25 Chromium journeys passed; web and Android Hermes exports passed. Added real SQLite upgrade-preservation coverage, initialization failure/retry coverage, and browser regressions for midnight grouping and discarded-attempt reopening.
+
+The APK checksum above belongs to the earlier acceptance commit `05bf27b6c1932c01263ac55a2830e7c29bc235cc`; that APK does not contain these review fixes. Native APK rebuild/install and emulator smoke for the follow-up revision remain pending. GitHub Actions remains blocked by account billing/spending limits; local results are not passing GitHub check results.

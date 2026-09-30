@@ -14,6 +14,11 @@ import {
 } from "../domain/schema";
 
 export type SqlValue = string | number | null;
+export type AttemptReading = {
+  distance: string;
+  height: string;
+  updatedAt: string;
+};
 export interface Database {
   exec(sql: string): void;
   run(sql: string, ...values: SqlValue[]): { changes: number };
@@ -549,10 +554,11 @@ export class Repository {
           "attempt-photos:" + r.id,
         );
         this.db.run(
-          "DELETE FROM local_settings WHERE key IN (?,?,?)",
+          "DELETE FROM local_settings WHERE key IN (?,?,?,?)",
           "attempt:" + r.id,
           "timer:" + r.id,
           "attempt-readings:" + r.id,
+          "workspace:" + r.id,
         );
       }
       this.db.run("UPDATE setups SET current_version_id=NULL WHERE id=?", id);
@@ -769,6 +775,26 @@ export class Repository {
       }),
     );
   }
+  recreationReadings(id: string): Record<string, AttemptReading> {
+    if (this.recreation(id).status !== "in_progress") return {};
+    const saved = this.setting<Record<string, AttemptReading> | null>(
+      "attempt-readings:" + id, null,
+    );
+    if (saved !== null) return saved;
+    const legacy = this.setting<{
+      readings?: Record<string, { distance: string; height: string }>;
+    }>("workspace:" + id, {});
+    const readings = Object.fromEntries(
+      Object.entries(legacy.readings ?? {}).map(([key, value]) => [key, {
+        distance: value.distance,
+        height: value.height,
+        // Older builds did not record when these manual values were entered.
+        updatedAt: "",
+      }]),
+    );
+    if (Object.keys(readings).length) this.setSetting("attempt-readings:" + id, readings);
+    return readings;
+  }
   abandonRecreation(id: string) {
     const attempt = this.recreation(id);
     if (attempt.status !== "in_progress") return;
@@ -779,10 +805,11 @@ export class Repository {
         id,
       );
       this.db.run(
-        "DELETE FROM local_settings WHERE key IN (?,?,?)",
+        "DELETE FROM local_settings WHERE key IN (?,?,?,?)",
         "attempt:" + id,
         "timer:" + id,
         "attempt-readings:" + id,
+        "workspace:" + id,
       );
       this.db.run("DELETE FROM working_drafts WHERE id=?", "attempt-photos:" + id);
     });

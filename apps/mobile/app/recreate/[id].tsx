@@ -105,10 +105,7 @@ function RecreationFlow({
   };
   const [manualReadings, setManualReadings] = useState<Record<string, SavedReading>>(
     () => {
-      const saved = repo.setting<Record<string, Omit<SavedReading, "confirmed">>>(
-        "attempt-readings:" + id,
-        {},
-      );
+      const saved = repo.recreationReadings(id);
       return Object.fromEntries(
         Object.entries(saved).map(([key, value]) => [key, { ...value, confirmed: false }]),
       );
@@ -288,6 +285,17 @@ function RecreationFlow({
       setError(humanError(e));
     }
   };
+  if (attempt.status === "abandoned")
+    return (
+      <Screen back title="Recreation discarded." subtitle={title}>
+        <Badge>DISCARDED ATTEMPT</Badge>
+        <Card>
+          <Body>This attempt is finished and cannot be edited.</Body>
+          <Body muted>Your saved setup and version history are unchanged.</Body>
+        </Card>
+        <Button title="Back to library" onPress={() => router.replace({ pathname: "/", params: { tab: "Setups" } })} />
+      </Screen>
+    );
   if (attempt.status === "completed")
     return (
       <Screen back title="Recreation recorded." subtitle={title}>
@@ -472,10 +480,10 @@ function RecreationFlow({
                       blank.
                     </Text>
                   )}
-                  {!inputs.confirmed && inputs.updatedAt && (
+                  {!inputs.confirmed && (inputs.distance || inputs.height) && (
                     <View style={{ gap: 8 }}>
                       <Text style={g.text}>
-                        Previous readings from {new Date(inputs.updatedAt).toLocaleString()} are stale and are not being used as current values.
+                        Previous readings {inputs.updatedAt ? `from ${new Date(inputs.updatedAt).toLocaleString()}` : "(time not recorded)"} are stale and are not being used as current values.
                       </Text>
                       <GuideButton
                         title="Recheck readings"

@@ -42,6 +42,8 @@ The current mobile source implements persisted first-use preferences, a one-time
 
 This is application acceptance evidence, not physical-device validation. Real ESP32 BLE integration, sensor packet/error behaviour, calibration and accuracy remain hardware work; absolute stand height remains manual.
 
+PR #24 review continuation on 30 September fixes preserved upgrade readings, London-day shoot grouping, native repository initialization retry and discarded-attempt read-only presentation. Local TypeScript, 62 Node tests, 25 browser journeys and both bundle exports pass. The prior APK predates these follow-up fixes; updated native packaging/runtime and GitHub CI remain pending. See the review-fix section in the acceptance record above.
+
 The [delivery handoff](engineering/CLAUDE_BUILD_HANDOFF.md) defines milestone criteria; do not restart milestones already evidenced on main. Legacy root web/device tests remain useful historical engineering but do not validate new-node BLE, mobile AR accuracy or production hardware.
 
 ## Demo-style recreation update — 17 September 2026

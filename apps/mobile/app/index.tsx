@@ -27,6 +27,7 @@ import {
 import { colors as c } from "../src/ui/theme";
 import type { Setup } from "../src/data/repository";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { dateKey, shootState, todayKey } from "../src/domain/shoot-dates";
 
 const tabs = ["Home", "Shoots", "Create", "Setups", "Equipment"] as const;
 export default function Home() {
@@ -66,6 +67,12 @@ export default function Home() {
   const setups = repo.setups(),
     attempts = repo.recreations(),
     draft = repo.draft("capture:new");
+  const today = todayKey();
+  const visibleShoots = repo.shoots().filter((shoot) =>
+    shootView === "completed"
+      ? shootState(shoot, today) !== "Planned"
+      : shootState(shoot, today) === "Planned",
+  );
   const footer = (
     <View
       style={{
@@ -411,23 +418,17 @@ export default function Home() {
             onChange={setShootView}
           />
           <View style={{ height: 16 }} />
-          {repo.shoots().filter((shoot) => {
-            const passed = Boolean(
-              shoot.scheduled_at && new Date(shoot.scheduled_at).getTime() < Date.now(),
-            );
-            const completed = shoot.status === "completed" || passed;
-            return shootView === "completed" ? completed : !completed;
-          }).map((shoot) => (
+          {visibleShoots.map((shoot) => (
             <Card
               key={shoot.id}
               onPress={() =>
                 router.push({ pathname: "/shoot", params: { id: shoot.id } })
               }
             >
-              <Badge>{shoot.status}</Badge>
+              <Badge>{shootState(shoot, today)}</Badge>
               <Heading>{shoot.name}</Heading>
               <Body muted>
-                {shoot.category} · {shoot.scheduled_at ? new Date(shoot.scheduled_at).toLocaleDateString() : "No date"} ·{" "}
+                {shoot.category} · {shoot.scheduled_at ? dateKey(shoot.scheduled_at).split("-").reverse().join("/") : "No date"} ·{" "}
                 {
                   repo.recreations().filter((a) => a.shoot_id === shoot.id)
                     .length
@@ -436,11 +437,7 @@ export default function Home() {
               </Body>
             </Card>
           ))}
-          {repo.shoots().filter((shoot) => {
-            const passed = Boolean(shoot.scheduled_at && new Date(shoot.scheduled_at).getTime() < Date.now());
-            const completed = shoot.status === "completed" || passed;
-            return shootView === "completed" ? completed : !completed;
-          }).length === 0 && (
+          {visibleShoots.length === 0 && (
             <Card>
               <Heading>{shootView === "completed" ? "No completed shoots." : "Space for your next idea."}</Heading>
               <Body muted>
