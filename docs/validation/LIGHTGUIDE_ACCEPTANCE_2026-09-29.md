@@ -92,4 +92,6 @@ The APK source commit and pull request are reported in the final handoff so that
 
 Local verification: TypeScript passed; 62/62 Node tests passed; 25/25 Chromium journeys passed; web and Android Hermes exports passed. Added real SQLite upgrade-preservation coverage, initialization failure/retry coverage, and browser regressions for midnight grouping and discarded-attempt reopening.
 
+Windows Playwright shutdown stalled after all 25 tests reported success. Terminating only that run's worker released teardown; Playwright printed `25 passed (5.7m)` and exited 0. This cleanup did not terminate the user's browser or change application data.
+
 The APK checksum above belongs to the earlier acceptance commit `05bf27b6c1932c01263ac55a2830e7c29bc235cc`; that APK does not contain these review fixes. Native APK rebuild/install and emulator smoke for the follow-up revision remain pending. GitHub Actions remains blocked by account billing/spending limits; local results are not passing GitHub check results.
