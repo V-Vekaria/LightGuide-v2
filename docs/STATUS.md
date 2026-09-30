@@ -1,12 +1,12 @@
 # LightGuide v2 — Current Status
 
-**14 September 2026: the user selected the Codex application.** Main now contains its mobile implementation and hardened native positioning harness, plus the latest workflow/architecture/acceptance documentation. The prior requirement to retain two active app branches is superseded.
+**29 September 2026: the maintained Codex mobile application has a clean-install acceptance implementation aligned with the approved 01–32 workflow references.** It preserves the offline data model and native positioning harness while adding first-use, explicit demo provenance, recovery and regression coverage. The prior requirement to retain two active app branches is superseded.
 
 ## Integrated application
 
 - Source selected: `d6110136934b3b78456a90b570d58ce00885145c`, formerly codex/offline-mobile-app.
 - [Mobile instructions](../apps/mobile/README.md): local SQLite, local photographs, draft recovery, equipment/shoots, immutable versions, manual recreation and labelled simulation.
-- Identity unchanged: `com.lightguide.codex`, version 0.1.2 / Android versionCode 3.
+- Package identity remains `com.lightguide.codex`; current display name/version are LightGuide 0.2.1 / Android versionCode 9.
 - The separate native harness remains `com.lightguide.codex.phase0`; mobile live AR/BLE is not implied.
 - Runtime source and dependency files are preserved from the selected commit. Integration changes documentation and CI/maintenance wiring.
 
@@ -35,6 +35,12 @@ Claude's implementation at `7184b71aa9e6d97138021cc44a34a0a05573b6f7` is not mer
 3. Sensor bench bring-up is done: received parts identified, pin map verified, and all sensors plus a save button run together ([evidence](validation/ESP32S3_SENSOR_BENCH_2026-09-21.md)). Next: define and validate the live BLE link and calibration before integration.
 4. Complete mobile native AR integration, iOS, cloud or other deferred features only when their own scope/evidence supports them.
 5. Collect five-photographer evidence before MVP claims.
+
+## Acceptance workflow alignment — 29 September 2026
+
+The current mobile source implements persisted first-use preferences, a one-time labelled Soft portrait example, hardware-free guided simulation, freely navigable recreation phases, timestamped stale-reading recovery, photo-failure recovery, future-date shoot rules and truthful backup/measurement help. See the [screen parity and validation record](validation/LIGHTGUIDE_ACCEPTANCE_2026-09-29.md) and [design QA](../design-qa.md).
+
+This is application acceptance evidence, not physical-device validation. Real ESP32 BLE integration, sensor packet/error behaviour, calibration and accuracy remain hardware work; absolute stand height remains manual.
 
 The [delivery handoff](engineering/CLAUDE_BUILD_HANDOFF.md) defines milestone criteria; do not restart milestones already evidenced on main. Legacy root web/device tests remain useful historical engineering but do not validate new-node BLE, mobile AR accuracy or production hardware.
 
@@ -66,4 +72,4 @@ for exact artifact status, source identity, signing and remaining phone gates.
 
 ## Combined app integration - 29 September 2026
 
-PR #21 is merged and integrated with #22 in candidate **0.2.1 / code 9**. TypeScript, all **57 mobile tests**, all **22 browser tests**, the local native release build and APK identity/signature/alignment verification pass. Package, database/schema and signing certificate are unchanged. The user chose to finish GitHub now and install build 9 later; the last verified phone installation is build 8. Full native acceptance and physical BLE checks remain pending. Firmware #20 stays open: its published head omits the existing local sensor-loop timing fix and lacks physical acceptance. See [combined evidence](validation/APP_PR_INTEGRATION_2026-09-28.md).
+PR #21 is merged and integrated with #22 in candidate **0.2.1 / code 9**. TypeScript, all **59 mobile tests**, all **23 browser tests**, the local native release build and APK identity/signature/alignment verification pass. Package, database/schema and signing certificate are unchanged. The user chose to finish GitHub now and install build 9 later; the last verified phone installation is build 8. Full native acceptance and physical BLE checks remain pending. Firmware #20 stays open: its published head omits the existing local sensor-loop timing fix and lacks physical acceptance. See [combined evidence](validation/APP_PR_INTEGRATION_2026-09-28.md).

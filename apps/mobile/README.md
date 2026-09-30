@@ -1,14 +1,14 @@
-# LightGuide Codex — offline evaluation application
+# LightGuide — offline acceptance application
 
-This is the maintained LightGuide application on `main`, selected by the user on 14 September 2026 after the independent Codex/Claude comparison. The original Codex implementation is retained intact; Claude's alternative is recovery history, not a second development target. See [the consolidation record](../../docs/validation/BRANCH_CLEANUP_2026-09-14.md).
+This is the maintained LightGuide application, selected by the user on 14 September 2026 after the independent Codex/Claude comparison and aligned with the approved 01–32 acceptance references on 29 September 2026. Claude's alternative is recovery history, not a second development target. See [the consolidation record](../../docs/validation/BRANCH_CLEANUP_2026-09-14.md) and [current acceptance record](../../docs/validation/LIGHTGUIDE_ACCEPTANCE_2026-09-29.md).
 
-- Android package: `com.lightguide.codex`; display name: **LightGuide Codex**.
+- Android package: `com.lightguide.codex`; display name: **LightGuide**; version 0.2.1 / versionCode 9.
 - Separate positioning harness: `com.lightguide.codex.phase0`.
-- Baseline: repository commit `56e9603`. No production backend, credentials or customer data are required.
+- No production backend, credentials or customer data are required.
 
 ## Working scope
 
-Local SQLite capture and draft recovery; photographs stored on the device; equipment and shoots; multiple lights and optional camera settings; search; immutable setup versions and conflict preservation; archive; 30-day Trash/restore; manual recreation with original photographs, notes, active guidance time and photographer-reported outcomes; visibly simulated positioning; JSON notes export. Export explicitly excludes photo bytes and is not a complete backup/import facility.
+Local SQLite capture and draft recovery; photographs stored on the device; equipment and shoots; multiple lights and optional camera settings; search; immutable setup versions and conflict preservation; archive; 30-day Trash/restore; manual recreation with original photographs, notes, active guidance time and photographer-reported outcomes; visibly simulated positioning; JSON notes export; and validated full workspace backup/import including optimised photo bytes.
 
 The native AR experiment remains a separate measurement harness. Mobile live positioning, BLE, accounts, cloud sync, AI recommendations and iOS validation are unavailable in this build. Missing measurements stay unknown. A manual or simulated result never asserts a measured spatial match.
 
@@ -55,12 +55,13 @@ The GitHub workflow `.github/workflows/codex-application.yml` runs software chec
 
 ## Test on the phone
 
-1. Create a real setup with a name, original/result photos and optional light/camera details.
-2. Force-close the app, enable airplane mode, reopen and find the saved setup.
-3. Edit a version; verify the old version remains readable.
-4. Recreate the old version, add a test photo and record your assessment.
-5. Archive/unarchive, then Trash/restore. Permanently delete only disposable test records.
-6. Record the installed version/build and retest repeated Settings navigation: repeated taps must still require only one Back action. Preserve the existing package ID and local data when upgrading.
+1. For clean-install acceptance, uninstall the previous package and install the supplied APK.
+2. Complete Welcome → Starting point and confirm the photography/experience choices survive restart.
+3. Run the guided demo and confirm every synthetic value is labelled Simulation or Example data.
+4. Open the bundled Soft portrait example, visit all four recreation phases and record an assessment.
+5. Inspect recreation history, edit/version behaviour and photo comparison.
+6. Create a separate real setup with optional light/camera details; force-close/reopen and verify it persists.
+7. Archive/unarchive, then Trash/restore. Permanently delete only disposable test records.
 
 Then test physical positioning separately using the exact registered marker assets and independent measurements in the repository's test plan. Compilation and simulations do not validate 3 cm accuracy.
 

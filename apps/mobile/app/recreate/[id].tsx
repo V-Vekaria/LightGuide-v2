@@ -1,7 +1,7 @@
+import { formatShutter } from "../../src/domain/camera-settings";
 import React, { useCallback, useRef, useState } from "react";
-import { AppState, Text, TextInput, View } from "react-native";
+import { AppState, View } from "react-native";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
-import Feather from "@expo/vector-icons/Feather";
 import { useStore } from "../../src/ui/Store";
 import {
   Badge,
@@ -9,17 +9,17 @@ import {
   Button,
   Card,
   Choice,
+  Confirm,
   ErrorMessage,
   Field,
   Heading,
+  Label,
   Photo,
   PhotoComparison,
   Screen,
+  useResponsiveColumns,
   s,
 } from "../../src/ui/components";
-import { LightDiagram } from "../../src/ui/RecreationGuide";
-import { StepNav } from "../../src/ui/StepNav";
-import { colors as c } from "../../src/ui/theme";
 import {
   emptyScene,
   humanError,
@@ -27,43 +27,45 @@ import {
   type Scene,
 } from "../../src/domain/schema";
 import {
-  savedLight,
+  RecreationGuide,
+  GuideButton,
+  GuideInput,
+  g,
+} from "../../src/ui/RecreationGuide";
+import {
   manualCue,
   parseManualCm,
+  savedLight,
   unknownLight,
 } from "../../src/domain/recreation-guide";
-import { formatShutter } from "../../src/domain/camera-settings";
+import { Text } from "react-native";
 import { pickPhoto } from "../../src/media/media";
 
-type Workspace = {
-  stage: number;
-  light: number;
-  readings: Record<string, { height: string; distance: string }>;
-  camera: Record<string, string>;
-};
 export default function Recreate() {
-  const { repo } = useStore(),
+  const { repo, refresh } = useStore(),
     { id } = useLocalSearchParams<{ id: string }>();
+  let attempt, scene, setup;
   try {
-    const attempt = repo.recreation(id),
-      version = repo.version(attempt.setup_version_id),
-      setup = repo.setup(version.setup_id);
-    return (
-      <RecreationFlow
-        key={id}
-        id={id}
-        target={repo.scene(version.id)}
-        title={setup.title}
-        deleted={Boolean(setup.deleted_at)}
-      />
-    );
+    attempt = repo.recreation(id);
+    const version = repo.version(attempt.setup_version_id);
+    scene = repo.scene(version.id);
+    setup = repo.setup(version.setup_id);
   } catch (e) {
     return (
-      <Screen back title="Attempt unavailable">
+      <Screen back title="Attempt unavailable.">
         <ErrorMessage message={humanError(e)} />
       </Screen>
     );
   }
+  return (
+    <RecreationFlow
+      key={id}
+      id={id}
+      target={scene}
+      title={setup.title}
+      deleted={Boolean(setup.deleted_at)}
+    />
+  );
 }
 function RecreationFlow({
   id,
@@ -76,46 +78,46 @@ function RecreationFlow({
   title: string;
   deleted: boolean;
 }) {
+  const columns = useResponsiveColumns();
   const { repo, refresh } = useStore(),
-    attempt = repo.recreation(id),
-    lights = target.objects.filter((o) => o.kind === "light"),
-    camera = target.objects.find((o) => o.kind === "camera");
-  const previous = repo.setting("attempt:" + id, {
+    attempt = repo.recreation(id);
+  const progress = repo.setting("attempt:" + id, {
     step: 0,
     notes: "",
     outcome: null as Outcome | null,
   });
-  const previousStage =
-    previous.step === 0
-      ? 0
-      : previous.step <= lights.length
-        ? 1
-        : previous.step === lights.length + 1
-          ? 2
-          : 3;
-  const [work, setWork] = useState<Workspace>(() =>
-    repo.setting("workspace:" + id, {
-      stage: previousStage,
-      light: 0,
-      readings: {},
-      camera: {},
-    }),
-  );
-  const [notes, setNotes] = useState(previous.notes),
-    [outcome, setOutcome] = useState<Outcome | null>(previous.outcome ?? null),
+  const [step, setStep] = useState(progress.step),
+    [notes, setNotes] = useState(progress.notes),
+    [outcome, setOutcome] = useState<Outcome | null>(progress.outcome ?? null),
     [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
-    [help, setHelp] = useState(false);
-  const [images, setImages] = useState<Scene["images"]>(
-    () => repo.draft("attempt-photos:" + id)?.data.images ?? [],
-  );
-  const [resumed] = useState(() =>
-    Boolean(repo.setting("workspace:" + id, null)),
+    [discardAttempt, setDiscardAttempt] = useState(false),
+    [images, setImages] = useState<Scene["images"]>(
+      () => repo.draft("attempt-photos:" + id)?.data.images ?? [],
+    ),
+    [elapsed, setElapsed] = useState(repo.setting("timer:" + id, 0));
+  const [showOriginal, setShowOriginal] = useState(false);
+  type SavedReading = {
+    distance: string;
+    height: string;
+    updatedAt: string;
+    confirmed: boolean;
+  };
+  const [manualReadings, setManualReadings] = useState<Record<string, SavedReading>>(
+    () => {
+      const saved = repo.setting<Record<string, Omit<SavedReading, "confirmed">>>(
+        "attempt-readings:" + id,
+        {},
+      );
+      return Object.fromEntries(
+        Object.entries(saved).map(([key, value]) => [key, { ...value, confirmed: false }]),
+      );
+    },
   );
   const clock = useRef({
-    elapsed: repo.setting("timer:" + id, 0),
+    elapsed,
     at: performance.now(),
-    active: false,
+    active: AppState.currentState === "active",
   });
   useFocusEffect(
     useCallback(() => {
@@ -123,89 +125,130 @@ function RecreationFlow({
       clock.current.at = performance.now();
       clock.current.active = AppState.currentState === "active";
       const tick = () => {
-        const t = performance.now(),
+        const now = performance.now(),
           v = clock.current;
-        if (v.active) v.elapsed += Math.max(0, t - v.at);
-        v.at = t;
+        if (v.active) v.elapsed += Math.max(0, now - v.at);
+        v.at = now;
+        // Keep full-resolution timing in the ref and durable record, but avoid
+        // continuously invalidating the native accessibility tree for a clock.
+        setElapsed((shown) =>
+          Math.floor(shown / 60000) === Math.floor(v.elapsed / 60000)
+            ? shown
+            : v.elapsed,
+        );
         try {
           repo.setSetting("timer:" + id, Math.round(v.elapsed));
         } catch (e) {
           setError(humanError(e));
         }
       };
-      const timer = setInterval(tick, 5000),
-        sub = AppState.addEventListener("change", (state) => {
-          tick();
-          clock.current.active = state === "active";
-        });
+      const timer = setInterval(tick, 1000);
+      const sub = AppState.addEventListener("change", (state) => {
+        tick();
+        clock.current.active = state === "active";
+      });
       return () => {
         tick();
         clock.current.active = false;
         clearInterval(timer);
         sub.remove();
       };
-    }, [repo, id, attempt.status, deleted]),
+    }, [id, attempt.status, deleted, repo]),
   );
-  const update = (patch: Partial<Workspace>) => {
-    const next = { ...work, ...patch };
+  const camera = target.objects.find((o) => o.kind === "camera");
+  const lights = target.objects.filter((o) => o.kind === "light");
+  const steps = [
+    {
+      title: "Re-establish your scene",
+      text: "Place the subject and background as shown in your saved photo. Use your recorded floor marks or reference notes.",
+    },
+    ...lights.map((o) => ({
+      title: `Position your ${o.role?.toLowerCase() ?? "main"} light`,
+      text: `${o.settings.modifier_description ?? "Use your recorded modifier"}. Power: ${o.settings.power_label ?? "not recorded"}. Check the saved photo. Open measurements if you want to compare distance and height.`,
+    })),
+    {
+      title: "Set your camera",
+      text: camera
+        ? `${camera.equipment.map((e) => e.name).join(" · ")}. ${camera.settings.focal_length_mm ?? "—"} mm, f/${camera.settings.aperture_f ?? "—"}, ${formatShutter(camera.settings.exposure_time_s) || "—"} s, ISO ${camera.settings.iso ?? "—"}. ${camera.notes ?? ""} Make a test photograph.`
+        : "Compare the camera position and framing. No numeric settings were recorded. Make a test photograph before continuing.",
+    },
+    {
+      title: "Compare the result",
+      text: "Compare shadows, highlights and the background with your original image. Record any adjustments and your own assessment.",
+    },
+  ];
+  const lightIndex = Math.max(0, Math.min(lights.length - 1, step - 1));
+  const selectedLight = lights[lightIndex];
+  const savedValues = savedLight(target, selectedLight?.id);
+  const inputs = manualReadings[selectedLight?.id ?? ""] ?? {
+    distance: "",
+    height: "",
+    updatedAt: "",
+    confirmed: true,
+  };
+  const currentValues = {
+    ...unknownLight,
+    distance: inputs.confirmed ? parseManualCm(inputs.distance) : null,
+    height: inputs.confirmed ? parseManualCm(inputs.height) : null,
+  };
+  const isLightStep = step > 0 && step <= lights.length;
+  const activeStage =
+    step === 0
+      ? 0
+      : step <= lights.length
+        ? 1
+        : step === lights.length + 1
+          ? 2
+          : 3;
+  const currentStep = steps[Math.min(step, steps.length - 1)]!;
+  const inputInvalid = [inputs.distance, inputs.height].some(
+    (raw) => raw.trim() !== "" && parseManualCm(raw) === null,
+  );
+  const changeReading = (field: "distance" | "height", value: string) => {
+    if (selectedLight) {
+      const next = {
+        ...manualReadings,
+        [selectedLight.id]: {
+          ...inputs,
+          [field]: value,
+          updatedAt: new Date().toISOString(),
+          confirmed: true,
+        },
+      };
+      setManualReadings(next);
+      repo.setSetting(
+        "attempt-readings:" + id,
+        Object.fromEntries(
+          Object.entries(next).map(([key, reading]) => [
+            key,
+            {
+              distance: reading.distance,
+              height: reading.height,
+              updatedAt: reading.updatedAt,
+            },
+          ]),
+        ),
+      );
+    }
+  };
+  const advance = (next: number) => {
     try {
-      repo.setSetting("workspace:" + id, next);
-      setWork(next);
+      repo.saveRecreationProgress(id, next, notes);
+      setStep(next);
       setError(null);
     } catch (e) {
       setError(humanError(e));
     }
   };
-  const navigate = (stage: number) => {
-    update({ stage });
-  };
-  const light = lights[work.light] ?? lights[0],
-    inputs = work.readings[light?.id ?? ""] ?? { height: "", distance: "" },
-    saved = savedLight(target, light?.id);
-  const current = {
-    ...unknownLight,
-    height: parseManualCm(inputs.height),
-    distance: parseManualCm(inputs.distance),
-  };
-  const invalid = Object.values(inputs).some(
-    (v) => v.trim() !== "" && parseManualCm(v) === null,
-  );
-  const reading = (key: "height" | "distance", value: string) => {
-    if (light)
-      update({
-        readings: { ...work.readings, [light.id]: { ...inputs, [key]: value } },
-      });
-  };
-  const originalResult = target.images.find((p) => p.role === "result"),
-    placement =
-      target.images.find((p) => p.role === "setup") ??
-      target.images.find((p) => p.role === "reference");
-  const pair = (
-    <View style={{ flexDirection: "row", gap: 12, marginVertical: 16 }}>
-      {[
-        { photo: originalResult, label: "Result" },
-        { photo: placement, label: "Placement" },
-      ].map(({ photo, label }) => (
-        <View key={label} style={{ flex: 1 }}>
-          {photo ? (
-            <Photo id={photo.image_id} label={label} compact />
-          ) : (
-            <Card>
-              <Body muted>No {label.toLowerCase()} photo</Body>
-            </Card>
-          )}
-        </View>
-      ))}
-    </View>
-  );
   const addPhoto = async () => {
     setBusy(true);
+    setError(null);
     try {
-      const image = await pickPhoto(repo);
-      if (image) {
+      const imageId = await pickPhoto(repo);
+      if (imageId) {
         const next = [
           ...images,
-          { image_id: image, role: "result" as const, object_id: null },
+          { image_id: imageId, role: "result" as const, object_id: null },
         ];
         repo.saveDraft("attempt-photos:" + id, {
           title: "Recreation photos",
@@ -221,69 +264,76 @@ function RecreationFlow({
         });
         setImages(next);
       }
-      setError(null);
     } catch (e) {
       setError(humanError(e));
     } finally {
       setBusy(false);
     }
   };
-  const record = () => {
-    if (busy) return;
-    setBusy(true);
+  const complete = () => {
     try {
-      if (!outcome) throw new Error("Choose your assessment before saving.");
-      const elapsed =
+      if (!outcome)
+        throw new Error("Choose your assessment before recording the result.");
+      const actual = { ...emptyScene(), images, notes: notes.trim() || null };
+      const ms =
         clock.current.elapsed +
         (clock.current.active
           ? Math.max(0, performance.now() - clock.current.at)
           : 0);
-      repo.completeRecreation(
-        id,
-        outcome,
-        notes,
-        { ...emptyScene(), images, notes: notes.trim() || null },
-        Math.round(elapsed),
-      );
+      repo.completeRecreation(id, outcome, notes, actual, Math.round(ms));
       repo.discardDraft("attempt-photos:" + id);
       refresh();
       setError(null);
     } catch (e) {
       setError(humanError(e));
-    } finally {
-      setBusy(false);
     }
   };
   if (attempt.status === "completed")
     return (
-      <Screen back title="Assessment saved" subtitle={title}>
-        <Badge>YOUR ASSESSMENT</Badge>
+      <Screen back title="Recreation recorded." subtitle={title}>
+        <Badge>PHOTOGRAPHER-REPORTED OUTCOME</Badge>
         <Card>
           <Heading>{attempt.outcome?.replaceAll("_", " ")}</Heading>
           <Body>
             {JSON.parse(attempt.feedback).notes || "No adjustments recorded."}
           </Body>
           <Body muted>
-            Your saved setup is unchanged. This is your judgement, not a
-            sensor-verified match.
+            {Math.round((attempt.duration_ms ?? 0) / 1000)} seconds of active
+            guidance time · {new Date(attempt.completed_at!).toLocaleString()}
+          </Body>
+          <Body muted>
+            This is your assessment, not a sensor-verified match. The saved
+            setup used for this attempt is unchanged.
           </Body>
         </Card>
         <PhotoComparison
-          originals={target.images.map((p) => ({
+          originals={target.images.map((p, i) => ({
             id: p.image_id,
-            label: "Original " + p.role + " 1",
+            label: `Original ${p.role} ${i + 1}`,
           }))}
           results={
             attempt.actual_snapshot
               ? JSON.parse(attempt.actual_snapshot).images.map(
-                  (p: Scene["images"][number]) => ({
+                  (p: Scene["images"][number], i: number) => ({
                     id: p.image_id,
-                    label: "New result 1",
+                    label: `New result ${i + 1}`,
                   }),
                 )
               : []
           }
         />
+        <View style={s.row}>
+          {attempt.actual_snapshot &&
+            JSON.parse(attempt.actual_snapshot).images.map(
+              (i: Scene["images"][number]) => (
+                <Photo
+                  key={i.image_id}
+                  id={i.image_id}
+                  label="Recreated result"
+                />
+              ),
+            )}
+        </View>
         <Button
           title="Back to library"
           onPress={() =>
@@ -292,354 +342,331 @@ function RecreationFlow({
         />
       </Screen>
     );
-  if (deleted)
-    return (
-      <Screen back title={title}>
-        <Body>Restore this setup from Trash before continuing.</Body>
-      </Screen>
-    );
   return (
-    <Screen back title={title} subtitle="Recreation">
-      <StepNav active={work.stage} onChange={navigate} />
-      <Badge>MANUAL RECREATION</Badge>
+    <Screen back title="Recreate, one step at a time." subtitle={title}>
+      <Badge tone="warning">MANUAL RECREATION</Badge>
       <ErrorMessage message={error} />
-      {resumed && (
-        <Body muted>
-          Previous entries are retained. Recheck them: the light or camera may
-          have moved.
-        </Body>
-      )}
-      {work.stage === 0 && (
-        <>
-          <Heading>Use the same reference point</Heading>
-          {placement ? (
-            <Photo id={placement.image_id} label="Saved light placement" />
-          ) : (
-            pair
-          )}
-          <Body>Place the subject at the saved position.</Body>
-          <Card>
-            <Body>
-              {target.notes ||
-                "No reference notes saved. Check your placement photograph."}
-            </Body>
-          </Card>
-          <Badge>Manual mode</Badge>
-          <View style={{ height: 16 }} />
-          <Button title="Reference checked" onPress={() => navigate(1)} />
-        </>
-      )}
-      {work.stage === 1 && (
+      {deleted ? (
+        <Card>
+          <Body>Restore the setup from Trash to continue this attempt.</Body>
+        </Card>
+      ) : (
         <>
           <View
-            style={{ flexDirection: "row", justifyContent: "space-between" }}
+            style={[
+              s.row,
+              { justifyContent: "space-between", marginVertical: 20 },
+            ]}
           >
-            <Heading>{light?.role || light?.name || "Light"}</Heading>
+            <Label>
+              STEP {Math.min(step + 1, steps.length)} OF {steps.length}
+            </Label>
             <Body muted>
-              {lights.length
-                ? `${work.light + 1} of ${lights.length}`
-                : "No saved light"}
+              {Math.floor(elapsed / 60000)}m active · recorded to the second
             </Body>
           </View>
-          <Body muted>Light height — side view</Body>
-          <LightDiagram
-            saved={saved}
-            current={current}
-            side
-            simulated={false}
-          />
-          <Body muted>Manual readings</Body>
-          {pair}
-          <View
-            style={{
-              flexDirection: "row",
-              paddingBottom: 10,
-              borderBottomWidth: 1,
-              borderColor: c.border,
+          {progress.step > 0 && (
+            <Body muted>
+              Resuming? Your steps, notes and entered readings are saved.
+              Recheck them if the equipment may have moved.
+            </Body>
+          )}
+          <RecreationGuide
+            mode="manual"
+            stage={activeStage}
+            steps={["Reference", "Lights", "Camera", "Check"]}
+            onStepPress={(phase) => {
+              const next =
+                phase === 0
+                  ? 0
+                  : phase === 1
+                    ? Math.max(1, Math.min(step, Math.max(1, lights.length)))
+                    : phase === 2
+                      ? lights.length + 1
+                      : lights.length + 2;
+              advance(next);
             }}
-          >
-            {["Measurement", "Saved", "Now"].map((t, i) => (
-              <Text
-                key={t}
-                style={{
-                  color: c.muted,
-                  flex: i === 0 ? 1.4 : 1,
-                  fontSize: 12,
-                }}
-              >
-                {t}
-              </Text>
-            ))}
-          </View>
-          {(["height", "distance"] as const).map((key) => (
-            <View
-              key={key}
-              testID={"guide-value-" + key}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                borderBottomWidth: 1,
-                borderColor: c.border,
-                paddingVertical: 12,
-                gap: 8,
-              }}
-            >
-              <Text
-                style={{
-                  color: c.text,
-                  flex: 1.4,
-                  textTransform: "capitalize",
-                }}
-              >
-                {key}
-              </Text>
-              <Text style={{ color: c.text, flex: 1 }}>
-                {saved[key] === null
-                  ? "Unknown"
-                  : `${Math.round(saved[key]!)} cm`}
-              </Text>
-              <View
-                style={{
-                  flex: 1,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: c.panel,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: c.border,
-                }}
-              >
-                <TextInput
-                  accessibilityLabel={
-                    (key === "height" ? "Height" : "Distance") + " now (cm)"
-                  }
-                  keyboardType="decimal-pad"
-                  value={inputs[key]}
-                  onChangeText={(v) => reading(key, v)}
-                  style={{ color: c.text, flex: 1, minHeight: 48, padding: 8 }}
-                  maxLength={20}
-                />
-                <Text style={{ color: c.muted, paddingRight: 8 }}>cm</Text>
-              </View>
-            </View>
-          ))}
-          <View style={{ height: 12 }} />
-          <Card>
-            <View
-              style={{ flexDirection: "row", gap: 12, alignItems: "center" }}
-            >
-              <Feather name="move" size={24} color={c.accent} />
-              <View style={{ flex: 1 }}>
-                <Heading testID="guide-cue">
-                  {invalid
-                    ? "Check your measurements"
-                    : manualCue(saved, current)}
-                </Heading>
-                <Body muted>Based on your entries.</Body>
-              </View>
-            </View>
-          </Card>
-          <Button
-            title={help ? "Hide measurement guide" : "Show measurement guide"}
-            kind="secondary"
-            onPress={() => setHelp(!help)}
-          />
-          {help && (
-            <Card>
-              <Body>
-                Measure height from the floor to the light centre. Measure
-                distance from the modifier front to the same subject point used
-                when saving. Missing readings stay unknown.
-              </Body>
-            </Card>
-          )}
-          {lights.length > 1 && (
-            <>
-              <Body muted>Current light</Body>
-              <Choice
-                options={lights.map((l, i) => `${i + 1}. ${l.role || "Light"}`)}
-                value={`${work.light + 1}. ${light?.role || "Light"}`}
-                onChange={(v) => update({ light: Number(v.split(".")[0]) - 1 })}
-              />
-            </>
-          )}
-          <View style={{ height: 12 }} />
-          <Button
-            title="Next: camera"
-            disabled={invalid}
-            onPress={() => navigate(2)}
-          />
-        </>
-      )}
-      {work.stage === 2 && (
-        <>
-          <Heading>Check your camera</Heading>
-          <Body muted>
-            {camera?.equipment.map((e) => e.name).join(" · ") ||
-              "Camera not specified"}
-          </Body>
-          <Body>Read these from your camera.</Body>
-          <View style={{ height: 16 }} />
-          {(
-            [
-              [
-                "Shutter speed",
-                "shutter",
-                formatShutter(camera?.settings.exposure_time_s ?? null),
-              ],
-              [
-                "Aperture",
-                "aperture",
-                String(camera?.settings.aperture_f ?? ""),
-              ],
-              ["ISO", "iso", String(camera?.settings.iso ?? "")],
-              [
-                "Focal length (mm)",
-                "focal",
-                String(camera?.settings.focal_length_mm ?? ""),
-              ],
-            ] as const
-          ).map(([label, key, value]) => (
-            <View
-              key={key}
-              style={{
-                borderBottomWidth: 1,
-                borderColor: c.border,
-                marginBottom: 14,
-              }}
-            >
-              <Body muted>
-                Saved {label.toLowerCase()}: {value || "Unknown"}
-              </Body>
-              <Field
-                label={label + " now"}
-                value={work.camera[key] ?? ""}
-                onChange={(v) =>
-                  update({ camera: { ...work.camera, [key]: v } })
-                }
-              />
-            </View>
-          ))}
-          <Button title="Camera settings checked" onPress={() => navigate(3)} />
-          <View style={{ height: 10 }} />
-          <Button
-            title="Skip camera check"
-            kind="secondary"
-            onPress={() => navigate(3)}
-          />
-        </>
-      )}
-      {work.stage === 3 && (
-        <>
-          <Heading>Compare the result</Heading>
-          <View style={{ flexDirection: "row", gap: 12, marginVertical: 12 }}>
-            <View style={{ flex: 1 }}>
-              {originalResult ? (
-                <Photo
-                  id={originalResult.image_id}
-                  label="Saved result"
-                  compact
-                />
-              ) : (
-                <Body muted>No saved result</Body>
-              )}
-            </View>
-            <View style={{ flex: 1 }}>
-              {images[0] ? (
-                <Photo id={images[0].image_id} label="New result" compact />
-              ) : (
-                <Card>
-                  <Body muted>Add a new result</Body>
-                </Card>
-              )}
-            </View>
-          </View>
-          <PhotoComparison
-            originals={target.images.map((p) => ({
-              id: p.image_id,
-              label: "Original " + p.role + " 1",
-            }))}
-            results={images.map((p) => ({
-              id: p.image_id,
-              label: "New result 1",
-            }))}
-          />
-          <View style={{ height: 12 }} />
-          <Button
-            title="Add test photograph"
-            kind="secondary"
-            disabled={busy}
-            onPress={addPhoto}
-          />
-          <Body muted>
-            Compare shadow edges, direction and brightness. LightGuide does not
-            calculate an image match.
-          </Body>
-          <View style={{ height: 20 }} />
-          <Heading>How close is the result?</Heading>
-          <Choice
-            options={["Close enough", "Needs adjustment", "Not evaluated"]}
-            value={
-              outcome === "close_enough"
-                ? "Close enough"
-                : outcome === "unsuccessful"
-                  ? "Needs adjustment"
-                  : outcome === "not_evaluated"
-                    ? "Not evaluated"
-                    : ""
+            title={
+              step >= steps.length
+                ? "Ready to record your result"
+                : isLightStep
+                  ? inputInvalid
+                    ? "Check your entered measurements"
+                    : manualCue(savedValues, currentValues)
+                  : currentStep.title
             }
-            onChange={(v) => {
-              const next: Outcome =
-                v === "Close enough"
-                  ? "close_enough"
-                  : v === "Needs adjustment"
-                    ? "unsuccessful"
-                    : "not_evaluated";
-              try {
-                repo.saveRecreationProgress(id, lights.length + 3, notes, next);
-                setOutcome(next);
-              } catch (e) {
-                setError(humanError(e));
-              }
-            }}
-          />
-          <View style={{ height: 16 }} />
-          <Field
-            label="Adjustments and feedback"
-            multiline
-            value={notes}
-            onChange={(v) => {
-              setNotes(v);
-              try {
-                repo.saveRecreationProgress(
-                  id,
-                  lights.length + 3,
-                  v,
-                  outcome ?? undefined,
-                );
-              } catch (e) {
-                setError(humanError(e));
-              }
-            }}
-          />
-          <Body muted>
-            Your judgement.
-            {images.length ? "" : " No comparison photograph attached."}
-          </Body>
-          <View style={{ height: 12 }} />
+            detail={
+              step >= steps.length
+                ? "Compare your test photograph, add feedback below and record your assessment."
+                : currentStep.text
+            }
+            saved={savedValues}
+            current={currentValues}
+            action={
+              <GuideButton
+                title={
+                  step >= steps.length
+                    ? "Steps completed"
+                    : "Mark step complete"
+                }
+                primary
+                disabled={step >= steps.length || (isLightStep && inputInvalid)}
+                onPress={() => advance(step + 1)}
+              />
+            }
+            secondary={
+              step > 0 ? (
+                <GuideButton
+                  title="Previous step"
+                  onPress={() => advance(step - 1)}
+                />
+              ) : undefined
+            }
+            reference={
+              <View style={{ gap: 8 }}>
+                {(() => {
+                  const photo =
+                    target.images.find(
+                      (p) => p.role === (activeStage >= 2 ? "result" : "setup"),
+                    ) ?? target.images[0];
+                  return photo ? (
+                    <Photo
+                      id={photo.image_id}
+                      label="Saved reference"
+                      compact
+                      light
+                    />
+                  ) : (
+                    <Text style={g.small}>
+                      No reference photo saved. Use the original notes below;
+                      add a setup photo next time to make recreation easier.
+                    </Text>
+                  );
+                })()}
+              </View>
+            }
+            controls={
+              isLightStep &&
+              (savedValues.distance !== null ||
+                savedValues.height !== null) && (
+                <>
+                  <View style={g.row}>
+                    {savedValues.distance !== null && (
+                      <GuideInput
+                        label="Distance now (cm)"
+                        value={inputs.distance}
+                        onChange={(v) => changeReading("distance", v)}
+                      />
+                    )}
+                    {savedValues.height !== null && (
+                      <GuideInput
+                        label="Height now (cm)"
+                        value={inputs.height}
+                        onChange={(v) => changeReading("height", v)}
+                      />
+                    )}
+                  </View>
+                  {inputInvalid && (
+                    <Text accessibilityRole="alert" style={g.text}>
+                      Enter a number between 0 and 100,000 cm, or leave it
+                      blank.
+                    </Text>
+                  )}
+                  {!inputs.confirmed && inputs.updatedAt && (
+                    <View style={{ gap: 8 }}>
+                      <Text style={g.text}>
+                        Previous readings from {new Date(inputs.updatedAt).toLocaleString()} are stale and are not being used as current values.
+                      </Text>
+                      <GuideButton
+                        title="Recheck readings"
+                        onPress={() => {
+                          if (!selectedLight) return;
+                          const next = {
+                            ...manualReadings,
+                            [selectedLight.id]: {
+                              ...inputs,
+                              confirmed: true,
+                              updatedAt: new Date().toISOString(),
+                            },
+                          };
+                          setManualReadings(next);
+                          repo.setSetting("attempt-readings:" + id, next);
+                        }}
+                      />
+                    </View>
+                  )}
+                  <Text style={g.small}>
+                    Optional checks for this visit. Measure from the same points
+                    used when saving: light height above the floor and
+                    light-to-subject distance. No live sensor is reading these
+                    values.
+                  </Text>
+                </>
+              )
+            }
+          >
+            {selectedLight && (
+              <Text style={g.small}>
+                Light {lightIndex + 1} of {lights.length} ·{" "}
+                {selectedLight.role ?? selectedLight.name ?? "Light"}
+              </Text>
+            )}
+          </RecreationGuide>
+          <View style={columns.split}>
+            <Card style={columns.column}>
+              <Button
+                title={
+                  showOriginal
+                    ? "Hide saved details"
+                    : "Show all saved photos & details"
+                }
+                kind="secondary"
+                onPress={() => setShowOriginal((v) => !v)}
+              />
+              {showOriginal && (
+                <>
+                  <Label>ORIGINAL SETUP</Label>
+                  {target.images.length ? (
+                    target.images.map((i) => (
+                      <Photo key={i.image_id} id={i.image_id} label={i.role} />
+                    ))
+                  ) : (
+                    <Body muted>No original photographs saved.</Body>
+                  )}
+                  <Body>{target.notes ?? "No original notes."}</Body>
+                  {lights.map((o) => (
+                    <View key={o.id}>
+                      <Heading>{o.role ?? "Light"}</Heading>
+                      <Body>
+                        Power: {o.settings.power_label ?? "Not recorded"}
+                      </Body>
+                      <Body>
+                        Modifier:{" "}
+                        {o.settings.modifier_description ?? "Not recorded"}
+                      </Body>
+                      {o.measurements
+                        .filter(
+                          (m) =>
+                            !o.measurements.some(
+                              (n) => n.supersedes_measurement_id === m.id,
+                            ),
+                        )
+                        .map((m) => (
+                          <Body key={m.id} muted>
+                            {m.kind}:{" "}
+                            {typeof m.value === "number"
+                              ? Math.round(m.value * 100) + " cm"
+                              : "Not recorded"}{" "}
+                            ({m.source})
+                          </Body>
+                        ))}
+                    </View>
+                  ))}
+                </>
+              )}
+            </Card>
+            <Card style={columns.column}>
+              <Label>YOUR RECREATED RESULT</Label>
+              <PhotoComparison
+                originals={target.images.map((p, i) => ({
+                  id: p.image_id,
+                  label: `Original ${p.role} ${i + 1}`,
+                }))}
+                results={images.map((p, i) => ({
+                  id: p.image_id,
+                  label: `New result ${i + 1}`,
+                }))}
+              />
+              <Button
+                title="Add test photograph"
+                kind="secondary"
+                disabled={busy}
+                onPress={addPhoto}
+              />
+              {images.map((i) => (
+                <Photo key={i.image_id} id={i.image_id} label="New result" />
+              ))}
+              <Field
+                label="Adjustments and feedback"
+                multiline
+                value={notes}
+                onChange={(value) => {
+                  setNotes(value);
+                  try {
+                    repo.saveRecreationProgress(id, step, value);
+                  } catch (e) {
+                    setError(humanError(e));
+                  }
+                }}
+              />
+              <Body>How close did you get? Choose an assessment.</Body>
+              {!images.length && (
+                <Body muted>
+                  No test photo attached. This record will contain your
+                  assessment only.
+                </Body>
+              )}
+              <Choice
+                options={
+                  [
+                    "matched",
+                    "close_enough",
+                    "adapted",
+                    "unsuccessful",
+                    "not_evaluated",
+                  ] as const
+                }
+                value={outcome ?? ""}
+                onChange={(value) => {
+                  try {
+                    repo.saveRecreationProgress(
+                      id,
+                      step,
+                      notes,
+                      value as Outcome,
+                    );
+                    setOutcome(value as Outcome);
+                    setError(null);
+                  } catch (e) {
+                    setError(humanError(e));
+                  }
+                }}
+              />
+              <Body muted>
+                This is your assessment. Live positioning and sensor
+                verification are not active here.
+              </Body>
+              <Button
+                title="Finish and record outcome"
+                disabled={busy || step < steps.length || !outcome}
+                onPress={complete}
+              />
+            </Card>
+          </View>
           <Button
-            title="Save assessment"
-            disabled={busy || !outcome}
-            onPress={record}
+            title="Try simulated positioning guidance"
+            kind="secondary"
+            onPress={() => router.push("/simulation")}
           />
+          <Button
+            title="Discard attempt"
+            kind="danger"
+            onPress={() => setDiscardAttempt(true)}
+          />
+          {discardAttempt && (
+            <Confirm
+              title="Discard this recreation attempt?"
+              message="The saved setup and version history stay intact. This unfinished attempt and its temporary progress will be removed from Resume."
+              onCancel={() => setDiscardAttempt(false)}
+              onConfirm={() => {
+                repo.abandonRecreation(id);
+                refresh();
+                router.replace({ pathname: "/", params: { tab: "Setups" } });
+              }}
+            />
+          )}
         </>
       )}
-      <View style={{ height: 16 }} />
-      <Button
-        title="Save and exit"
-        kind="secondary"
-        onPress={() => router.replace("/")}
-      />
     </Screen>
   );
 }

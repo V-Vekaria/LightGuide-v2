@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 // Existing field-level regressions use the full-form accessibility option.
 test.beforeEach(async ({ page }) => {
   await page.addLocatorHandler(
@@ -103,20 +103,30 @@ test("manual recreation preserves readings and camera entries across all four st
   await page
     .getByLabel("Light height above floor (cm)", { exact: true })
     .fill("170");
+  await page
+    .getByRole("button", { name: "Add camera settings (optional)", exact: true })
+    .click();
+  await page.getByLabel("ISO", { exact: true }).fill("100");
   await page.getByRole("button", { name: "Save setup", exact: true }).click();
   await page
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();
-  await page.getByRole("button", { name: "Lights", exact: true }).click();
+  await page.getByRole("button", { name: "Lights phase", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Measurements & height view",
+      exact: true,
+    })
+    .click();
   await expect(
     page.getByRole("img", { name: /Side projection/ }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", {
-      name: "Measurements & height view",
+      name: "Hide measurements",
       exact: true,
     }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await expect(
     page.getByTestId("device-status").filter({ visible: true }),
   ).toContainText("Device not connected");
@@ -129,44 +139,55 @@ test("manual recreation preserves readings and camera entries across all four st
   await expect(page.getByTestId("guide-cue")).toHaveText("Lower light 30 cm");
   await page.getByLabel("Height now (cm)", { exact: true }).fill("-1");
   await expect(
-    page.getByRole("button", { name: "Next: camera", exact: true }),
+    page.getByRole("button", { name: "Mark step complete", exact: true }),
   ).toBeDisabled();
-  await page.getByRole("button", { name: "Reference", exact: true }).click();
-  await page.getByRole("button", { name: "Lights", exact: true }).click();
+  await page.getByRole("button", { name: "Reference phase", exact: true }).click();
+  await page.getByRole("button", { name: "Lights phase", exact: true }).click();
   await page.getByLabel("Height now (cm)", { exact: true }).fill("170");
   await expect(page.getByTestId("guide-value-height")).toContainText("170 cm");
-  await page.getByRole("button", { name: "Camera", exact: true }).click();
-  await page.getByLabel("ISO now", { exact: true }).fill("640");
-  await page.getByRole("button", { name: "Lights", exact: true }).click();
+  await page.getByRole("button", { name: "Camera phase", exact: true }).click();
+  await expect(page.getByText(/ISO 100\./)).toBeVisible();
+  await page.getByRole("button", { name: "Lights phase", exact: true }).click();
   await expect(page.getByLabel("Height now (cm)", { exact: true })).toHaveValue(
     "170",
   );
   await page.reload();
+  await expect(
+    page.getByText(/entered readings are saved/),
+  ).toBeVisible();
+  await page
+    .getByRole("button", {
+      name: "Measurements & height view",
+      exact: true,
+    })
+    .click();
   await expect(page.getByLabel("Height now (cm)", { exact: true })).toHaveValue(
     "170",
   );
-  await expect(page.getByText(/Previous entries are retained/)).toBeVisible();
-  await page.getByRole("button", { name: "Camera", exact: true }).click();
-  await expect(page.getByLabel("ISO now", { exact: true })).toHaveValue("640");
-  await page.getByRole("button", { name: "Check", exact: true }).click();
+  await page.getByRole("button", { name: "Camera phase", exact: true }).click();
+  await expect(page.getByText(/ISO 100\./)).toBeVisible();
+  await page.getByRole("button", { name: "Check phase", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Save assessment", exact: true }),
+    page.getByRole("button", { name: "Finish and record outcome", exact: true }),
   ).toBeDisabled();
   await page
     .getByLabel("Adjustments and feedback", { exact: true })
     .fill("Keep this draft note");
-  await page.getByRole("button", { name: "Reference", exact: true }).click();
-  await page.getByRole("button", { name: "Check", exact: true }).click();
+  await page.getByRole("button", { name: "Reference phase", exact: true }).click();
+  await page.getByRole("button", { name: "Check phase", exact: true }).click();
   await expect(
     page.getByLabel("Adjustments and feedback", { exact: true }),
   ).toHaveValue("Keep this draft note");
   await page
-    .getByRole("button", { name: "Not evaluated", exact: true })
+    .getByRole("button", { name: "not evaluated", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Save assessment", exact: true })
+    .getByRole("button", { name: "Mark step complete", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Finish and record outcome", exact: true })
     .click();
   await expect(
-    page.getByText("Assessment saved", { exact: true }),
+    page.getByRole("heading", { name: "Recreation recorded.", exact: true }),
   ).toBeVisible();
 });

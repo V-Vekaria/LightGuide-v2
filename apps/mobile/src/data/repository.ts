@@ -131,6 +131,10 @@ const imageSchema = z
   .strict();
 const TRASH_DAYS = 30;
 
+export const DEMO_SETUP_ID = "10000000-0000-4000-8000-000000000001";
+export const DEMO_RESULT_IMAGE_ID = "10000000-0000-4000-8000-000000000003";
+export const DEMO_PLACEMENT_IMAGE_ID = "10000000-0000-4000-8000-000000000004";
+
 export class Repository {
   constructor(
     readonly db: Database,
@@ -160,6 +164,199 @@ export class Repository {
         ?.foreign_keys !== 1
     )
       throw new Error("Data integrity checks could not be enabled");
+  }
+
+  ensureAcceptanceSeed() {
+    if (this.setting("acceptance-seed-v1", false)) return;
+    const at = this.timestamp();
+    this.atomic(() => {
+      const versionId = "10000000-0000-4000-8000-000000000002";
+      const keyLightId = "10000000-0000-4000-8000-000000000005";
+      const cameraId = "10000000-0000-4000-8000-000000000006";
+      const frameId = "10000000-0000-4000-8000-000000000007";
+      const subjectId = "10000000-0000-4000-8000-000000000014";
+      const equipment = [
+        ["10000000-0000-4000-8000-000000000010", "light", "Main flash — Demo", null, null],
+        ["10000000-0000-4000-8000-000000000011", "modifier", "Softbox 100 cm — Demo", null, null],
+        ["10000000-0000-4000-8000-000000000012", "camera", "Sony A7 III — Demo", "Sony", "A7 III"],
+        ["10000000-0000-4000-8000-000000000013", "lens", "85 mm lens — Demo", "Sony", "FE 85 mm f/1.8"],
+      ] as const;
+      for (const [id, kind, name, manufacturer, model] of equipment)
+        this.db.run(
+          "INSERT OR IGNORE INTO equipment(id,created_at,updated_at,kind,name,manufacturer,model,details,notes) VALUES(?,?,?,?,?,?,?,'{}',?)",
+          id,
+          at,
+          at,
+          kind,
+          name,
+          manufacturer,
+          model,
+          "Bundled example equipment. Edit or remove it from your inventory at any time.",
+        );
+      const imageRows = [
+        [DEMO_RESULT_IMAGE_ID, 1408, 1408, 2042742, "80dac44bb41aba6ec220ea26cb9c6ca392d3710c1479b4c95331bad5da88757e"],
+        [DEMO_PLACEMENT_IMAGE_ID, 1456, 1088, 1894051, "d8087a87d3b7b281736b39c553a403d0b11f9784dc08dbd97894d83bb8ce492c"],
+      ] as const;
+      for (const [id, width, height, bytes, sha] of imageRows) {
+        this.db.run(
+          "INSERT OR IGNORE INTO images(id,created_at,updated_at,mime_type,width_px,height_px,byte_size,sha256) VALUES(?,?,?,'image/png',?,?,?,?)",
+          id,
+          at,
+          at,
+          width,
+          height,
+          bytes,
+          sha,
+        );
+        this.db.run(
+          "INSERT OR IGNORE INTO local_media(image_id,optimised_path,transfer_state) VALUES(?,?,'available')",
+          id,
+          id + ".png",
+        );
+      }
+      const measurement = (
+        id: string,
+        kind: "height" | "distance",
+        value: number,
+        target: string | null,
+      ) => ({
+        id,
+        kind,
+        value,
+        unit: "m",
+        source: "manual" as const,
+        captured_at: at,
+        quality: "valid" as const,
+        uncertainty: null,
+        device_id: null,
+        device_uptime_ms: null,
+        firmware_version: null,
+        target_object_id: target,
+        reference_frame_id: frameId,
+        calibration: null,
+        supersedes_measurement_id: null,
+      });
+      const scene: Scene = {
+        schema_version: 1,
+        reference_frame: {
+          id: frameId,
+          convention: "subject_floor_rh_v1",
+          reference_image_id: DEMO_PLACEMENT_IMAGE_ID,
+          marker_id: null,
+          marker_width_m: null,
+          established_at: at,
+          source: "manual",
+          status: "valid",
+          world_from_reference: null,
+        },
+        objects: [
+          {
+            id: subjectId,
+            kind: "subject",
+            role: "Portrait subject",
+            name: "Demo subject position",
+            device_id: null,
+            equipment: [],
+            measurements: [],
+            settings: {
+              power_label: null,
+              focal_length_mm: null,
+              aperture_f: null,
+              exposure_time_s: null,
+              iso: null,
+              modifier_description: null,
+              pose_image_id: null,
+            },
+            notes: "Front of the stool aligned with the saved floor reference.",
+          },
+          {
+            id: keyLightId,
+            kind: "light",
+            role: "Key light",
+            name: "Main softbox",
+            device_id: null,
+            equipment: equipment.slice(0, 2).map(([equipment_id, kind, name, manufacturer, model]) => ({
+              equipment_id,
+              kind,
+              name,
+              manufacturer,
+              model,
+              details: {},
+            })),
+            measurements: [
+              measurement("10000000-0000-4000-8000-000000000008", "height", 1.7, null),
+              measurement("10000000-0000-4000-8000-000000000009", "distance", 1.5, subjectId),
+            ],
+            settings: {
+              power_label: "1/8",
+              focal_length_mm: null,
+              aperture_f: null,
+              exposure_time_s: null,
+              iso: null,
+              modifier_description: "Softbox 100 cm",
+              pose_image_id: DEMO_PLACEMENT_IMAGE_ID,
+            },
+            notes: "Example data — manual measurements only. Height is not device-measured.",
+          },
+          {
+            id: cameraId,
+            kind: "camera",
+            role: "Main camera",
+            name: "Sony A7 III",
+            device_id: null,
+            equipment: equipment.slice(2).map(([equipment_id, kind, name, manufacturer, model]) => ({
+              equipment_id,
+              kind,
+              name,
+              manufacturer,
+              model,
+              details: {},
+            })),
+            measurements: [],
+            settings: {
+              power_label: null,
+              focal_length_mm: 85,
+              aperture_f: 4,
+              exposure_time_s: 0.005,
+              iso: 100,
+              modifier_description: null,
+              pose_image_id: null,
+            },
+            notes: "White balance 5600 K",
+          },
+        ],
+        images: [
+          { image_id: DEMO_RESULT_IMAGE_ID, role: "result", object_id: null },
+          { image_id: DEMO_PLACEMENT_IMAGE_ID, role: "setup", object_id: keyLightId },
+        ],
+        notes: "EXAMPLE SETUP / DEMO. Bundled for first-run testing; it is not user-created content.",
+      };
+      parseScene(scene);
+      this.db.run(
+        "INSERT OR IGNORE INTO setups(id,created_at,updated_at,title,category,current_version_id) VALUES(?,?,?,?,?,?)",
+        DEMO_SETUP_ID,
+        at,
+        at,
+        "Soft portrait — Example setup",
+        "portrait",
+        versionId,
+      );
+      this.db.run(
+        "INSERT OR IGNORE INTO setup_versions(id,created_at,updated_at,setup_id,parent_version_id,snapshot_schema_version,snapshot) VALUES(?,?,?,?,NULL,1,?)",
+        versionId,
+        at,
+        at,
+        DEMO_SETUP_ID,
+        JSON.stringify(scene),
+      );
+      this.db.run(
+        "INSERT OR IGNORE INTO local_settings(key,value) VALUES('acceptance-seed-v1','true')",
+      );
+    });
+  }
+
+  isExampleSetup(id: string) {
+    return id === DEMO_SETUP_ID;
   }
   atomic<T>(work: () => T): T {
     this.db.exec("BEGIN IMMEDIATE");
@@ -352,9 +549,10 @@ export class Repository {
           "attempt-photos:" + r.id,
         );
         this.db.run(
-          "DELETE FROM local_settings WHERE key IN (?,?)",
+          "DELETE FROM local_settings WHERE key IN (?,?,?)",
           "attempt:" + r.id,
           "timer:" + r.id,
+          "attempt-readings:" + r.id,
         );
       }
       this.db.run("UPDATE setups SET current_version_id=NULL WHERE id=?", id);
@@ -571,6 +769,24 @@ export class Repository {
       }),
     );
   }
+  abandonRecreation(id: string) {
+    const attempt = this.recreation(id);
+    if (attempt.status !== "in_progress") return;
+    this.atomic(() => {
+      this.db.run(
+        "UPDATE recreations SET status='abandoned',updated_at=? WHERE id=?",
+        this.timestamp(),
+        id,
+      );
+      this.db.run(
+        "DELETE FROM local_settings WHERE key IN (?,?,?)",
+        "attempt:" + id,
+        "timer:" + id,
+        "attempt-readings:" + id,
+      );
+      this.db.run("DELETE FROM working_drafts WHERE id=?", "attempt-photos:" + id);
+    });
+  }
   completeRecreation(
     id: string,
     outcome: Outcome,
@@ -615,6 +831,7 @@ export class Repository {
         id,
       );
       this.db.run("DELETE FROM local_settings WHERE key=?", "attempt:" + id);
+      this.db.run("DELETE FROM local_settings WHERE key=?", "attempt-readings:" + id);
     });
   }
   registerImage(value: unknown) {

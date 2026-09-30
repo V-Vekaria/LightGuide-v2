@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 // Existing field-level regressions use the full-form accessibility option.
 test.beforeEach(async ({ page }) => {
   await page.addLocatorHandler(
@@ -63,21 +63,24 @@ test("save, reload, edit immutable versions, recreate, archive and restore", asy
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();
   await context.setOffline(true);
-  await page.getByRole("button", { name: "Check", exact: true }).click();
+  await page.getByRole("button", { name: "Check phase", exact: true }).click();
   await page
     .getByLabel("Adjustments and feedback", { exact: true })
     .fill("Moved the key slightly higher.");
   await page
-    .getByRole("button", { name: "Needs adjustment", exact: true })
+    .getByRole("button", { name: "adapted", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Save assessment", exact: true })
+    .getByRole("button", { name: "Mark step complete", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Finish and record outcome", exact: true })
     .click();
   await expect(
-    page.getByText("Assessment saved", { exact: true }),
+    page.getByRole("heading", { name: "Recreation recorded.", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("This is your judgement, not a sensor-verified match.", {
+    page.getByText("This is your assessment, not a sensor-verified match.", {
       exact: false,
     }),
   ).toBeVisible();

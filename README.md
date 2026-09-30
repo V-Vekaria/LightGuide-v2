@@ -4,12 +4,14 @@
 
 LightGuide helps photographers record a lighting setup and restore it later. The commercial direction combines a phone-led experience with candidate depth, spectral and orientation sensing. V1 focuses on recreation; artistic recommendations and subject-aware adaptation are later work.
 
-## Current status — 14 September 2026
+## Current status — 29 September 2026
 
-**The user selected the Codex application as the maintained implementation.** Its offline mobile app and hardened positioning harness are now integrated into `main`, alongside the current documentation.
+**The user selected the Codex application as the maintained implementation.** Its offline mobile app and hardened positioning harness are integrated alongside the current documentation. The current acceptance implementation aligns the maintained app with the approved 01–32 workflow references.
 
 - [Mobile app and run instructions](apps/mobile/README.md): local SQLite, photographs, equipment/shoots, immutable versions, manual recreation and labelled simulation.
-- Android identity remains **LightGuide Codex**, package `com.lightguide.codex`, version 0.1.2 / build 3. Repository consolidation does not rename the installed app or migrate its data.
+- Android display name is **LightGuide**, package `com.lightguide.codex`, version 0.2.1 / build 9. The unchanged package preserves the upgrade/data identity; the acceptance build is also tested from empty storage.
+- A one-time, clearly labelled Soft portrait example makes clean-install evaluation possible without claiming simulated content is user data or a hardware reading.
+- [Acceptance implementation and 01–32 parity](docs/validation/LIGHTGUIDE_ACCEPTANCE_2026-09-29.md) records the implemented flows, deliberate differences and remaining physical-hardware boundaries.
 - Selected source: `d6110136934b3b78456a90b570d58ce00885145c`. [Its CI run](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34707182893) passed software, native positioning tests/build, Android packaging and emulator smoke checks. The integration also runs CI on main.
 - Claude's alternative and superseded branches are retired from active development. [The cleanup record](docs/validation/BRANCH_CLEANUP_2026-09-14.md) records their exact tips, recovery tags and guarded deletion policy.
 - Physical positioning accuracy, live mobile AR/BLE integration, calibrated sensors, cloud and iOS remain open.
