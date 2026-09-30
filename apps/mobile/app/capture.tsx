@@ -71,6 +71,11 @@ export default function Capture() {
       Boolean(initial.data.distance || initial.data.height),
     );
   const [showCamera, setShowCamera] = useState(Boolean(form.camera));
+  const [stage, setStage] = useState<"photos" | "lights" | "camera" | "review">("photos");
+  const [photoFailure, setPhotoFailure] = useState<{
+    role: Scene["images"][number]["role"];
+    message: string;
+  } | null>(null);
   const cameraFields = form.camera ?? {
     focal: "",
     aperture: "",
@@ -105,7 +110,7 @@ export default function Capture() {
     setError(null);
     try {
       const imageId = await pickPhoto(repo, camera);
-      if (imageId)
+      if (imageId) {
         change({
           ...currentForm.current,
           images: [
@@ -113,8 +118,12 @@ export default function Capture() {
             { image_id: imageId, role, object_id: null },
           ],
         });
+        setPhotoFailure(null);
+      }
     } catch (e) {
-      setError(humanError(e));
+      const message = humanError(e);
+      setError(message);
+      setPhotoFailure({ role, message });
     } finally {
       setBusy(false);
     }
@@ -164,6 +173,12 @@ export default function Capture() {
       subtitle="Start with a name. Add photographs and the details that will help you recreate it."
     >
       <ErrorMessage message={error} />
+      <Choice
+        options={["photos", "lights", "camera", "review"] as const}
+        value={stage}
+        onChange={setStage}
+      />
+      <View style={{ height: 18 }} />
       <View style={[s.row, { marginBottom: 20 }]}>
         <Badge>LOCAL CAPTURE</Badge>
         {saved && <Body muted>Draft saved on this device</Body>}
@@ -234,6 +249,34 @@ export default function Capture() {
                 />
               </View>
             ))}
+            {photoFailure && (
+              <Card style={{ borderColor: "#F4C88B" }}>
+                <Badge tone="warning">PHOTO NOT SAVED</Badge>
+                <Heading>Could not add this photo</Heading>
+                <Body>{photoFailure.message}</Body>
+                <Body muted>
+                  Your setup name, notes, lights and camera details remain in
+                  the draft.
+                </Body>
+                <Button
+                  title="Try again"
+                  onPress={() => photo(photoFailure.role)}
+                />
+                <Button
+                  title="Choose another photo"
+                  kind="secondary"
+                  onPress={() => photo(photoFailure.role)}
+                />
+                <Button
+                  title="Continue without this photo"
+                  kind="secondary"
+                  onPress={() => {
+                    setPhotoFailure(null);
+                    setError(null);
+                  }}
+                />
+              </Card>
+            )}
           </Card>
         </View>
         <View style={columns.column}>
@@ -401,6 +444,23 @@ export default function Capture() {
           </Card>
         </View>
       </View>
+      {stage === "review" && (
+        <Card>
+          <Label>04 / REVIEW</Label>
+          <Heading>{form.title.trim() || "Unnamed setup"}</Heading>
+          <Body>{form.category} · {form.images.length} saved photo{form.images.length === 1 ? "" : "s"}</Body>
+          <Body>
+            Key light: {form.height ? `${form.height} cm high` : "height not recorded"} · {form.distance ? `${form.distance} cm from subject` : "distance not recorded"}
+          </Body>
+          <Body>
+            Camera: {form.camera ? `${form.camera.shutter || "shutter not recorded"} · f/${form.camera.aperture || "—"} · ISO ${form.camera.iso || "—"}` : "not recorded (skipped)"}
+          </Body>
+          <Body muted>
+            Only the details shown above and in the saved cards will be stored.
+            Blank values remain unknown.
+          </Body>
+        </Card>
+      )}
       <Button
         title={busy ? "Saving…" : id ? "Save new version" : "Save setup"}
         disabled={busy || Boolean(initial.error)}

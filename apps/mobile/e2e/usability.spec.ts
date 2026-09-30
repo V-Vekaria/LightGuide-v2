@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 import { resolve } from "node:path";
 
 test("Home opens disposable guided practice without adding library records", async ({
@@ -15,8 +15,9 @@ test("Home opens disposable guided practice without adding library records", asy
   await page.getByRole("button", { name: "← Back", exact: true }).click();
   await page.getByRole("button", { name: "Setups tab", exact: true }).click();
   await expect(
-    page.getByText("No setups here yet.", { exact: true }),
+    page.getByText("Soft portrait — Example setup", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("EXAMPLE SETUP · DEMO", { exact: true })).toBeVisible();
 });
 
 test("capture, equipment return, shutter fractions, photo zoom and explicit comparison outcome", async ({
@@ -162,7 +163,7 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
     .getByRole("button", { name: "Back to library", exact: true })
     .click();
   await expect(
-    page.getByRole("img", { name: "Setup preview", exact: true }),
+    page.getByRole("img", { name: "Setup preview", exact: true }).first(),
   ).toBeVisible();
   await page.screenshot({ path: "artifacts/ux-library-thumbnails.png" });
   expect(errors).toEqual([]);

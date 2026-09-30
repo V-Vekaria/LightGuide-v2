@@ -124,7 +124,7 @@ export default function Simulation() {
     >
       <RecreationGuide
         mode="simulation"
-        steps={["Save", "Move", "Recreate", "Check"]}
+        steps={["Reference", "Lights", "Camera", "Check"]}
         stage={stage === 0 ? 0 : stage === 1 ? 1 : stage < 4 ? 2 : 3}
         title={title}
         detail={detail}

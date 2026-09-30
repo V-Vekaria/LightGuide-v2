@@ -20,11 +20,35 @@ export default function Shoot() {
       name: old?.name ?? "",
       category: old?.category ?? "portrait",
       status: (old?.status as ShootInput["status"]) ?? "draft",
-      scheduled_at: null,
+      scheduled_at: old?.scheduled_at ?? null,
       notes: old?.notes ?? "",
       planned_equipment_ids: old ? JSON.parse(old.planned_equipment_ids) : [],
     }),
-    [error, setError] = useState<string | null>(null);
+    [error, setError] = useState<string | null>(null),
+    [date, setDate] = useState(old?.scheduled_at?.slice(0, 10) ?? "");
+  const save = () => {
+    try {
+      let scheduled_at: string | null = null;
+      if (date.trim()) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+          throw new Error("Enter the date as YYYY-MM-DD.");
+        const day = new Date(`${date}T12:00:00`);
+        if (Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== date)
+          throw new Error("Enter a valid calendar date.");
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selected = new Date(`${date}T00:00:00`);
+        if (!id && form.status === "planned" && selected < today)
+          throw new Error("Choose today or a future date for a new planned shoot.");
+        scheduled_at = day.toISOString();
+      }
+      repo.saveShoot({ ...form, scheduled_at }, id);
+      refresh();
+      router.replace({ pathname: "/", params: { tab: "Shoots" } });
+    } catch (e) {
+      setError(humanError(e));
+    }
+  };
   return (
     <Screen
       back
@@ -42,6 +66,12 @@ export default function Shoot() {
           options={["portrait", "product"] as const}
           value={form.category}
           onChange={(category) => setForm({ ...form, category })}
+        />
+        <Field
+          label="Shoot date (optional, YYYY-MM-DD)"
+          value={date}
+          onChange={setDate}
+          placeholder="2026-10-12"
         />
         <Choice
           options={["draft", "planned", "active", "completed"] as const}
@@ -83,15 +113,7 @@ export default function Shoot() {
         ))}
         <Button
           title="Save shoot"
-          onPress={() => {
-            try {
-              repo.saveShoot(form, id);
-              refresh();
-              router.replace({ pathname: "/", params: { tab: "Shoots" } });
-            } catch (e) {
-              setError(humanError(e));
-            }
-          }}
+          onPress={save}
         />
       </Card>
       {id &&

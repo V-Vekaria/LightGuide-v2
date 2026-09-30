@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 
 test("phone Home cards stay above recent setups and resumed recreation", async ({
   page,

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 
 test("unfinished capture is discoverable after navigating Home", async ({
   page,

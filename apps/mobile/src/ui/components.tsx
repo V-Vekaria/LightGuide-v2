@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, usePathname } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors as c } from "./theme";
 
 export function Label({ children }: { children: React.ReactNode }) {
@@ -283,7 +284,7 @@ export function Screen({
               letterSpacing: -0.5,
             }}
           >
-            ◈ LIGHTGUIDE
+            <MaterialCommunityIcons name="lightbulb-on-outline" size={18} color={c.text} /> LIGHTGUIDE
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -294,7 +295,10 @@ export function Screen({
               if (pathname !== "/settings") router.navigate("/settings");
             }}
           >
-            <Text style={{ color: c.muted }}>Settings ↗</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <MaterialCommunityIcons name="cog-outline" color={c.muted} size={18} />
+              <Text style={{ color: c.muted }}>Settings</Text>
+            </View>
           </Pressable>
         </View>
         <Text accessibilityRole="header" style={s.title}>

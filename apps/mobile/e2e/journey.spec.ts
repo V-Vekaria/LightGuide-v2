@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 test("save, reload, edit immutable versions, recreate, archive and restore", async ({
   page,
   context,
@@ -6,7 +6,7 @@ test("save, reload, edit immutable versions, recreate, archive and restore", asy
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
-  await expect(page.getByText("Your next shoot, remembered.")).toBeVisible();
+  await expect(page.getByText("Ready for your next shoot?")).toBeVisible();
   await page.getByRole("button", { name: "Save a setup", exact: true }).click();
   await page.getByLabel("Setup name", { exact: true }).fill("Studio portrait");
   await page

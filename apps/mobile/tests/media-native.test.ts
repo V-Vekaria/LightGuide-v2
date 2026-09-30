@@ -9,7 +9,7 @@ import { runInNewContext } from "node:vm";
 const source = stripTypeScriptTypes(
   readFileSync(new URL("../src/media/media.ts", import.meta.url), "utf8"),
 )
-  .replace(/^import .*;\n/gm, "")
+  .replace(/^import(?:[\s\S]*?);\r?\n/gm, "")
   .replace(/export /g, "");
 function harness(failMove = false, failCopy = false) {
   const files = new Set(["file:source", "file:resized"]);
@@ -45,6 +45,10 @@ function harness(failMove = false, failCopy = false) {
     exists = true;
   }
   const context: any = {
+    require: () => 0,
+    Asset: { fromModule: () => ({ uri: "demo" }) },
+    DEMO_RESULT_IMAGE_ID: "demo-result",
+    DEMO_PLACEMENT_IMAGE_ID: "demo-placement",
     File,
     Directory,
     Paths: { cache: "cache", document: "documents" },

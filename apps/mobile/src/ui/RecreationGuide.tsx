@@ -84,18 +84,28 @@ export function GuideInput({
 export function GuideSteps({
   items,
   active,
+  onSelect,
 }: {
   items: string[];
   active: number;
+  onSelect?: (index: number) => void;
 }) {
   return (
     <View style={g.row}>
       {items.map((label, i) => (
-        <View key={label} style={[g.step, i === active && g.primary]}>
+        <Pressable
+          accessibilityRole={onSelect ? "button" : undefined}
+          accessibilityLabel={onSelect ? `${label} phase` : undefined}
+          accessibilityState={{ selected: i === active }}
+          disabled={!onSelect}
+          onPress={() => onSelect?.(i)}
+          key={label}
+          style={[g.step, i === active && g.primary]}
+        >
           <Text style={[g.small, i === active && { color: c.surface }]}>
             {i + 1}. {label}
           </Text>
-        </View>
+        </Pressable>
       ))}
     </View>
   );
@@ -308,6 +318,7 @@ export function RecreationGuide({
   controls,
   children,
   reference,
+  onStepPress,
 }: {
   mode: "manual" | "simulation";
   stage: number;
@@ -321,6 +332,7 @@ export function RecreationGuide({
   controls?: React.ReactNode;
   children?: React.ReactNode;
   reference?: React.ReactNode;
+  onStepPress?: (index: number) => void;
 }) {
   const [details, setDetails] = useState(mode === "simulation");
   const [side, setSide] = useState(mode === "manual");
@@ -333,7 +345,7 @@ export function RecreationGuide({
   );
   return (
     <View style={g.workspace} testID="recreation-guide">
-      <GuideSteps items={steps} active={stage} />
+      <GuideSteps items={steps} active={stage} onSelect={onStepPress} />
       <View style={{ flexDirection: wide ? "row" : "column", gap: 18 }}>
         <View style={[g.cuePanel, { flex: wide ? 1 : undefined }]}>
           <Text style={g.badge}>

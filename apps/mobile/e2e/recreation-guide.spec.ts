@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 
 test("pitch demo: save, move, six corrections, connection failures and side view", async ({
   page,
@@ -137,8 +137,10 @@ test("saved setup uses the same guide with manual values, unknown pose and uncha
     .getByRole("button", { name: "Measurements & height view", exact: true })
     .click();
   await expect(page.getByLabel("Height now (cm)", { exact: true })).toHaveValue(
-    "",
+    "170",
   );
+  await expect(page.getByText(/Previous readings from/)).toBeVisible();
+  await page.getByRole("button", { name: "Recheck readings", exact: true }).click();
   await expect(page.getByTestId("guide-value-height")).toContainText("170 cm");
   for (let i = 0; i < 3; i++)
     await page

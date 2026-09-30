@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import Constants from "expo-constants";
 import { Linking, Platform } from "react-native";
+import { router } from "expo-router";
 import { useStore } from "../src/ui/Store";
 import {
   Badge,
   Body,
   Button,
   Card,
+  Choice,
   ErrorMessage,
   Heading,
   Screen,
@@ -17,6 +19,15 @@ export default function Settings() {
   const { repo, refresh } = useStore(),
     [error, setError] = useState<string | null>(null),
     [notice, setNotice] = useState("");
+  const preferences = repo.setting("onboarding-v1", {
+    complete: true,
+    photographyType: "portrait" as "portrait" | "product" | "other",
+    experience: "new" as "new" | "some" | "experienced",
+  });
+  const savePreference = (patch: Partial<typeof preferences>) => {
+    repo.setSetting("onboarding-v1", { ...preferences, ...patch, complete: true });
+    refresh();
+  };
   return (
     <Screen
       back
@@ -24,6 +35,21 @@ export default function Settings() {
       subtitle={`LightGuide ${Constants.expoConfig?.version ?? "unknown"} · ${Platform.OS === "web" ? "Browser preview" : "Build " + (Constants.nativeBuildVersion ?? "unknown")} · Offline prototype`}
     >
       <ErrorMessage message={error} />
+      <Card>
+        <Heading>Preferences</Heading>
+        <Body muted>Photography type</Body>
+        <Choice
+          options={["portrait", "product", "other"] as const}
+          value={preferences.photographyType}
+          onChange={(photographyType) => savePreference({ photographyType })}
+        />
+        <Body muted>Lighting experience</Body>
+        <Choice
+          options={["new", "some", "experienced"] as const}
+          value={preferences.experience}
+          onChange={(experience) => savePreference({ experience })}
+        />
+      </Card>
       <Card>
         <Badge>LOCAL WORKSPACE</Badge>
         <Heading>Storage and privacy</Heading>
@@ -51,6 +77,11 @@ export default function Settings() {
           }}
         />
         {notice && <Body>{notice}</Body>}
+        <Button
+          title="Data & backup"
+          kind="secondary"
+          onPress={() => router.push("/backup")}
+        />
       </Card>
       <Card>
         <Heading>Positioning and sensors</Heading>
@@ -62,6 +93,16 @@ export default function Settings() {
           The guided demo is practice only. It does not connect to a sensor or
           measure accuracy.
         </Body>
+        <Button
+          title="Device connection"
+          kind="secondary"
+          onPress={() => router.push("/device")}
+        />
+        <Button
+          title="Measurement help"
+          kind="secondary"
+          onPress={() => router.push("/measurement-help")}
+        />
         <Button
           title="Open Android measurement app instructions"
           kind="secondary"

@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   Choice,
+  Confirm,
   ErrorMessage,
   Field,
   Heading,
@@ -90,14 +91,29 @@ function RecreationFlow({
     [outcome, setOutcome] = useState<Outcome | null>(progress.outcome ?? null),
     [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
+    [discardAttempt, setDiscardAttempt] = useState(false),
     [images, setImages] = useState<Scene["images"]>(
       () => repo.draft("attempt-photos:" + id)?.data.images ?? [],
     ),
     [elapsed, setElapsed] = useState(repo.setting("timer:" + id, 0));
   const [showOriginal, setShowOriginal] = useState(false);
-  const [manualReadings, setManualReadings] = useState<
-    Record<string, { distance: string; height: string }>
-  >({});
+  type SavedReading = {
+    distance: string;
+    height: string;
+    updatedAt: string;
+    confirmed: boolean;
+  };
+  const [manualReadings, setManualReadings] = useState<Record<string, SavedReading>>(
+    () => {
+      const saved = repo.setting<Record<string, Omit<SavedReading, "confirmed">>>(
+        "attempt-readings:" + id,
+        {},
+      );
+      return Object.fromEntries(
+        Object.entries(saved).map(([key, value]) => [key, { ...value, confirmed: false }]),
+      );
+    },
+  );
   const clock = useRef({
     elapsed,
     at: performance.now(),
@@ -167,11 +183,13 @@ function RecreationFlow({
   const inputs = manualReadings[selectedLight?.id ?? ""] ?? {
     distance: "",
     height: "",
+    updatedAt: "",
+    confirmed: true,
   };
   const currentValues = {
     ...unknownLight,
-    distance: parseManualCm(inputs.distance),
-    height: parseManualCm(inputs.height),
+    distance: inputs.confirmed ? parseManualCm(inputs.distance) : null,
+    height: inputs.confirmed ? parseManualCm(inputs.height) : null,
   };
   const isLightStep = step > 0 && step <= lights.length;
   const activeStage =
@@ -183,15 +201,35 @@ function RecreationFlow({
           ? 2
           : 3;
   const currentStep = steps[Math.min(step, steps.length - 1)]!;
-  const inputInvalid = Object.values(inputs).some(
+  const inputInvalid = [inputs.distance, inputs.height].some(
     (raw) => raw.trim() !== "" && parseManualCm(raw) === null,
   );
   const changeReading = (field: "distance" | "height", value: string) => {
-    if (selectedLight)
-      setManualReadings((v) => ({
-        ...v,
-        [selectedLight.id]: { ...inputs, [field]: value },
-      }));
+    if (selectedLight) {
+      const next = {
+        ...manualReadings,
+        [selectedLight.id]: {
+          ...inputs,
+          [field]: value,
+          updatedAt: new Date().toISOString(),
+          confirmed: true,
+        },
+      };
+      setManualReadings(next);
+      repo.setSetting(
+        "attempt-readings:" + id,
+        Object.fromEntries(
+          Object.entries(next).map(([key, reading]) => [
+            key,
+            {
+              distance: reading.distance,
+              height: reading.height,
+              updatedAt: reading.updatedAt,
+            },
+          ]),
+        ),
+      );
+    }
   };
   const advance = (next: number) => {
     try {
@@ -337,6 +375,17 @@ function RecreationFlow({
             mode="manual"
             stage={activeStage}
             steps={["Reference", "Lights", "Camera", "Check"]}
+            onStepPress={(phase) => {
+              const next =
+                phase === 0
+                  ? 0
+                  : phase === 1
+                    ? Math.max(1, Math.min(step, Math.max(1, lights.length)))
+                    : phase === 2
+                      ? lights.length + 1
+                      : lights.length + 2;
+              advance(next);
+            }}
             title={
               step >= steps.length
                 ? "Ready to record your result"
@@ -422,6 +471,29 @@ function RecreationFlow({
                       Enter a number between 0 and 100,000 cm, or leave it
                       blank.
                     </Text>
+                  )}
+                  {!inputs.confirmed && inputs.updatedAt && (
+                    <View style={{ gap: 8 }}>
+                      <Text style={g.text}>
+                        Previous readings from {new Date(inputs.updatedAt).toLocaleString()} are stale and are not being used as current values.
+                      </Text>
+                      <GuideButton
+                        title="Recheck readings"
+                        onPress={() => {
+                          if (!selectedLight) return;
+                          const next = {
+                            ...manualReadings,
+                            [selectedLight.id]: {
+                              ...inputs,
+                              confirmed: true,
+                              updatedAt: new Date().toISOString(),
+                            },
+                          };
+                          setManualReadings(next);
+                          repo.setSetting("attempt-readings:" + id, next);
+                        }}
+                      />
+                    </View>
                   )}
                   <Text style={g.small}>
                     Optional checks for this visit. Measure from the same points
@@ -576,6 +648,23 @@ function RecreationFlow({
             kind="secondary"
             onPress={() => router.push("/simulation")}
           />
+          <Button
+            title="Discard attempt"
+            kind="danger"
+            onPress={() => setDiscardAttempt(true)}
+          />
+          {discardAttempt && (
+            <Confirm
+              title="Discard this recreation attempt?"
+              message="The saved setup and version history stay intact. This unfinished attempt and its temporary progress will be removed from Resume."
+              onCancel={() => setDiscardAttempt(false)}
+              onConfirm={() => {
+                repo.abandonRecreation(id);
+                refresh();
+                router.replace({ pathname: "/", params: { tab: "Setups" } });
+              }}
+            />
+          )}
         </>
       )}
     </Screen>

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 for (const tab of ["Home", "Shoots", "Setups", "Equipment"]) {
   test(`repeated Settings taps return to ${tab} with one Back`, async ({ page }) => {
     await page.goto(`/?tab=${tab}`);

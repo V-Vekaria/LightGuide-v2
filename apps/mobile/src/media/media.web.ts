@@ -1,4 +1,8 @@
 import type { Repository } from "../data/repository";
+import { DEMO_PLACEMENT_IMAGE_ID, DEMO_RESULT_IMAGE_ID } from "../data/repository";
+import { Asset } from "expo-asset";
+const demoResultAsset = require("../../assets/demo/soft-portrait-result.png");
+const demoPlacementAsset = require("../../assets/demo/soft-portrait-placement.png");
 const urls = new Map<string, string>();
 async function open() {
   return new Promise<IDBDatabase>((resolve, reject) => {
@@ -98,6 +102,10 @@ export async function photoUri(
   repo: Repository,
   id: string,
 ): Promise<string | null> {
+  if (id === DEMO_RESULT_IMAGE_ID)
+    return Asset.fromModule(demoResultAsset).uri;
+  if (id === DEMO_PLACEMENT_IMAGE_ID)
+    return Asset.fromModule(demoPlacementAsset).uri;
   if (!repo.image(id)) return null;
   if (urls.has(id)) return urls.get(id)!;
   const data = await photoStore(false, (s) => s.get(id));

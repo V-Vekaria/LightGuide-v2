@@ -3,7 +3,7 @@ import {View} from "react-native";
 import {router} from "expo-router";
 import {Badge,Body,Button,Card,ErrorMessage,Heading,Label,Screen,s} from "../src/ui/components";
 import {LightGuideBleTransport,bluetoothError,type DiscoveredNode} from "../src/device/ble";
-import {initialDeviceSession,reduceDeviceSession,shouldHandleSaveEvent} from "../src/device/session";
+import {initialDeviceSession,isMeasurementFresh,reduceDeviceSession,shouldHandleSaveEvent} from "../src/device/session";
 import {setPendingDeviceSnapshot} from "../src/device/pending-snapshot";
 import type {DeviceEvent} from "../src/device/protocol";
 
@@ -13,7 +13,9 @@ export default function DeviceScreen(){
  const stateRef=useRef(state); stateRef.current=state;
  const [nodes,setNodes]=useState<DiscoveredNode[]>([]);
  const [notice,setNotice]=useState<string|null>(null);
+ const [now,setNow]=useState(Date.now());
  useEffect(()=>{transport.current=new LightGuideBleTransport();return()=>transport.current?.destroy();},[]);
+ useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
  const scan=async()=>{
   setNotice(null);setNodes([]);
   try{
@@ -44,14 +46,17 @@ export default function DeviceScreen(){
    dispatch({type:"connected",info:result.info,status:result.status});
   }catch(e){dispatch({type:"failed",message:bluetoothError(e)});}
  };
- return <Screen back title="Connect LightGuide" subtitle="Find the ESP32-S3 node and view live Device Protocol v1 readings.">
+ const fresh=isMeasurementFresh(state,now,2000);
+ const sensorError=state.status?.state==="error"||state.status?.state==="degraded";
+ return <Screen back title="Connect LightGuide" subtitle="Find the ESP32-S3 node and view live Device Protocol v1 readings. Manual mode remains available.">
   <ErrorMessage message={state.error}/>
   <View style={s.row}><Badge>{state.phase.toUpperCase()}</Badge>{state.deviceInfo&&<Body muted>{state.deviceInfo.device_id} · firmware {state.deviceInfo.fw}</Body>}</View>
   {state.phase!=="connected"&&<Button title={state.phase==="scanning"?"Scan again":"Find LightGuide node"} onPress={scan}/>}
   {nodes.map(node=><Card key={node.id}><Label>LIGHTGUIDE NODE</Label><Heading>{node.name}</Heading><Body muted>{node.rssi==null?"Signal unknown":`Signal ${node.rssi} dBm`}</Body><Button title="Connect" onPress={()=>connect(node)}/></Card>)}
   {state.phase==="scanning"&&nodes.length===0&&<Card><Heading>Looking for LightGuide…</Heading><Body muted>The app filters by the Device Protocol v1 service UUID, not the BLE address.</Body></Card>}
-  {state.phase==="connected"&&<Card><Label>LIVE SENSOR SNAPSHOT</Label><Heading>{state.measurement?.tof_valid?`${state.measurement.distance_mm} mm`:"Distance unavailable"}</Heading><Body>Roll {state.measurement?.imu_valid?state.measurement.roll_deg.toFixed(1)+"°":"—"} · Pitch {state.measurement?.imu_valid?state.measurement.pitch_deg.toFixed(1)+"°":"—"} · Yaw {state.measurement?.imu_valid?state.measurement.yaw_deg.toFixed(1)+"°":"—"}</Body><Body muted>Spectral {state.measurement?.spectral_valid?"18 raw channels received":"unavailable"}</Body><Body muted>Status: {state.status?.state??"unknown"}</Body><View style={s.row}><Button kind="secondary" title="Refresh status" onPress={()=>transport.current?.requestStatus().catch(e=>dispatch({type:"failed",message:bluetoothError(e)}))}/><Button kind="secondary" title="Disconnect" onPress={()=>transport.current?.disconnect().then(()=>dispatch({type:"disconnected"}))}/></View></Card>}
-  {notice&&<Card><Heading>Device event</Heading><Body>{notice}</Body>{state.measurement&&<Button title="Open setup capture" onPress={()=>router.push("/capture?sensor=1")}/>}</Card>}
+  {state.phase==="connected"&&<Card><Label>{fresh?"LIVE SENSOR SNAPSHOT":"READINGS OUT OF DATE"}</Label>{!fresh&&<Badge tone="warning">CONNECTED · STALE</Badge>}{sensorError&&<Badge tone="warning">SENSOR ERROR</Badge>}<Heading>{fresh&&state.measurement?.tof_valid?`${state.measurement.distance_mm} mm`:"Distance unavailable"}</Heading><Body>Roll {fresh&&state.measurement?.imu_valid?state.measurement.roll_deg.toFixed(1)+"°":"—"} · Pitch {fresh&&state.measurement?.imu_valid?state.measurement.pitch_deg.toFixed(1)+"°":"—"} · Yaw {fresh&&state.measurement?.imu_valid?state.measurement.yaw_deg.toFixed(1)+"°":"—"}</Body><Body muted>Spectral {fresh&&state.measurement?.spectral_valid?"18 raw channels received":"unavailable"}</Body><Body muted>Status: {state.status?.state??"unknown"}{state.status?.error?` · ${state.status.error}`:""}</Body>{!fresh&&<Body muted>Live guidance is paused. The setup is safe; stale values are never used as current readings.</Body>}<Body muted>Height remains manual; device distance is not stand height.</Body><View style={s.row}><Button kind="secondary" title="Refresh status" onPress={()=>transport.current?.requestStatus().catch(e=>dispatch({type:"failed",message:bluetoothError(e)}))}/><Button kind="secondary" title="Disconnect" onPress={()=>transport.current?.disconnect().then(()=>dispatch({type:"disconnected"}))}/></View></Card>}
+  {notice&&<Card><Heading>Device event</Heading><Body>{notice}</Body>{fresh&&state.measurement&&<Button title="Open setup capture" onPress={()=>router.push("/capture?sensor=1")}/>}</Card>}
+  <Button title="Continue manually" kind="secondary" onPress={()=>router.push("/capture")}/>
   <Card><Body muted>Physical BLE, calibration and ±3 cm accuracy remain unverified until tested with the actual phone and ESP32.</Body></Card>
  </Screen>;
 }
