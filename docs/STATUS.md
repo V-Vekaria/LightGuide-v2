@@ -44,6 +44,8 @@ This is application acceptance evidence, not physical-device validation. Real ES
 
 PR #24 review continuation on 30 September fixes preserved upgrade readings, London-day shoot grouping, native repository initialization retry and discarded-attempt read-only presentation. Local TypeScript, 62 Node tests, 25 browser journeys and both bundle exports pass. The prior APK predates these follow-up fixes; updated native packaging/runtime and GitHub CI remain pending. See the review-fix section in the acceptance record above.
 
+Local CI continuation on 30 September rebuilt the review fixes successfully, including release lint-vital. The new `LightGuide-0.2.1-code9-reviewed.apk` passes identity, signature and 16 KiB alignment checks. Emulator smoke failed at baseline accessibility access under severe host memory pressure; the candidate's native runtime and later phone acceptance remain pending. The follow-up now completes local checks rather than waiting for GitHub credits. See the local CI continuation in the same acceptance record for checksum, source and failure evidence.
+
 The [delivery handoff](engineering/CLAUDE_BUILD_HANDOFF.md) defines milestone criteria; do not restart milestones already evidenced on main. Legacy root web/device tests remain useful historical engineering but do not validate new-node BLE, mobile AR accuracy or production hardware.
 
 ## Demo-style recreation update — 17 September 2026

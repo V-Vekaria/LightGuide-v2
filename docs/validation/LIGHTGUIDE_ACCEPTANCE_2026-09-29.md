@@ -95,3 +95,28 @@ Local verification: TypeScript passed; 62/62 Node tests passed; 25/25 Chromium j
 Windows Playwright shutdown stalled after all 25 tests reported success. Terminating only that run's worker released teardown; Playwright printed `25 passed (5.7m)` and exited 0. This cleanup did not terminate the user's browser or change application data.
 
 The APK checksum above belongs to the earlier acceptance commit `05bf27b6c1932c01263ac55a2830e7c29bc235cc`; that APK does not contain these review fixes. Native APK rebuild/install and emulator smoke for the follow-up revision remain pending. GitHub Actions remains blocked by account billing/spending limits; local results are not passing GitHub check results.
+
+## Local CI continuation — 30 September 2026
+
+At the user's direction, continue validation locally without waiting for GitHub Actions credits. The application source at `06171e15dd6347cffbebc49c6eb1b07f00e33cd2` includes all four review fixes. The follow-up smoke-driver changes do not alter the application bundle.
+
+### Rebuilt release APK
+
+- `:app:assembleRelease` passed in 21m 48s: 807 actionable tasks, 82 executed, 725 up-to-date. Release lint-vital passed; the separate third-party full-lint limitation recorded above is not claimed resolved.
+- Build used the existing `C:\lgb` short staging directory, cached Java 17, existing Windows SDK, one Gradle worker and the checked-in Windows init script. Staged application files were copied from the current application branch.
+- Package `com.lightguide.codex`, version `0.2.1`, versionCode `9`; ABIs `arm64-v8a` and `x86_64`.
+- APK Signature Scheme v2 and 16 KiB page zip alignment passed. Signer SHA-256 remains `fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c` (existing evaluation/debug certificate).
+- Artifact: `apps/mobile/artifacts/LightGuide-0.2.1-code9-reviewed.apk`, 73,430,338 bytes.
+- APK SHA-256: `bf3366e872e14e970167f0016521107dba61383342e2e731916bbc6396e8f81c`.
+
+Initial Gradle attempts failed because four native dependency files in three specific generated transform caches were cloud reparse placeholders rather than regular files. Copied each file to a regular local file, verified identical SHA-256 bytes, and retained the original placeholders outside the active cache under `C:\lgb\cache-backups`. No dependency versions, application source or signer changed during this repair.
+
+### Native smoke attempt and remaining gate
+
+Updated `scripts/android-smoke.py` for current onboarding, capture measurements, phase accessibility labels and outcome controls. It now explicitly targets an emulator and refuses physical-phone serials. Python syntax compilation passed. The full updated journey remains unverified.
+
+Started the existing Pixel_6 AVD in a temporary read-only, hidden session on `emulator-5580`, with no snapshot save. The available image is API 37.2 / x86_64 / 16 KiB pages, not CI's API 35 image. Installed the prior verified acceptance APK as an upgrade baseline; its cold activity launch returned `Status: ok`. The first accessibility dump failed with UiAutomation connection timeout / exit 137. A subsequent dump and system meminfo query also stalled. Windows reported 8,227,444 KiB total RAM and only 110,460 KiB free during the attempt. The test stopped before installing/testing the new candidate, and only this test emulator's process tree was terminated to release resources.
+
+This is an emulator/environment failure, not passing native journey evidence. Logs, failure JSON and baseline screenshot remain in `C:\lgb\artifacts\android-smoke`. Retry the emulator journey only when sufficient memory is available, or perform the separately authorized later phone acceptance. No phone was installed, cleared or otherwise modified.
+
+TypeScript, 62 mobile tests, 25 browser journeys and both exports retain the review-fix evidence above. Legacy root and positioning sources are unchanged by PR #24; their prior local build/test evidence remains applicable (412 legacy passes / one existing skip; 23 positioning JVM passes). Hosted GitHub checks remain billing-blocked and are not represented as passing local checks.
