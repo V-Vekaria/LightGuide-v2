@@ -4,19 +4,30 @@
 
 LightGuide helps photographers record a lighting setup and restore it later. The commercial direction combines a phone-led experience with candidate depth, spectral and orientation sensing. V1 focuses on recreation; artistic recommendations and subject-aware adaptation are later work.
 
-## Current status — 29 September 2026
+## Current status — 1 October 2026
 
-**The user selected the Codex application as the maintained implementation.** Its offline mobile app and hardened positioning harness are integrated alongside the current documentation. The current acceptance implementation aligns the maintained app with the approved 01–32 workflow references.
+The maintained application is in `apps/mobile/`. **LightGuide 0.2.1 / Android build 9** uses package `com.lightguide.codex`. The current acceptance update is in [PR #24](https://github.com/V-Vekaria/LightGuide-v2/pull/24), branch `codex/lightguide-acceptance-v2`; it is not yet a verified release on `main`.
 
-- [Mobile app and run instructions](apps/mobile/README.md): local SQLite, photographs, equipment/shoots, immutable versions, manual recreation and labelled simulation.
-- Android display name is **LightGuide**, package `com.lightguide.codex`, version 0.2.1 / build 9. The unchanged package preserves the upgrade/data identity; the acceptance build is also tested from empty storage.
-- A one-time, clearly labelled Soft portrait example makes clean-install evaluation possible without claiming simulated content is user data or a hardware reading.
-- [Acceptance implementation and 01–32 parity](docs/validation/LIGHTGUIDE_ACCEPTANCE_2026-09-29.md) records the implemented flows, deliberate differences and remaining physical-hardware boundaries.
-- Selected source: `d6110136934b3b78456a90b570d58ce00885145c`. [Its CI run](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/34707182893) passed software, native positioning tests/build, Android packaging and emulator smoke checks. The integration also runs CI on main.
-- Claude's alternative and superseded branches are retired from active development. [The cleanup record](docs/validation/BRANCH_CLEANUP_2026-09-14.md) records their exact tips, recovery tags and guarded deletion policy.
-- Physical positioning accuracy, live mobile AR/BLE integration, calibrated sensors, cloud and iOS remain open.
+- Offline capture with photographs, equipment, multiple lights and optional camera settings.
+- Saved setup library, immutable versions, archive/Trash/restore and full workspace backup/import.
+- First-use preferences and a clearly labelled Soft portrait example and guided simulation.
+- Freely navigable recreation phases, persisted readings requiring rechecking after interruption, and explicit photographer-reported outcomes.
+- Shoot planning with past-date validation and Europe/London calendar-day grouping.
+- App-owned foreground BLE session, connection status and stale-reading handling are implemented; physical phone-to-node operation and calibrated accuracy still need acceptance testing.
 
-Use `main` for new work. Historical comparison reports remain evidence, not instructions to maintain two applications. Read [current status](docs/STATUS.md) for remaining work.
+[Run 36810719652](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/36810719652) tests source `d2b28bf7f5e153afa208d7f1b110ae9aba827f3e`. At this update, software/browser checks, positioning unit tests/build and Android packaging have passed; Android install/upgrade/offline smoke testing is still running. **APK compilation alone does not establish readiness.** Consult that run for its final result and [the acceptance record](docs/validation/LIGHTGUIDE_ACCEPTANCE_2026-09-29.md) for evidence and limitations. Documentation-only follow-ups do not change the application binary.
+
+Continue this acceptance work in PR #24; use `main` as the baseline for unrelated new work. The old Codex/Claude comparison is finished: [retired implementations and recovery tags](docs/validation/BRANCH_CLEANUP_2026-09-14.md) are historical context. [Current status](docs/STATUS.md) tracks remaining product work.
+
+## Download and update Android
+
+1. Open the [acceptance CI run](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/36810719652) while signed into GitHub with access to this repository.
+2. Confirm **software**, **positioning**, **android** and **android-smoke** all passed for the candidate. Until then, treat its APK as unverified.
+3. Under **Artifacts**, download **lightguide-codex-android** and extract the ZIP. The mobile APK is `app-release.apk`; the separate positioning artifact is a research harness.
+4. Back up important work through the app's **Data & backup** screen, then open the APK and choose **Update** over the existing LightGuide installation.
+5. **Do not uninstall or clear storage to update.** If Android rejects the update, retain the installed app and report the error; package identity alone does not guarantee signing compatibility.
+
+The evaluation APK uses development signing and is not a Play Store release. Android Studio is not needed to install it. Artifact downloads can expire; use the exact verified run rather than an arbitrary newer build. See [mobile build and test instructions](apps/mobile/README.md).
 
 ## Photographer workflow
 
@@ -31,7 +42,7 @@ A manual outcome or simulation is not a measured spatial match. Detailed screen 
 
 ## Architecture at a glance
 
-This diagram describes the selected architecture and integration boundaries. Dashed connections are planned integrations, not current live capabilities of the evaluation app.
+This diagram describes the selected architecture and integration boundaries. Dashed connections require further integration or physical validation; the app-side BLE adapter exists, but an end-to-end hardware result is not yet verified.
 
 ```mermaid
 flowchart TD
@@ -40,7 +51,7 @@ flowchart TD
   GUIDE["Guidance and recreation logic"]
   PORT["Spatial and sensor interfaces"]
   AR["Separate Kotlin / ARCore harness"]
-  NODE["Future BLE sensor node"]
+  NODE["Evaluation BLE sensor node"]
   CLOUD["Optional future cloud services"]
   UI <--> DATA
   UI <--> GUIDE
@@ -53,7 +64,7 @@ flowchart TD
 - **Phone:** primary UI, camera/visual positioning and computation. Android is the first test platform.
 - **Local application:** TypeScript, Expo Development Builds, Expo Router and SQLite; offline capture and manual recreation work independently of the spatial experiment.
 - **Spatial layer:** native Kotlin/ARCore measurement harness; a platform-neutral interface separates it from the app. Simulation/unavailable states must be explicit.
-- **Node evaluation:** ESP32-S3-WROOM-1-N8R8 controller, VL53L5CX-class depth, AS7343 spectral and BNO086 orientation candidates. Exact received hardware, integration and performance require verification.
+- **Node evaluation:** received ESP32-S3 N16R8 controller, VL53L5CX depth, AS7343 light/spectral sensor and Adafruit BNO085 orientation sensor over UART. Component bench evidence is recorded in the [evaluation BOM](docs/V1_BOM.md); complete BLE integration, calibration and positioning accuracy remain unverified.
 - **Later services:** optional authentication/backup/sync and recommendation intelligence. They must not become dependencies of the offline core.
 
 Full [architecture](docs/V1_ARCHITECTURE.md), [data design](docs/product/DATABASE_DESIGN.md), [schema](docs/product/DATABASE_SCHEMA.md) and [decisions](docs/DECISIONS.md) own the details. Sensor interfaces, BLE and calibrated performance are not proven by this diagram.
@@ -79,7 +90,7 @@ The [documentation map](docs/DOCUMENTATION_MAP.md) provides the complete ownersh
 
 ## Run and test the correct project
 
-Use [apps/mobile/README.md](apps/mobile/README.md) for installation, prerequisites and commands. **Root npm commands exercise the legacy web prototype**, not the Android application. Continue the existing mobile app on main; do not scaffold another implementation.
+Use [apps/mobile/README.md](apps/mobile/README.md) for installation, prerequisites and commands. **Root npm commands exercise the legacy web prototype**, not the Android application. Continue the existing mobile app; PR #24 holds the current acceptance candidate. Do not scaffold another implementation.
 
 Use the separate [Android experiment instructions](experiments/phase-0-ar-positioning/README.md) for exact registered marker assets and native measurements. Expo Go is not a native AR/BLE test environment. iOS requires future Apple development and test access.
 
