@@ -120,3 +120,9 @@ Started the existing Pixel_6 AVD in a temporary read-only, hidden session on `em
 This is an emulator/environment failure, not passing native journey evidence. Logs, failure JSON and baseline screenshot remain in `C:\lgb\artifacts\android-smoke`. Retry the emulator journey only when sufficient memory is available, or perform the separately authorized later phone acceptance. No phone was installed, cleared or otherwise modified.
 
 TypeScript, 62 mobile tests, 25 browser journeys and both exports retain the review-fix evidence above. Legacy root and positioning sources are unchanged by PR #24; their prior local build/test evidence remains applicable (412 legacy passes / one existing skip; 23 positioning JVM passes). Hosted GitHub checks remain billing-blocked and are not represented as passing local checks.
+
+## Hosted CI resumed — 1 October 2026
+
+At the user's request, retried failed run [36729092274](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/36729092274). Software, Android and positioning jobs were assigned runners and began executing successfully, establishing that the previous pre-run billing block is no longer preventing execution. The exact remaining account allowance is not available through the repository connector.
+
+That retry validates application source `06171e15dd6347cffbebc49c6eb1b07f00e33cd2`, but its native smoke driver predates the updates in `d0cdada2135131b7f89cc9fa2536274724d3c373`. The latter commit explicitly skipped CI. This follow-up triggers PR checks with the current emulator-only driver, onboarding handling, manual measurement entry and recreation controls. Passing installation, upgrade preservation and offline native recreation remain required; starting jobs is not passing acceptance evidence.
