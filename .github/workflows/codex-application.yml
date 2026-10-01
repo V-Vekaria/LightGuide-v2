@@ -10,7 +10,8 @@ permissions:
   actions: read
 concurrency:
   group: codex-application-${{ github.ref }}
-  cancel-in-progress: false
+  # These jobs only validate/build artifacts; newer revisions supersede old checks.
+  cancel-in-progress: true
 jobs:
   software:
     runs-on: ubuntu-latest
