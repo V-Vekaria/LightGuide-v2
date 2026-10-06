@@ -13,12 +13,24 @@ OUT = Path('artifacts/android-smoke')
 OUT.mkdir(parents=True, exist_ok=True)
 evidence = {'source_sha': os.environ.get('GITHUB_SHA'), 'package': PACKAGE, 'checks': []}
 
+# This suite changes connectivity and test data. Never select a user's phone.
+serial = os.environ.get('ANDROID_SERIAL')
+if not serial:
+    devices = subprocess.check_output(['adb', 'devices'], timeout=30).decode().splitlines()[1:]
+    emulators = [line.split()[0] for line in devices if line.startswith('emulator-') and line.endswith('\tdevice')]
+    if len(emulators) != 1:
+        raise RuntimeError('Select exactly one emulator with ANDROID_SERIAL')
+    serial = emulators[0]
+if not serial.startswith('emulator-'):
+    raise RuntimeError('Android smoke tests run only on an emulator, never a physical phone')
+evidence['serial'] = serial
+
 def passed(check):
     evidence['checks'].append(check)
     print('PASS: ' + check, flush=True)
 
 def adb(*args, timeout=30):
-    return subprocess.check_output(['adb', *args], timeout=timeout, stderr=subprocess.STDOUT)
+    return subprocess.check_output(['adb', '-s', serial, *args], timeout=timeout, stderr=subprocess.STDOUT)
 
 def tree():
     # uiautomator can exit zero without writing when the UI never goes idle.
@@ -65,6 +77,15 @@ def launch():
     if b'Error:' in output or b'Status: timeout' in output:
         raise AssertionError('Android activity launch failed')
 
+def finish_onboarding():
+    labels = [n.get('text', '') for n in tree().iter('node')]
+    if 'Keep the lighting that worked.' in labels:
+        tap('Continue', scroll=True)
+        find('Make it yours.')
+        tap('Continue', scroll=True)
+        tap('Go to Home', scroll=True)
+        passed('first-use onboarding completed')
+
 try:
     apk=Path('android/app/build/outputs/apk/release/app-release.apk')
     if not apk.is_file():
@@ -77,6 +98,7 @@ try:
         if b'Success' not in adb('install','-r',str(baseline),timeout=180):
             raise AssertionError('Baseline installation failed')
         launch()
+        finish_onboarding()
         tap('Save a setup',scroll=True)
         tap('Setup name',node_class='android.widget.EditText')
         find('Setup name',node_class='android.widget.EditText',focused=True)
@@ -95,7 +117,7 @@ try:
         find('LegacyUpgrade',contains=True)
         (OUT/'baseline-saved.png').write_bytes(adb('exec-out','screencap','-p'))
         adb('shell','am','force-stop',PACKAGE)
-        passed('baseline v0.1.3 setup saved before upgrade')
+        passed('baseline setup saved before upgrade')
     evidence['apk_sha256'] = hashlib.sha256(apk.read_bytes()).hexdigest()
     # A freshly booted CI emulator may need more than 30 seconds to install
     # the 66 MB universal APK while Android finishes its own first boot work.
@@ -109,12 +131,13 @@ try:
     passed('install')
     adb('logcat','-c')
     launch()
+    finish_onboarding()
     find('Connect LightGuide device', scroll='up')
     passed('launch')
     if baseline.is_file():
         tap('LegacyUpgrade',scroll=True,contains=True)
         find('Recreate this version',scroll=True)
-        passed('v0.1.3 to v0.2.0 in-place upgrade retained saved setup')
+        passed('in-place upgrade retained saved setup')
         adb('shell','input','keyevent','KEYCODE_BACK')
         # Home may retain its scroll position; relaunching gives a fresh Home.
         adb('shell','am','force-stop',PACKAGE)
@@ -154,11 +177,17 @@ try:
         adb('shell','input','keyevent','KEYCODE_BACK')
     find('CodexNativeSmoke', node_class='android.widget.EditText')
     (OUT/'setup-entered.png').write_bytes(adb('exec-out','screencap','-p'))
+    tap('Add manual measurements', scroll=True)
+    tap('Light height above floor (cm)', scroll=True, node_class='android.widget.EditText')
+    adb('shell','input','text','170')
+    ime = adb('shell','dumpsys','input_method').decode(errors='replace')
+    if re.search(r'mInputShown=true\b|mIsInputViewShown=true\b', ime):
+        adb('shell','input','keyevent','KEYCODE_BACK')
     tap('Save setup',scroll=True)
     find('CodexNativeSmoke',contains=True)
     passed('save')
     adb('shell','am','force-stop',PACKAGE)
-    pid = subprocess.run(['adb', 'shell', 'pidof', PACKAGE], capture_output=True, timeout=30)
+    pid = subprocess.run(['adb', '-s', serial, 'shell', 'pidof', PACKAGE], capture_output=True, timeout=30)
     if pid.returncode != 1 or pid.stdout.strip():
         raise AssertionError('App process remained running after force-stop')
     passed('force-close')
@@ -169,22 +198,25 @@ try:
     passed('offline reopen with saved setup')
     tap('Recreate this version',scroll=True)
     find('MANUAL RECREATION')
-    tap('Lights',scroll='up')
-    tap('Height now (cm)',node_class='android.widget.EditText')
+    tap('Lights phase',scroll='up')
+    # Manual measurement inputs are behind the user-visible disclosure.
+    tap('Measurements & height view', scroll=True)
+    tap('Height now (cm)', scroll=True, node_class='android.widget.EditText')
     adb('shell','input','text','175')
     ime=adb('shell','dumpsys','input_method').decode(errors='replace')
     if re.search(r'mInputShown=true\b|mIsInputViewShown=true\b',ime): adb('shell','input','keyevent','KEYCODE_BACK')
-    tap('Camera',scroll='up')
-    tap('Lights',scroll='up')
-    find('175',node_class='android.widget.EditText')
+    tap('Camera phase',scroll='up')
+    tap('Lights phase',scroll='up')
+    find('175', scroll=True, node_class='android.widget.EditText')
     passed('Camera to Lights navigation retains manual reading')
-    tap('Reference',scroll='up')
-    find('Use the same reference point',scroll=True)
-    tap('Check',scroll='up')
-    tap('Not evaluated',scroll=True)
+    tap('Reference phase',scroll='up')
+    find('Re-establish your scene',scroll=True)
+    tap('Check phase',scroll='up')
+    tap('Mark step complete',scroll=True)
+    tap('not evaluated',scroll=True)
     passed('explicit unevaluated outcome selected')
-    tap('Save assessment',scroll=True)
-    find('Assessment saved',contains=True)
+    tap('Finish and record outcome',scroll=True)
+    find('Recreation recorded.',contains=True)
     passed('manual recreate and record outcome')
     (OUT/'completed.png').write_bytes(adb('exec-out','screencap','-p'))
     (OUT/'result.txt').write_text('PASS: install, launch, save, offline force-stop/restart, manual recreation outcome.\n')

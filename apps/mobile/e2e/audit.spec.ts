@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 // Existing field-level regressions use the full-form accessibility option.
 test.beforeEach(async ({ page }) => {
   await page.addLocatorHandler(
@@ -53,19 +53,19 @@ test("recreation choice and notes survive restart and leaving the flow", async (
   await page
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();
-  await page.getByRole("button", { name: "Check", exact: true }).click();
+  await page.getByRole("button", { name: "Check phase", exact: true }).click();
   await page
-    .getByRole("button", { name: "Needs adjustment", exact: true })
+    .getByRole("button", { name: "adapted", exact: true })
     .click();
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "Needs adjustment", exact: true }),
+    page.getByRole("button", { name: "adapted", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await page
     .getByLabel("Adjustments and feedback", { exact: true })
     .fill("Retain this assessment");
   await page
-    .getByRole("button", { name: "Save and exit", exact: true })
+    .getByRole("button", { name: "← Back", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Resume recreation", exact: true })
@@ -106,7 +106,7 @@ test("deleting equipment leaves an existing shoot editable", async ({
     .fill("Still editable");
   await page.getByRole("button", { name: "Save shoot", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Shoots", exact: true }),
+    page.getByRole("heading", { name: "Make room for the shoot.", exact: true }),
   ).toBeVisible();
 });
 

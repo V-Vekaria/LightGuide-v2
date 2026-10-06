@@ -1,14 +1,13 @@
-import { Welcome } from "../src/ui/Welcome";
-import Feather from "@expo/vector-icons/Feather";
-import { todayKey, shootState, dateKey } from "../src/domain/shoot-dates";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Pressable,
+  Image,
+  ScrollView,
   Text,
   View,
   useWindowDimensions,
-  AppState,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useStore } from "../src/ui/Store";
 import {
@@ -27,8 +26,10 @@ import {
 } from "../src/ui/components";
 import { colors as c } from "../src/ui/theme";
 import type { Setup } from "../src/data/repository";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { dateKey, shootState, todayKey } from "../src/domain/shoot-dates";
 
-const tabs = ["Home", "Setups", "Shoots", "Equipment"] as const;
+const tabs = ["Home", "Shoots", "Create", "Setups", "Equipment"] as const;
 export default function Home() {
   const { repo, refresh } = useStore();
   useFocusEffect(
@@ -39,29 +40,20 @@ export default function Home() {
   const { width, fontScale } = useWindowDimensions();
   const wideLayout = width >= 760 && fontScale <= 1.3;
   const params = useLocalSearchParams<{ tab?: string }>();
+  const onboarding = repo.setting<{
+    complete: boolean;
+    photographyType: "portrait" | "product" | "other";
+    experience: "new" | "some" | "experienced";
+  } | null>("onboarding-v1", null);
   const tab = tabs.find((t) => t === params.tab) ?? "Home";
-  const [welcomed, setWelcomed] = useState(
-    () =>
-      repo.setting("welcome-seen", false) ||
-      repo.setups().length > 0 ||
-      Boolean(repo.draft("capture:new")),
-  );
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState<"active" | "archive" | "trash">("active"),
     [error, setError] = useState<string | null>(null);
-  const [shootFilter, setShootFilter] = useState("Upcoming");
-  const [today, setToday] = useState(todayKey);
-  useEffect(() => {
-    const refreshDate = () => setToday(todayKey());
-    const t = setInterval(refreshDate, 30000);
-    const sub = AppState.addEventListener("change", refreshDate);
-    return () => {
-      clearInterval(t);
-      sub.remove();
-    };
-  }, []);
   const [equipmentQuery, setEquipmentQuery] = useState("");
   const [equipmentType, setEquipmentType] = useState("all");
+  const [shootView, setShootView] = useState<"upcoming" | "completed">("upcoming");
+  if (!onboarding?.complete)
+    return <Onboarding onComplete={refresh} />;
   const equipment = repo
     .equipment()
     .filter(
@@ -75,6 +67,12 @@ export default function Home() {
   const setups = repo.setups(),
     attempts = repo.recreations(),
     draft = repo.draft("capture:new");
+  const today = todayKey();
+  const visibleShoots = repo.shoots().filter((shoot) =>
+    shootView === "completed"
+      ? shootState(shoot, today) !== "Planned"
+      : shootState(shoot, today) === "Planned",
+  );
   const footer = (
     <View
       style={{
@@ -94,15 +92,18 @@ export default function Home() {
           accessibilityState={{ selected: tab === t }}
           onPress={() => {
             if (t === tab) return;
-            router.setParams({ tab: t });
+            if (t === "Create") router.navigate("/capture");
+            else router.setParams({ tab: t });
           }}
           style={{ alignItems: "center", gap: 5, padding: 7 }}
         >
-          <Feather
-            name={(["home", "grid", "calendar", "briefcase"] as const)[i]}
-            size={21}
-            color={tab === t ? c.accent : c.muted}
-          />
+          <Text style={{ color: tab === t ? c.accent : c.muted, fontSize: 18 }}>
+            <MaterialCommunityIcons
+              name={(["home-outline", "calendar-blank-outline", "plus-circle-outline", "layers-outline", "briefcase-outline"] as const)[i]}
+              size={22}
+              color={tab === t ? c.accent : c.muted}
+            />
+          </Text>
           <Text
             style={{
               color: tab === t ? c.accent : c.muted,
@@ -124,8 +125,11 @@ export default function Home() {
       }
     >
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <Badge tone="muted">{item.category}</Badge>
-        <Body muted>↗</Body>
+        <View style={s.row}>
+          <Badge tone="muted">{item.category}</Badge>
+          {repo.isExampleSetup(item.id) && <Badge>EXAMPLE SETUP · DEMO</Badge>}
+        </View>
+        <MaterialCommunityIcons name="chevron-right" color={c.muted} size={24} />
       </View>
       {(() => {
         const photos = repo.scene(item.current_version_id).images;
@@ -147,21 +151,20 @@ export default function Home() {
       </Body>
     </Card>
   );
-  if (!welcomed) return <Welcome onDone={() => setWelcomed(true)} />;
   return (
     <Screen
       title={
         tab === "Home"
           ? "Ready for your next shoot?"
           : tab === "Setups"
-            ? "Saved setups"
+            ? "Your setup library."
             : tab === "Shoots"
-              ? "Shoots"
-              : "Equipment"
+              ? "Make room for the shoot."
+              : "Know your equipment."
       }
       subtitle={
         tab === "Home"
-          ? "Save what worked. Find it later. Recreate it with confidence."
+          ? "Save your setup so you can recreate it next time."
           : tab === "Setups"
             ? "Every saved version stays available, even when you change your setup."
             : tab === "Shoots"
@@ -176,18 +179,66 @@ export default function Home() {
           <View style={[s.row, { marginBottom: 24 }]}>
             <Badge>OFFLINE READY</Badge>
             <Body muted>Saved on this device</Body>
+            <Button
+              title="Connect LightGuide device"
+              kind="secondary"
+              onPress={() => router.push("/device")}
+            />
           </View>
-          <Button
-            title="Save a setup"
-            onPress={() => router.push("/capture")}
-          />
-          <View style={{ height: 12 }} />
-          <Button
-            title="Try a guided demo"
-            kind="secondary"
-            onPress={() => router.push("/simulation")}
-          />
-          <View style={{ height: 24 }} />
+          <View style={wideLayout ? s.split : { gap: 4 }}>
+            <View style={wideLayout ? [s.column, { flex: 1.4 }] : {}}>
+              <Card
+                style={{
+                  backgroundColor: "#183B33",
+                  borderColor: "#326052",
+                  padding: 26,
+                }}
+              >
+                <Label>MEASURE · SAVE · RECREATE</Label>
+                <Text
+                  style={{
+                    fontSize: 29,
+                    color: c.text,
+                    fontWeight: "600",
+                    lineHeight: 35,
+                  }}
+                >
+                  Good lighting deserves{"\n"}a second take.
+                </Text>
+                <Body style={{ color: "#B9D3C8" }}>
+                  Save a photo and your lighting notes. Recreate them with
+                  manual checks; live sensors are not connected.
+                </Body>
+                <View style={s.row}>
+                  <Button
+                    title="Save a setup"
+                    onPress={() => router.push("/capture")}
+                  />
+                  <Button
+                    title="Try a guided demo"
+                    kind="secondary"
+                    onPress={() => router.push("/simulation")}
+                  />
+                </View>
+              </Card>
+            </View>
+            <Card
+              style={wideLayout ? [s.column, { justifyContent: "center" }] : {}}
+            >
+              <Label>YOUR WORKSPACE</Label>
+              <Text style={{ fontSize: 44, color: c.text, fontWeight: "600" }}>
+                {setups.length.toString().padStart(2, "0")}
+              </Text>
+              <Body muted>
+                active setups ·{" "}
+                {attempts.filter((a) => a.status === "completed").length}{" "}
+                recreations recorded
+              </Body>
+              <Body muted>
+                Connect a LightGuide node from Home when you want live readings.
+              </Body>
+            </Card>
+          </View>
           {draft && (
             <Card>
               <Badge tone="warning">UNFINISHED CAPTURE</Badge>
@@ -288,15 +339,15 @@ export default function Home() {
       {tab === "Equipment" && (
         <>
           <Card>
-            <Heading>Your equipment, ready to use</Heading>
+            <Heading>How your inventory works</Heading>
             <Body>
               Add one record for each item you own. When saving a setup, select
               the equipment used so you can remember it during recreation.
             </Body>
-            <Badge tone="warning">DEVICE CONNECTION IS SEPARATE</Badge>
+            <Badge tone="warning">LIVE CONNECTION UNAVAILABLE</Badge>
             <Body>
-              Connect a node from Home for live readings. Equipment below is a
-              manual inventory; adding an item does not pair a device.
+              This build cannot connect to a LightGuide sensor. Equipment below
+              is a manual inventory; adding an item does not pair a device.
             </Body>
           </Card>
           <Button
@@ -362,47 +413,33 @@ export default function Home() {
           <Button title="Plan a shoot" onPress={() => router.push("/shoot")} />
           <View style={{ height: 20 }} />
           <Choice
-            options={["Upcoming", "Completed"]}
-            value={shootFilter}
-            onChange={setShootFilter}
+            options={["upcoming", "completed"] as const}
+            value={shootView}
+            onChange={setShootView}
           />
           <View style={{ height: 16 }} />
-          {shootFilter === "Completed" && (
-            <Body muted>
-              Past plans appear here as Date passed. Mark a shoot completed when
-              it actually took place.
-            </Body>
-          )}
-          {repo
-            .shoots()
-            .filter(
-              (shoot) =>
-                (shootState(shoot, today) === "Planned") ===
-                (shootFilter === "Upcoming"),
-            )
-            .map((shoot) => (
-              <Card
-                key={shoot.id}
-                onPress={() =>
-                  router.push({ pathname: "/shoot", params: { id: shoot.id } })
-                }
-              >
-                <Badge>{shootState(shoot, today)}</Badge>
-                <Heading>{shoot.name}</Heading>
-                <Body muted>
-                  {shoot.scheduled_at ? dateKey(shoot.scheduled_at) : "No date"}{" "}
-                  · {shoot.category} ·{" "}
-                  {
-                    repo.recreations().filter((a) => a.shoot_id === shoot.id)
-                      .length
-                  }{" "}
-                  recreation attempts
-                </Body>
-              </Card>
-            ))}
-          {repo.shoots().length === 0 && (
+          {visibleShoots.map((shoot) => (
+            <Card
+              key={shoot.id}
+              onPress={() =>
+                router.push({ pathname: "/shoot", params: { id: shoot.id } })
+              }
+            >
+              <Badge>{shootState(shoot, today)}</Badge>
+              <Heading>{shoot.name}</Heading>
+              <Body muted>
+                {shoot.category} · {shoot.scheduled_at ? dateKey(shoot.scheduled_at).split("-").reverse().join("/") : "No date"} ·{" "}
+                {
+                  repo.recreations().filter((a) => a.shoot_id === shoot.id)
+                    .length
+                }{" "}
+                recreation attempts
+              </Body>
+            </Card>
+          ))}
+          {visibleShoots.length === 0 && (
             <Card>
-              <Heading>Space for your next idea.</Heading>
+              <Heading>{shootView === "completed" ? "No completed shoots." : "Space for your next idea."}</Heading>
               <Body muted>
                 Give your shoot a name. Attach a recreation when you are ready.
               </Body>
@@ -411,5 +448,113 @@ export default function Home() {
         </>
       )}
     </Screen>
+  );
+}
+
+function Onboarding({ onComplete }: { onComplete: () => void }) {
+  const { repo } = useStore();
+  const [step, setStep] = useState(0);
+  const [photographyType, setPhotographyType] = useState<
+    "portrait" | "product" | "other"
+  >("portrait");
+  const [experience, setExperience] = useState<"new" | "some" | "experienced">(
+    "new",
+  );
+  const finish = (demo: boolean) => {
+    repo.setSetting("onboarding-v1", {
+      complete: true,
+      photographyType,
+      experience,
+    });
+    onComplete();
+    if (demo) router.push("/simulation");
+  };
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: "center",
+          padding: 24,
+          alignSelf: "center",
+          width: "100%",
+          maxWidth: 520,
+        }}
+      >
+        <Text
+          style={{
+            color: c.text,
+            letterSpacing: 5,
+            fontSize: 15,
+            fontWeight: "700",
+            marginBottom: 36,
+          }}
+        >
+          LIGHTGUIDE
+        </Text>
+        {step === 0 && (
+          <>
+            <Image
+              source={require("../assets/demo/soft-portrait-placement.png")}
+              accessibilityLabel="Example portrait lighting setup"
+              resizeMode="cover"
+              style={{ width: "100%", height: 280, borderRadius: 18, marginBottom: 24 }}
+            />
+            <Badge>WELCOME</Badge>
+            <Text style={[s.title, { marginTop: 18 }]}>Keep the lighting that worked.</Text>
+            <Body muted style={{ fontSize: 17, lineHeight: 26, marginVertical: 16 }}>
+              Save a setup. Recreate it next time. LightGuide works offline and
+              does not require an account.
+            </Body>
+            <Card style={{ backgroundColor: "#183B33", borderColor: "#326052" }}>
+              <Heading>One example is ready for you</Heading>
+              <Body>
+                Soft portrait — Example setup is bundled for learning and is
+                always labelled as demo content.
+              </Body>
+            </Card>
+            <Button title="Continue" onPress={() => setStep(1)} />
+          </>
+        )}
+        {step === 1 && (
+          <>
+            <Badge>YOUR STARTING POINT</Badge>
+            <Text style={[s.title, { marginTop: 18 }]}>Make it yours.</Text>
+            <Heading>What do you shoot?</Heading>
+            <Choice
+              options={["portrait", "product", "other"] as const}
+              value={photographyType}
+              onChange={setPhotographyType}
+            />
+            <View style={{ height: 26 }} />
+            <Heading>Lighting experience</Heading>
+            <Choice
+              options={["new", "some", "experienced"] as const}
+              value={experience}
+              onChange={setExperience}
+            />
+            <View style={{ height: 30 }} />
+            <Button title="Continue" onPress={() => setStep(2)} />
+            <View style={{ height: 10 }} />
+            <Button title="Back" kind="secondary" onPress={() => setStep(0)} />
+          </>
+        )}
+        {step === 2 && (
+          <>
+            <Badge>GUIDED DEMO</Badge>
+            <Text style={[s.title, { marginTop: 18 }]}>Learn the complete loop.</Text>
+            <Body muted style={{ fontSize: 17, lineHeight: 26, marginVertical: 16 }}>
+              Practice Reference → Lights → Camera → Check without hardware.
+              Every generated reading is prominently marked SIMULATION / EXAMPLE DATA.
+            </Body>
+            <Button title="Try the guided demo" onPress={() => finish(true)} />
+            <View style={{ height: 10 }} />
+            <Button title="Go to Home" kind="secondary" onPress={() => finish(false)} />
+            <View style={{ height: 10 }} />
+            <Button title="Back" kind="secondary" onPress={() => setStep(1)} />
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
