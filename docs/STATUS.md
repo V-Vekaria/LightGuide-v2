@@ -1,5 +1,13 @@
 # LightGuide v2 — Current Status
 
+## Latest verification — 6 October 2026
+
+[PR #24](https://github.com/V-Vekaria/LightGuide-v2/pull/24) remains open and unmerged. Its application source `adbb073c427f417a745390a85043d1e5e7a91eaf` passed all four jobs in [run 36813426780](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/36813426780) on 1 October: software, positioning, android and android-smoke. Inspected smoke logs confirm installation, in-place upgrade with retained saved setup, repeated Settings navigation, offline save/reopen and manual recreation with retained readings. The Android artifact remains available as of this check.
+
+This supersedes the historical September statements below that candidate native runtime and CI were pending. It does not establish physical BLE, calibrated accuracy or photographer acceptance. The user reports installed version 2.1; its exact build/source identity remains unconfirmed. Photographer testing is deferred. Keep older entries as dated history, not current release status.
+
+The separate Lovable web prototype was republished by the user on 6 October. A live UI check confirms AI service unavailable with manual and written-example fallback; AI requires explicit operator configuration before use. Web deployment does not update the Android APK or validate hardware.
+
 **29 September 2026: the maintained Codex mobile application has a clean-install acceptance implementation aligned with the approved 01–32 workflow references.** It preserves the offline data model and native positioning harness while adding first-use, explicit demo provenance, recovery and regression coverage. The prior requirement to retain two active app branches is superseded.
 
 ## Integrated application
