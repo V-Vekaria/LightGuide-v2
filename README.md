@@ -4,7 +4,7 @@
 
 LightGuide helps photographers record a lighting setup and restore it later. The commercial direction combines a phone-led experience with candidate depth, spectral and orientation sensing. V1 focuses on recreation; artistic recommendations and subject-aware adaptation are later work.
 
-## Current status — 1 October 2026
+## Current status — 6 October 2026
 
 The maintained application is in `apps/mobile/`. **LightGuide 0.2.1 / Android build 9** uses package `com.lightguide.codex`. The current acceptance update is in [PR #24](https://github.com/V-Vekaria/LightGuide-v2/pull/24), branch `codex/lightguide-acceptance-v2`; it is not yet a verified release on `main`.
 
@@ -15,13 +15,13 @@ The maintained application is in `apps/mobile/`. **LightGuide 0.2.1 / Android bu
 - Shoot planning with past-date validation and Europe/London calendar-day grouping.
 - App-owned foreground BLE session, connection status and stale-reading handling are implemented; physical phone-to-node operation and calibrated accuracy still need acceptance testing.
 
-[Run 36810719652](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/36810719652) tests source `d2b28bf7f5e153afa208d7f1b110ae9aba827f3e`. At this update, software/browser checks, positioning unit tests/build and Android packaging have passed; Android install/upgrade/offline smoke testing is still running. **APK compilation alone does not establish readiness.** Consult that run for its final result and [the acceptance record](docs/validation/LIGHTGUIDE_ACCEPTANCE_2026-09-29.md) for evidence and limitations. Documentation-only follow-ups do not change the application binary.
+[Run 36813426780](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/36813426780) passed all four jobs on 1 October 2026 for source `adbb073c427f417a745390a85043d1e5e7a91eaf`: software/browser checks, positioning unit tests/build, Android packaging and Android install/upgrade/offline smoke. The smoke log confirms saved-data retention during an in-place upgrade, repeated Settings navigation, offline reopening and Camera-to-Lights reading retention. The `lightguide-codex-android` artifact was available on 6 October. **This is emulator/software evidence; physical phone acceptance, BLE and calibrated accuracy remain pending.** See [the acceptance record](docs/validation/LIGHTGUIDE_ACCEPTANCE_2026-09-29.md) for earlier evidence and limitations. Documentation-only follow-ups do not change the tested application binary.
 
 Continue this acceptance work in PR #24; use `main` as the baseline for unrelated new work. The old Codex/Claude comparison is finished: [retired implementations and recovery tags](docs/validation/BRANCH_CLEANUP_2026-09-14.md) are historical context. [Current status](docs/STATUS.md) tracks remaining product work.
 
 ## Download and update Android
 
-1. Open the [acceptance CI run](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/36810719652) while signed into GitHub with access to this repository.
+1. Open the [acceptance CI run](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/36813426780) while signed into GitHub with access to this repository.
 2. Confirm **software**, **positioning**, **android** and **android-smoke** all passed for the candidate. Until then, treat its APK as unverified.
 3. Under **Artifacts**, download **lightguide-codex-android** and extract the ZIP. The mobile APK is `app-release.apk`; the separate positioning artifact is a research harness.
 4. Back up important work through the app's **Data & backup** screen, then open the APK and choose **Update** over the existing LightGuide installation.
