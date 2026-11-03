@@ -135,3 +135,5 @@ That retry validates application source `06171e15dd6347cffbebc49c6eb1b07f00e33cd
 - Local evidence: `C:\lgb\artifacts\android-smoke-2026-11-01-interrupted\evidence.json` (first attempt) and `C:\lgb\artifacts\android-smoke-run-2026-11-01.log` (retry transcript). No application files changed; no phone, live BLE or physical accuracy checks were performed.
 
 Separately, [hosted run 36813426780](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/36813426780) passed native smoke with the corrected driver at `adbb073c427f417a745390a85043d1e5e7a91eaf`. The driver opens the manual measurements panel before entering recreation height. This is separate evidence, not a pass for the interrupted Windows run.
+
+On 3 November, a local retry with the corrected driver started with 3,477,888 KiB free on the Windows host. The same read-only API 37.2 AVD booted in 93,667 ms, but host free RAM dropped to 326,956 KiB. Stopped only `emulator-5580` before the driver reported any passing checks. No candidate runtime result was added. Logs: `C:\lgb\emulator-ci-2026-11-03.stdout.log` and `C:\lgb\artifacts\android-smoke-run-2026-11-03.log`.
