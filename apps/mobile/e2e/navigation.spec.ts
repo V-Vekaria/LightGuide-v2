@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 // Existing field-level regressions use the full-form accessibility option.
 test.beforeEach(async ({ page }) => {
   await page.addLocatorHandler(
@@ -72,6 +72,7 @@ test("Home opens the device connection screen and returns", async ({
   await page.goto("/");
   await page
     .getByRole("button", { name: "Connect LightGuide device", exact: true })
+    .last()
     .click();
   await expect(page).toHaveURL(/\/device$/);
   await expect(
@@ -82,7 +83,7 @@ test("Home opens the device connection screen and returns", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "← Back", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Connect LightGuide device" }),
+    page.getByRole("button", { name: "Connect LightGuide device" }).last(),
   ).toBeVisible();
 });
 

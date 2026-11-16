@@ -1,4 +1,8 @@
 import type { Repository } from "../data/repository";
+import { DEMO_PLACEMENT_IMAGE_ID, DEMO_RESULT_IMAGE_ID } from "../data/repository";
+import { Asset } from "expo-asset";
+const demoResultAsset = require("../../assets/demo/soft-portrait-result.png");
+const demoPlacementAsset = require("../../assets/demo/soft-portrait-placement.png");
 const urls = new Map<string, string>();
 async function open() {
   return new Promise<IDBDatabase>((resolve, reject) => {
@@ -98,6 +102,10 @@ export async function photoUri(
   repo: Repository,
   id: string,
 ): Promise<string | null> {
+  if (id === DEMO_RESULT_IMAGE_ID)
+    return Asset.fromModule(demoResultAsset).uri;
+  if (id === DEMO_PLACEMENT_IMAGE_ID)
+    return Asset.fromModule(demoPlacementAsset).uri;
   if (!repo.image(id)) return null;
   if (urls.has(id)) return urls.get(id)!;
   const data = await photoStore(false, (s) => s.get(id));
@@ -131,11 +139,21 @@ export async function backupPhoto(
   repo: Repository,
   id: string,
 ): Promise<string | null> {
-  const data = await photoStore<{ optimised: Blob } | undefined>(false, (s) =>
-    s.get(id),
-  );
-  if (!data) return null;
-  const bytes = new Uint8Array(await data.optimised.arrayBuffer());
+  let blob: Blob | null = null;
+  if (id === DEMO_RESULT_IMAGE_ID || id === DEMO_PLACEMENT_IMAGE_ID) {
+    const module = id === DEMO_RESULT_IMAGE_ID ? demoResultAsset : demoPlacementAsset;
+    blob = await fetch(Asset.fromModule(module).uri).then((response) => {
+      if (!response.ok) throw new Error("Could not read the bundled example photo.");
+      return response.blob();
+    });
+  } else {
+    const data = await photoStore<{ optimised: Blob } | undefined>(false, (s) =>
+      s.get(id),
+    );
+    blob = data?.optimised ?? null;
+  }
+  if (!blob) return null;
+  const bytes = new Uint8Array(await blob.arrayBuffer());
   let raw = "";
   for (let i = 0; i < bytes.length; i += 8192)
     raw += String.fromCharCode(...bytes.subarray(i, i + 8192));

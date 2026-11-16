@@ -513,3 +513,46 @@ test("recreation outcome choice survives note and step saves", () => {
     r.db.close();
   }
 });
+
+test("acceptance seed is clearly labelled, complete and never recreated after deletion", () => {
+  const r = open();
+  try {
+    r.ensureAcceptanceSeed();
+    const setup = r.setups().find((item) => r.isExampleSetup(item.id));
+    assert.ok(setup);
+    assert.match(setup.title, /Example setup/);
+    const scene = r.scene(setup.current_version_id);
+    const light = scene.objects.find((object) => object.kind === "light")!;
+    const camera = scene.objects.find((object) => object.kind === "camera")!;
+    assert.equal(light.measurements.find((m) => m.kind === "height")?.value, 1.7);
+    assert.equal(light.measurements.find((m) => m.kind === "distance")?.value, 1.5);
+    assert.equal(camera.settings.focal_length_mm, 85);
+    assert.equal(camera.settings.exposure_time_s, 1 / 200);
+    assert.equal(camera.settings.aperture_f, 4);
+    assert.equal(camera.settings.iso, 100);
+    assert.equal(scene.images.length, 2);
+    r.trash(setup.id);
+    r.ensureAcceptanceSeed();
+    assert.equal(r.setups().some((item) => item.id === setup.id), false);
+    assert.equal(r.setups("trash").filter((item) => item.id === setup.id).length, 1);
+  } finally {
+    r.db.close();
+  }
+});
+
+test("discarding an interrupted recreation preserves its setup and removes resume state", () => {
+  const r = open();
+  try {
+    const setup = r.publish({ title: "Interrupted", category: "portrait", scene: emptyScene() });
+    const attempt = r.startRecreation(setup.versionId);
+    r.saveRecreationProgress(attempt, 2, "Keep the setup");
+    r.setSetting("attempt-readings:" + attempt, { light: { distance: "150" } });
+    r.abandonRecreation(attempt);
+    assert.equal(r.recreation(attempt).status, "abandoned");
+    assert.equal(r.setting("attempt:" + attempt, null), null);
+    assert.equal(r.setting("attempt-readings:" + attempt, null), null);
+    assert.equal(r.setup(setup.id).title, "Interrupted");
+  } finally {
+    r.db.close();
+  }
+});

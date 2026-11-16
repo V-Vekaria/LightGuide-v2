@@ -1,4 +1,3 @@
-import { StepNav } from "../src/ui/StepNav";
 import React, { useState, useRef } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -33,11 +32,7 @@ import { applyDeviceSnapshot } from "../src/device/snapshot";
 export default function Capture() {
   const columns = useResponsiveColumns();
   const { repo, refresh } = useStore(),
-    { id, light, sensor } = useLocalSearchParams<{
-      id?: string;
-      light?: string;
-      sensor?: string;
-    }>();
+    { id, light, sensor } = useLocalSearchParams<{ id?: string; light?: string; sensor?: string }>();
   const key = id ? "capture:" + id + (light ? ":" + light : "") : "capture:new";
   const [initial] = useState(() => {
     try {
@@ -75,19 +70,12 @@ export default function Capture() {
     [precision, setPrecision] = useState(
       Boolean(initial.data.distance || initial.data.height),
     );
-  const [stage, setStage] = useState(() =>
-    repo.setting("capture-stage:" + key, 0),
-  );
-  const [allFields, setAllFields] = useState(false);
-  const changeStage = (next: number) => {
-    try {
-      repo.setSetting("capture-stage:" + key, next);
-      setStage(next);
-    } catch (e) {
-      setError(humanError(e));
-    }
-  };
-  const [showCamera, setShowCamera] = useState(true);
+  const [showCamera, setShowCamera] = useState(Boolean(form.camera));
+  const [stage, setStage] = useState<"photos" | "lights" | "camera" | "review">("photos");
+  const [photoFailure, setPhotoFailure] = useState<{
+    role: Scene["images"][number]["role"];
+    message: string;
+  } | null>(null);
   const cameraFields = form.camera ?? {
     focal: "",
     aperture: "",
@@ -122,7 +110,7 @@ export default function Capture() {
     setError(null);
     try {
       const imageId = await pickPhoto(repo, camera);
-      if (imageId)
+      if (imageId) {
         change({
           ...currentForm.current,
           images: [
@@ -130,8 +118,12 @@ export default function Capture() {
             { image_id: imageId, role, object_id: null },
           ],
         });
+        setPhotoFailure(null);
+      }
     } catch (e) {
-      setError(humanError(e));
+      const message = humanError(e);
+      setError(message);
+      setPhotoFailure({ role, message });
     } finally {
       setBusy(false);
     }
@@ -145,21 +137,20 @@ export default function Capture() {
         baseVersion: initial.baseVersion ?? undefined,
         title: form.title,
         category: form.category,
-        scene:
-          sensor === "1"
-            ? sensorSnapshot
-              ? applyDeviceSnapshot(
-                  sceneFromDraft(form, repo, initial.base, light),
-                  sensorSnapshot.measurement,
-                  sensorSnapshot.info,
-                  repo,
-                )
-              : (() => {
-                  throw new Error(
-                    "The LightGuide sensor snapshot expired. Press the device save button again before saving this setup.",
-                  );
-                })()
-            : sceneFromDraft(form, repo, initial.base, light),
+        scene: sensor === "1"
+          ? sensorSnapshot
+            ? applyDeviceSnapshot(
+                sceneFromDraft(form, repo, initial.base, light),
+                sensorSnapshot.measurement,
+                sensorSnapshot.info,
+                repo,
+              )
+            : (() => {
+                throw new Error(
+                  "The LightGuide sensor snapshot expired. Press the device save button again before saving this setup.",
+                );
+              })()
+          : sceneFromDraft(form, repo, initial.base, light),
         draftKey: key,
       });
       refresh();
@@ -176,278 +167,299 @@ export default function Capture() {
   return (
     <Screen
       back
-      title={id ? "Edit setup" : "Save a setup"}
+      title={
+        id ? "Keep the original. Save a new take." : "Remember this lighting."
+      }
       subtitle="Start with a name. Add photographs and the details that will help you recreate it."
     >
-      <StepNav
-        labels={["Setup", "Photos", "Lights", "Camera"]}
-        active={stage}
-        onChange={changeStage}
-      />
-      <Button
-        title={allFields ? "Show one step" : "Show all fields"}
-        kind="secondary"
-        onPress={() => setAllFields(!allFields)}
-      />
-      <View style={{ height: 16 }} />
       <ErrorMessage message={error} />
+      <Choice
+        options={["photos", "lights", "camera", "review"] as const}
+        value={stage}
+        onChange={setStage}
+      />
+      <View style={{ height: 18 }} />
       <View style={[s.row, { marginBottom: 20 }]}>
         <Badge>LOCAL CAPTURE</Badge>
         {saved && <Body muted>Draft saved on this device</Body>}
       </View>
       <View style={columns.split}>
         <View style={columns.column}>
-          {(allFields || stage === 0) && (
-            <Card>
-              <Label>01 / THE SETUP</Label>
-              <Field
-                label="Setup name"
-                value={form.title}
-                onChange={(title) => change({ ...form, title })}
-                placeholder="Window-style portrait"
+          <Card>
+            <Label>01 / THE SETUP</Label>
+            <Field
+              label="Setup name"
+              value={form.title}
+              onChange={(title) => change({ ...form, title })}
+              placeholder="Window-style portrait"
+            />
+            <Choice
+              options={["portrait", "product"] as const}
+              value={form.category}
+              onChange={(category) => change({ ...form, category })}
+            />
+            <Field
+              label="Setup notes"
+              value={form.notes}
+              multiline
+              onChange={(notes) => change({ ...form, notes })}
+              placeholder="What made this setup work?"
+            />
+          </Card>
+          <Card>
+            <Label>02 / PHOTOGRAPHS</Label>
+            <Heading>Keep the result and the room.</Heading>
+            <Body muted>
+              Photos are stored locally. No image is sent to an AI service.
+            </Body>
+            <View style={s.row}>
+              <Button
+                title="Add result photo"
+                kind="secondary"
+                disabled={busy}
+                onPress={() => photo("result")}
               />
-              <Choice
-                options={["portrait", "product"] as const}
-                value={form.category}
-                onChange={(category) => change({ ...form, category })}
+              <Button
+                title="Add setup photo"
+                kind="secondary"
+                disabled={busy}
+                onPress={() => photo("setup")}
               />
-              <Field
-                label="Setup notes"
-                value={form.notes}
-                multiline
-                onChange={(notes) => change({ ...form, notes })}
-                placeholder="What made this setup work?"
+              <Button
+                title="Take setup photo"
+                kind="secondary"
+                disabled={busy}
+                onPress={() => photo("setup", true)}
               />
-            </Card>
-          )}
-          {(allFields || stage === 1) && (
-            <Card>
-              <Label>02 / PHOTOGRAPHS</Label>
-              <Heading>Keep the result and the room.</Heading>
-              <Body muted>
-                Photos are stored locally. No image is sent to an AI service.
-              </Body>
-              <View style={s.row}>
+            </View>
+            {form.images.map((im) => (
+              <View key={im.image_id} style={{ gap: 8 }}>
+                <Photo id={im.image_id} label={im.role} />
                 <Button
-                  title="Add result photo"
+                  title="Remove photo from this draft"
                   kind="secondary"
-                  disabled={busy}
-                  onPress={() => photo("result")}
-                />
-                <Button
-                  title="Add setup photo"
-                  kind="secondary"
-                  disabled={busy}
-                  onPress={() => photo("setup")}
-                />
-                <Button
-                  title="Take setup photo"
-                  kind="secondary"
-                  disabled={busy}
-                  onPress={() => photo("setup", true)}
+                  onPress={() =>
+                    change({
+                      ...form,
+                      images: form.images.filter(
+                        (i) => i.image_id !== im.image_id,
+                      ),
+                    })
+                  }
                 />
               </View>
-              {form.images.map((im) => (
-                <View key={im.image_id} style={{ gap: 8 }}>
-                  <Photo id={im.image_id} label={im.role} />
-                  <Button
-                    title="Remove photo from this draft"
-                    kind="secondary"
-                    onPress={() =>
-                      change({
-                        ...form,
-                        images: form.images.filter(
-                          (i) => i.image_id !== im.image_id,
-                        ),
-                      })
-                    }
-                  />
-                </View>
-              ))}
-            </Card>
-          )}
+            ))}
+            {photoFailure && (
+              <Card style={{ borderColor: "#F4C88B" }}>
+                <Badge tone="warning">PHOTO NOT SAVED</Badge>
+                <Heading>Could not add this photo</Heading>
+                <Body>{photoFailure.message}</Body>
+                <Body muted>
+                  Your setup name, notes, lights and camera details remain in
+                  the draft.
+                </Body>
+                <Button
+                  title="Try again"
+                  onPress={() => photo(photoFailure.role)}
+                />
+                <Button
+                  title="Choose another photo"
+                  kind="secondary"
+                  onPress={() => photo(photoFailure.role)}
+                />
+                <Button
+                  title="Continue without this photo"
+                  kind="secondary"
+                  onPress={() => {
+                    setPhotoFailure(null);
+                    setError(null);
+                  }}
+                />
+              </Card>
+            )}
+          </Card>
         </View>
         <View style={columns.column}>
-          {(allFields || stage === 2) && (
-            <Card>
-              <Label>03 / LIGHT DETAILS</Label>
-              <Field
-                label="Light role"
-                value={form.role}
-                onChange={(role) => change({ ...form, role })}
-              />
-              <Field
-                label="Power (optional)"
-                value={form.power}
-                onChange={(power) => change({ ...form, power })}
-                placeholder="1/16 or 25%"
-              />
-              <Field
-                label="Modifier (optional)"
-                value={form.modifier}
-                onChange={(modifier) => change({ ...form, modifier })}
-                placeholder="Large softbox"
-              />
-              <Button
-                title={
-                  precision ? "Hide measurements" : "Add manual measurements"
-                }
-                kind="secondary"
-                onPress={() => setPrecision((v) => !v)}
-              />
-              {precision && (
-                <>
-                  <Body muted>
-                    Use the same points every time: measure height to the
-                    light's centre above the floor, and distance from the
-                    modifier's front centre to your chosen point on the subject.
-                    Record that subject point and any floor marks in setup
-                    notes. These are manual readings.
-                  </Body>
-                  <Field
-                    label="Distance to subject (cm)"
-                    numeric
-                    value={form.distance}
-                    onChange={(distance) => change({ ...form, distance })}
-                  />
-                  <Field
-                    label="Light height above floor (cm)"
-                    numeric
-                    value={form.height}
-                    onChange={(height) => change({ ...form, height })}
-                  />
-                </>
-              )}
-            </Card>
-          )}
-          {(allFields || stage === 3) && (
-            <Card>
-              <Button
-                title={
-                  showCamera
-                    ? "Hide camera settings"
-                    : "Add camera settings (optional)"
-                }
-                kind="secondary"
-                onPress={() => setShowCamera((v) => !v)}
-              />
-              {showCamera && (
-                <>
-                  <Body muted>
-                    Save these with the setup. Leave unknown settings blank.
-                  </Body>
-                  <Field
-                    label="Focal length (mm)"
-                    numeric
-                    value={cameraFields.focal}
-                    onChange={(focal) => setCamera({ focal })}
-                  />
-                  <Field
-                    label="Aperture (f-number)"
-                    numeric
-                    value={cameraFields.aperture}
-                    onChange={(aperture) => setCamera({ aperture })}
-                  />
-                  <Field
-                    label="Shutter speed"
-                    value={cameraFields.shutter}
-                    placeholder="1/200 or 0.005 seconds"
-                    onChange={(shutter) => setCamera({ shutter })}
-                  />
-                  <View style={s.row}>
-                    {["1/60", "1/125", "1/200", "1/250"].map((shutter) => (
-                      <Button
-                        key={shutter}
-                        title={shutter}
-                        kind="secondary"
-                        onPress={() => setCamera({ shutter })}
-                      />
-                    ))}
-                  </View>
-                  <Field
-                    label="ISO"
-                    numeric
-                    value={cameraFields.iso}
-                    onChange={(iso) => setCamera({ iso })}
-                  />
-                  <Body muted>Camera and lens used</Body>
-                  {repo
-                    .equipment()
-                    .filter((e) => ["camera", "lens"].includes(e.kind))
-                    .map((e) => (
-                      <Button
-                        key={e.id}
-                        kind="secondary"
-                        title={
-                          (cameraFields.equipmentIds.includes(e.id)
-                            ? "✓ "
-                            : "＋ ") + e.name
-                        }
-                        onPress={() =>
-                          setCamera({
-                            equipmentIds: cameraFields.equipmentIds.includes(
-                              e.id,
-                            )
-                              ? cameraFields.equipmentIds.filter(
-                                  (id) => id !== e.id,
-                                )
-                              : [...cameraFields.equipmentIds, e.id],
-                          })
-                        }
-                      />
-                    ))}
-                </>
-              )}
-            </Card>
-          )}
-          {(allFields || stage === 2) && (
-            <Card>
-              <Heading>Lighting equipment used</Heading>
-              <Button
-                title="Add equipment without leaving this draft"
-                kind="secondary"
-                onPress={() =>
-                  router.push({
-                    pathname: "/equipment",
-                    params: { returnToCapture: "1" },
-                  })
-                }
-              />
-              {lightingEquipment.length ? (
-                lightingEquipment.map((e) => (
-                  <Button
-                    key={e.id}
-                    kind="secondary"
-                    title={
-                      (form.equipmentIds.includes(e.id) ? "✓ " : "＋ ") + e.name
-                    }
-                    onPress={() =>
-                      change({
-                        ...form,
-                        equipmentIds: form.equipmentIds.includes(e.id)
-                          ? form.equipmentIds.filter((i) => i !== e.id)
-                          : [...form.equipmentIds, e.id],
-                      })
-                    }
-                  />
-                ))
-              ) : (
+          <Card>
+            <Label>03 / LIGHT DETAILS</Label>
+            <Field
+              label="Light role"
+              value={form.role}
+              onChange={(role) => change({ ...form, role })}
+            />
+            <Field
+              label="Power (optional)"
+              value={form.power}
+              onChange={(power) => change({ ...form, power })}
+              placeholder="1/16 or 25%"
+            />
+            <Field
+              label="Modifier (optional)"
+              value={form.modifier}
+              onChange={(modifier) => change({ ...form, modifier })}
+              placeholder="Large softbox"
+            />
+            <Button
+              title={
+                precision ? "Hide measurements" : "Add manual measurements"
+              }
+              kind="secondary"
+              onPress={() => setPrecision((v) => !v)}
+            />
+            {precision && (
+              <>
                 <Body muted>
-                  You can add equipment later. It will not block saving.
+                  Use the same points every time: measure height to the light's
+                  centre above the floor, and distance from the modifier's front
+                  centre to your chosen point on the subject. Record that
+                  subject point and any floor marks in setup notes. These are
+                  manual readings.
                 </Body>
-              )}
-            </Card>
-          )}
+                <Field
+                  label="Distance to subject (cm)"
+                  numeric
+                  value={form.distance}
+                  onChange={(distance) => change({ ...form, distance })}
+                />
+                <Field
+                  label="Light height above floor (cm)"
+                  numeric
+                  value={form.height}
+                  onChange={(height) => change({ ...form, height })}
+                />
+              </>
+            )}
+          </Card>
+          <Card>
+            <Button
+              title={
+                showCamera
+                  ? "Hide camera settings"
+                  : "Add camera settings (optional)"
+              }
+              kind="secondary"
+              onPress={() => setShowCamera((v) => !v)}
+            />
+            {showCamera && (
+              <>
+                <Body muted>
+                  Save these with the setup. Leave unknown settings blank.
+                </Body>
+                <Field
+                  label="Focal length (mm)"
+                  numeric
+                  value={cameraFields.focal}
+                  onChange={(focal) => setCamera({ focal })}
+                />
+                <Field
+                  label="Aperture (f-number)"
+                  numeric
+                  value={cameraFields.aperture}
+                  onChange={(aperture) => setCamera({ aperture })}
+                />
+                <Field
+                  label="Shutter speed"
+                  value={cameraFields.shutter}
+                  placeholder="1/200 or 0.005 seconds"
+                  onChange={(shutter) => setCamera({ shutter })}
+                />
+                <View style={s.row}>
+                  {["1/60", "1/125", "1/200", "1/250"].map((shutter) => (
+                    <Button
+                      key={shutter}
+                      title={shutter}
+                      kind="secondary"
+                      onPress={() => setCamera({ shutter })}
+                    />
+                  ))}
+                </View>
+                <Field
+                  label="ISO"
+                  numeric
+                  value={cameraFields.iso}
+                  onChange={(iso) => setCamera({ iso })}
+                />
+                <Body muted>Camera and lens used</Body>
+                {repo
+                  .equipment()
+                  .filter((e) => ["camera", "lens"].includes(e.kind))
+                  .map((e) => (
+                    <Button
+                      key={e.id}
+                      kind="secondary"
+                      title={
+                        (cameraFields.equipmentIds.includes(e.id)
+                          ? "✓ "
+                          : "＋ ") + e.name
+                      }
+                      onPress={() =>
+                        setCamera({
+                          equipmentIds: cameraFields.equipmentIds.includes(e.id)
+                            ? cameraFields.equipmentIds.filter(
+                                (id) => id !== e.id,
+                              )
+                            : [...cameraFields.equipmentIds, e.id],
+                        })
+                      }
+                    />
+                  ))}
+              </>
+            )}
+          </Card>
+          <Card>
+            <Heading>Lighting equipment used</Heading>
+            <Button
+              title="Add equipment without leaving this draft"
+              kind="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: "/equipment",
+                  params: { returnToCapture: "1" },
+                })
+              }
+            />
+            {lightingEquipment.length ? (
+              lightingEquipment.map((e) => (
+                <Button
+                  key={e.id}
+                  kind="secondary"
+                  title={
+                    (form.equipmentIds.includes(e.id) ? "✓ " : "＋ ") + e.name
+                  }
+                  onPress={() =>
+                    change({
+                      ...form,
+                      equipmentIds: form.equipmentIds.includes(e.id)
+                        ? form.equipmentIds.filter((i) => i !== e.id)
+                        : [...form.equipmentIds, e.id],
+                    })
+                  }
+                />
+              ))
+            ) : (
+              <Body muted>
+                You can add equipment later. It will not block saving.
+              </Body>
+            )}
+          </Card>
         </View>
       </View>
-      {!allFields && stage < 3 && (
-        <>
-          <Button
-            title={"Next: " + ["Photos", "Lights", "Camera"][stage]}
-            onPress={() => changeStage(stage + 1)}
-          />
-          <View style={{ height: 12 }} />
-        </>
+      {stage === "review" && (
+        <Card>
+          <Label>04 / REVIEW</Label>
+          <Heading>{form.title.trim() || "Unnamed setup"}</Heading>
+          <Body>{form.category} · {form.images.length} saved photo{form.images.length === 1 ? "" : "s"}</Body>
+          <Body>
+            Key light: {form.height ? `${form.height} cm high` : "height not recorded"} · {form.distance ? `${form.distance} cm from subject` : "distance not recorded"}
+          </Body>
+          <Body>
+            Camera: {form.camera ? `${form.camera.shutter || "shutter not recorded"} · f/${form.camera.aperture || "—"} · ISO ${form.camera.iso || "—"}` : "not recorded (skipped)"}
+          </Body>
+          <Body muted>
+            Only the details shown above and in the saved cards will be stored.
+            Blank values remain unknown.
+          </Body>
+        </Card>
       )}
       <Button
         title={busy ? "Saving…" : id ? "Save new version" : "Save setup"}

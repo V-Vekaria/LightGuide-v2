@@ -24,7 +24,9 @@ async function createRepository(): Promise<Repository> {
     close: () => sqlite.closeSync(),
   };
   try {
-    instance = new Repository(db, randomUUID);
+    const repository = new Repository(db, randomUUID);
+    repository.ensureAcceptanceSeed();
+    instance = repository;
   } catch (e) {
     sqlite.closeSync();
     throw e;

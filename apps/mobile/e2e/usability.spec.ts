@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 // Existing field-level regressions use the full-form accessibility option.
 test.beforeEach(async ({ page }) => {
   await page.addLocatorHandler(
@@ -35,8 +35,11 @@ test("Home opens disposable guided practice without adding library records", asy
   await page.getByRole("button", { name: "← Back", exact: true }).click();
   await page.getByRole("button", { name: "Setups tab", exact: true }).click();
   await expect(
-    page.getByText("No setups here yet.", { exact: true }),
+    page.getByText("Soft portrait — Example setup", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByText("EXAMPLE SETUP · DEMO", { exact: true }).filter({ visible: true }),
+  ).toHaveCount(1);
 });
 
 test("capture, equipment return, shutter fractions, photo zoom and explicit comparison outcome", async ({
@@ -56,6 +59,9 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
   await page.goto("/");
   await page.getByRole("button", { name: "Save a setup", exact: true }).click();
   await page.getByLabel("Setup name", { exact: true }).fill("Visual portrait");
+  await page
+    .getByRole("button", { name: "Add camera settings (optional)", exact: true })
+    .click();
 
   await expect(
     page.getByRole("button", { name: "＋ Portrait camera", exact: true }),
@@ -124,16 +130,16 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
     .getByRole("button", { name: "Recreate this version", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Enlarge Result", exact: true }),
+    page.getByRole("button", { name: "Enlarge Saved reference", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Top view", exact: true }),
   ).toHaveCount(0);
 
   await page.screenshot({ path: "artifacts/ux-manual-reference.png" });
-  await page.getByRole("button", { name: "Check", exact: true }).click();
+  await page.getByRole("button", { name: "Check phase", exact: true }).click();
   const finish = page.getByRole("button", {
-    name: "Save assessment",
+    name: "Finish and record outcome",
     exact: true,
   });
   await expect(finish).toBeDisabled();
@@ -172,7 +178,10 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
   await page.reload();
   await expect(finish).toBeDisabled();
   await page
-    .getByRole("button", { name: "Not evaluated", exact: true })
+    .getByRole("button", { name: "not evaluated", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Mark step complete", exact: true })
     .click();
   await finish.click();
   await expect(page.getByText("not evaluated", { exact: true })).toBeVisible();
@@ -180,7 +189,9 @@ test("capture, equipment return, shutter fractions, photo zoom and explicit comp
     .getByRole("button", { name: "Back to library", exact: true })
     .click();
   await expect(
-    page.getByRole("img", { name: "Setup preview", exact: true }),
+    page
+      .getByRole("button", { name: /Visual portrait/ })
+      .getByRole("img", { name: "Setup preview", exact: true }),
   ).toBeVisible();
   await page.screenshot({ path: "artifacts/ux-library-thumbnails.png" });
   expect(errors).toEqual([]);

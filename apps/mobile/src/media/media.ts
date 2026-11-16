@@ -4,6 +4,10 @@ import { Directory, File, Paths } from "expo-file-system";
 import { digest, CryptoDigestAlgorithm, randomUUID } from "expo-crypto";
 import * as Sharing from "expo-sharing";
 import type { Repository } from "../data/repository";
+import { DEMO_PLACEMENT_IMAGE_ID, DEMO_RESULT_IMAGE_ID } from "../data/repository";
+import { Asset } from "expo-asset";
+const demoResultAsset = require("../../assets/demo/soft-portrait-result.png");
+const demoPlacementAsset = require("../../assets/demo/soft-portrait-placement.png");
 
 const folder = () => {
   const d = new Directory(Paths.document, "photos");
@@ -95,6 +99,10 @@ export async function photoUri(
   repo: Repository,
   id: string,
 ): Promise<string | null> {
+  if (id === DEMO_RESULT_IMAGE_ID)
+    return Asset.fromModule(demoResultAsset).uri;
+  if (id === DEMO_PLACEMENT_IMAGE_ID)
+    return Asset.fromModule(demoPlacementAsset).uri;
   const row = repo.image(id);
   if (!row) return null;
   const file = photoFile(row.optimised_path);
@@ -125,6 +133,12 @@ export async function backupPhoto(
   repo: Repository,
   id: string,
 ): Promise<string | null> {
+  if (id === DEMO_RESULT_IMAGE_ID || id === DEMO_PLACEMENT_IMAGE_ID) {
+    const module = id === DEMO_RESULT_IMAGE_ID ? demoResultAsset : demoPlacementAsset;
+    const asset = Asset.fromModule(module);
+    await asset.downloadAsync();
+    return new File(asset.localUri ?? asset.uri).base64();
+  }
   const row = repo.image(id);
   if (!row) return null;
   const f = photoFile(row.optimised_path);

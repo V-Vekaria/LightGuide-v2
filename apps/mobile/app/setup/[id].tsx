@@ -64,6 +64,7 @@ export default function SetupDetail() {
     >
       <View style={[s.row, { marginBottom: 20 }]}>
         <Badge>{setup.category}</Badge>
+        {repo.isExampleSetup(setup.id) && <Badge>EXAMPLE SETUP · DEMO</Badge>}
         <Badge tone="muted">
           {version.id === setup.current_version_id
             ? "CURRENT VERSION"

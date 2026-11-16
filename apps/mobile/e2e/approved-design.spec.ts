@@ -1,16 +1,13 @@
-import {test,expect} from '@playwright/test';
+import { test, expect } from "./fixture";
 test('first use, four-stage capture, shoot dates and complete backup round trip',async({page})=>{
  await page.setViewportSize({width:390,height:844});
  await page.goto('/');
- await page.getByRole('button',{name:'Start my first setup',exact:true}).click();
- await page.getByRole('button',{name:'Continue to setup',exact:true}).click();
+ await page.getByRole('button',{name:'Save a setup',exact:true}).click();
  await page.getByLabel('Setup name',{exact:true}).fill('Approved workspace');
- await page.getByRole('button',{name:'Next: Photos',exact:true}).click();
  await expect(page.getByRole('button',{name:'Add result photo',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Next: Lights',exact:true}).click();
  await page.getByRole('button',{name:'Add manual measurements',exact:true}).click();
  await page.getByLabel('Light height above floor (cm)',{exact:true}).fill('170');
- await page.getByRole('button',{name:'Next: Camera',exact:true}).click();
+ await page.getByRole('button',{name:'Add camera settings (optional)',exact:true}).click();
  await page.getByLabel('ISO',{exact:true}).fill('100');
  await page.getByRole('button',{name:'Save setup',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Approved workspace',exact:true})).toBeVisible();

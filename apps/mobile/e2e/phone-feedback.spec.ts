@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture";
 // Existing field-level regressions use the full-form accessibility option.
 test.beforeEach(async ({ page }) => {
   await page.addLocatorHandler(
@@ -54,7 +54,12 @@ test("equipment explains names and filters distinct items", async ({
 }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto("/?tab=Equipment");
-  await expect(page.getByText("Your equipment, ready to use")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Know your equipment.", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Add one record for each item you own/),
+  ).toBeVisible();
   for (const name of ["Silver reflector", "White reflector"]) {
     await page
       .getByRole("button", { name: "Add equipment", exact: true })
