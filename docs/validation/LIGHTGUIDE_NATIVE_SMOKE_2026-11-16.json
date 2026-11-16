@@ -1,0 +1,24 @@
+{
+  "source_sha": "06171e15dd6347cffbebc49c6eb1b07f00e33cd2",
+  "package": "com.lightguide.codex",
+  "checks": [
+    "first-use onboarding completed",
+    "baseline setup saved before upgrade",
+    "install",
+    "launch",
+    "in-place upgrade retained saved setup",
+    "Home opens device connection screen",
+    "repeated Settings taps: one hardware Back returns Home",
+    "repeated Settings taps: one onscreen Back returns Home",
+    "setup name entered",
+    "save",
+    "force-close",
+    "offline reopen with saved setup",
+    "Camera to Lights navigation retains manual reading",
+    "explicit unevaluated outcome selected",
+    "manual recreate and record outcome"
+  ],
+  "serial": "emulator-5580",
+  "baseline_apk_sha256": "8fd663c367d81681a88c3bd3c551338514a95b2d0726d1f2cc52abd968fbc404",
+  "apk_sha256": "bf3366e872e14e970167f0016521107dba61383342e2e731916bbc6396e8f81c"
+}

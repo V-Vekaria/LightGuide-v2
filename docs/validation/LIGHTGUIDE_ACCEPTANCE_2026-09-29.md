@@ -137,3 +137,15 @@ That retry validates application source `06171e15dd6347cffbebc49c6eb1b07f00e33cd
 Separately, [hosted run 36813426780](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/36813426780) passed native smoke with the corrected driver at `adbb073c427f417a745390a85043d1e5e7a91eaf`. The driver opens the manual measurements panel before entering recreation height. This is separate evidence, not a pass for the interrupted Windows run.
 
 On 3 November, a local retry with the corrected driver started with 3,477,888 KiB free on the Windows host. The same read-only API 37.2 AVD booted in 93,667 ms, but host free RAM dropped to 326,956 KiB. Stopped only `emulator-5580` before the driver reported any passing checks. No candidate runtime result was added. Logs: `C:\lgb\emulator-ci-2026-11-03.stdout.log` and `C:\lgb\artifacts\android-smoke-run-2026-11-03.log`.
+
+## Local native smoke completed — 16 November 2026
+
+The full Windows native smoke journey passed with exit code 0 against the unchanged reviewed APK, SHA-256 `bf3366e872e14e970167f0016521107dba61383342e2e731916bbc6396e8f81c`, application source `06171e15dd6347cffbebc49c6eb1b07f00e33cd2`. Test environment: read-only Pixel_6, `emulator-5580`, API 37.2 / x86_64 / 16 KiB pages, not hosted CI's API 35 image. The successful retry began with 6,538,944 KiB free host RAM. Original AVD data/snapshots were not saved or modified, and the test emulator shut down after the run.
+
+An initial attempt exposed a driver startup race: activity launch completed before the first React screen rendered, so onboarding was skipped and the driver looked for `Save a setup` on Welcome. Updated `finish_onboarding()` to wait for either Welcome or Home, checking both text and accessibility descriptions and failing explicitly if neither appears. Python syntax validation passed. This changes only the driver, not the application or APK.
+
+The retry passed all 15 recorded checks: first-use onboarding; baseline save; reviewed APK install and launch; in-place upgrade retaining the saved setup; Home-to-device navigation; repeated Settings with hardware and onscreen Back; name entry; save; verified force-close; offline reopen; Camera-to-Lights manual-reading retention; explicit Not evaluated selection; and recreation outcome recording. Wi-Fi/mobile data were disabled for the offline journey and restored by driver cleanup.
+
+Machine-readable evidence: [native smoke JSON](LIGHTGUIDE_NATIVE_SMOKE_2026-11-16.json). Full local transcript and diagnostics remain at `C:\lgb\artifacts\android-smoke-run-2026-11-16-retry.log` and `C:\lgb\artifacts\android-smoke`; the failed startup-race evidence is preserved separately at `C:\lgb\artifacts\android-smoke-2026-11-16-startup-race`.
+
+The remaining local native smoke gate is complete. Earlier TypeScript, 62 Node tests, 25 browser journeys, exports, release build/lint-vital and APK identity/signature/alignment evidence remain applicable. This does not claim full third-party lint resolution, physical phone acceptance, live BLE, calibrated accuracy or iOS validation; those remain pending. No hosted workflow was rerun or marked passed by this local work.

@@ -1,5 +1,7 @@
 # LightGuide v2 — Current Status
 
+16 November 2026: the reviewed 0.2.1 / code 9 APK completed the full local Windows Android emulator smoke journey, including upgrade preservation, repeated navigation, offline save/restart and manual recreation outcome recording. The startup-race repair affects only the smoke driver. See [exact evidence and remaining physical gates](validation/LIGHTGUIDE_ACCEPTANCE_2026-09-29.md#local-native-smoke-completed--16-november-2026). Historical pending-runtime statements below predate this retest; phone/BLE/accuracy/iOS acceptance remains pending.
+
 ## Latest verification — 6 October 2026
 
 [PR #24](https://github.com/V-Vekaria/LightGuide-v2/pull/24) remains open and unmerged. Its application source `adbb073c427f417a745390a85043d1e5e7a91eaf` passed all four jobs in [run 36813426780](https://github.com/V-Vekaria/LightGuide-v2/actions/runs/36813426780) on 1 October: software, positioning, android and android-smoke. Inspected smoke logs confirm installation, in-place upgrade with retained saved setup, repeated Settings navigation, offline save/reopen and manual recreation with retained readings. The Android artifact remains available as of this check.

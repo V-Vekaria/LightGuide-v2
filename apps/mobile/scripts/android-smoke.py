@@ -78,13 +78,22 @@ def launch():
         raise AssertionError('Android activity launch failed')
 
 def finish_onboarding():
-    labels = [n.get('text', '') for n in tree().iter('node')]
-    if 'Keep the lighting that worked.' in labels:
-        tap('Continue', scroll=True)
-        find('Make it yours.')
-        tap('Continue', scroll=True)
-        tap('Go to Home', scroll=True)
-        passed('first-use onboarding completed')
+    # Activity launch completion can precede the first React render. An empty
+    # tree is not evidence that onboarding has already been completed.
+    for _ in range(18):
+        labels = {value for node in tree().iter('node')
+                  for value in (node.get('text', ''), node.get('content-desc', ''))}
+        if 'Keep the lighting that worked.' in labels:
+            tap('Continue', scroll=True)
+            find('Make it yours.')
+            tap('Continue', scroll=True)
+            tap('Go to Home', scroll=True)
+            passed('first-use onboarding completed')
+            return
+        if 'Save a setup' in labels or 'Connect LightGuide device' in labels:
+            return
+        time.sleep(.5)
+    raise AssertionError('Neither Welcome nor Home rendered after activity launch')
 
 try:
     apk=Path('android/app/build/outputs/apk/release/app-release.apk')
